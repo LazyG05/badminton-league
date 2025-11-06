@@ -244,7 +244,7 @@ export default function App() {
     const newMs: Match[] = pairs.map(([a, b]) => ({ id: uid(), a, b, round: currentRound }));
     setMatches((ms) => [...ms, ...newMs]);
   }
-  function recordWinner(matchId: string, winnerId?: string)(matchId: string, winnerId?: string) {
+  function recordWinner(matchId: string, winnerId?: string) {
     setMatches((ms) => ms.map((m) => (m.id === matchId ? { ...m, winner: winnerId } : m)));
   }
   function finalizeRound() {
