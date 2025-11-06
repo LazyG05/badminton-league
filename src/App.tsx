@@ -546,8 +546,6 @@ export default function App() {
             </div>
           </section>
         )}
-
-        <footer className="mt-8 text-center text-xs text-gray-500">Készítette: Te 🫶 – Használd bátran, alakítsd igény szerint.</footer>
       </div>
     </div>
   );
