@@ -230,9 +230,10 @@ export default function App() {
   }
   function drawRound() {
     if (!started) return;
-    const unfinished = matches.filter((m) => m.round === currentRound && !m.winner);
-    if (unfinished.length > 0) {
-      alert("Előbb rögzítsd az aktuális kör eredményeit!");
+    // Ne lehessen újra sorsolni ugyanarra a körre, ha már vannak meccsek benne
+    const anyThisRound = matches.some((m) => m.round === currentRound);
+    if (anyThisRound) {
+      alert("Ebben a körben már vannak meccsek. Zárd le a kört, majd sorsolj a következőre.");
       return;
     }
     const pairs = findRoundPairings(competitorIds, playedPairs);
@@ -243,7 +244,7 @@ export default function App() {
     const newMs: Match[] = pairs.map(([a, b]) => ({ id: uid(), a, b, round: currentRound }));
     setMatches((ms) => [...ms, ...newMs]);
   }
-  function recordWinner(matchId: string, winnerId?: string) {
+  function recordWinner(matchId: string, winnerId?: string)(matchId: string, winnerId?: string) {
     setMatches((ms) => ms.map((m) => (m.id === matchId ? { ...m, winner: winnerId } : m)));
   }
   function finalizeRound() {
@@ -407,7 +408,7 @@ export default function App() {
                   <h2 className="text-lg font-semibold">{tournamentComplete ? "Bajnokság vége 🎉" : `Aktuális kör: ${currentRound}`}</h2>
                   <div className="flex gap-2">
                     {!tournamentComplete && (
-                      <button className={btnSecondary} onClick={drawRound}>Sorsolás</button>
+                      <button className={btnSecondary} onClick={drawRound} disabled={currentRoundMatches.length > 0 || tournamentComplete}>Sorsolás</button>
                     )}
                     <button className={btnPrimary} onClick={finalizeRound}>Kör lezárása</button>
                   </div>
