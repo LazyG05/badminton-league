@@ -152,11 +152,11 @@ function RoundControls({ currentRound, canDraw, onAutoDraw, onFinalize, isAdmin 
 }
 
 // ---- Drag & Drop párosító (admin) ----
-function DnDPairs({ players, seenTeammates, onCreateMatch, disabled }: { players: Player[]; seenTeammates: Set<string>; onCreateMatch: (a: Pair, b: Pair) => void; disabled?: boolean; }) {
-  const [pool, setPool] = useState<string[]>(players.map((p) => p.id));
+function DnDPairs({ players, availableIds, seenTeammates, onCreateMatch, disabled }: { players: Player[]; availableIds: string[]; seenTeammates: Set<string>; onCreateMatch: (a: Pair, b: Pair) => void; disabled?: boolean; }) {
+  const [pool, setPool] = useState<string[]>(availableIds);
   const [teamA, setTeamA] = useState<string[]>([]);
   const [teamB, setTeamB] = useState<string[]>([]);
-  useEffect(() => { setPool(players.map((p) => p.id)); setTeamA([]); setTeamB([]); }, [players]);
+  useEffect(() => { setPool(availableIds); setTeamA([]); setTeamB([]); }, [availableIds.join(",")]);
 
   const onDragStart = (pid: string) => (e: React.DragEvent) => { e.dataTransfer.setData("text/plain", pid); };
   const onDropFactory = (target: 'A' | 'B' | 'POOL') => (e: React.DragEvent) => {
@@ -204,7 +204,7 @@ function DnDPairs({ players, seenTeammates, onCreateMatch, disabled }: { players
       </div>
       <div className="mt-3 flex gap-2">
         <button className={btnPrimary} disabled={!canCreate} onClick={() => { onCreateMatch([teamA[0], teamA[1]], [teamB[0], teamB[1]]); setTeamA([]); setTeamB([]); }}>Meccs hozzáadása ehhez a körhöz</button>
-        <button className={btnSecondary} onClick={() => { setPool(players.map(p=>p.id)); setTeamA([]); setTeamB([]); }} disabled={!!disabled}>Visszaállítás</button>
+        <button className={btnSecondary} onClick={() => { setPool(availableIds); setTeamA([]); setTeamB([]); }} disabled={!!disabled}>Visszaállítás</button>
       </div>
       <p className="mt-2 text-xs text-gray-500">Tipp: a sárga keret jelzi, ha a kiválasztott páros már volt együtt.</p>
     </div>
@@ -226,9 +226,9 @@ function MatchList({ matches, nameOf, onPick, disabled }: { matches: Match[]; na
           <li key={m.id} className="flex items-center justify-between rounded-xl border p-3">
             <div className="flex min-w-0 items-center gap-2">
               <span className="shrink-0 rounded bg-gray-100 px-2 py-1 text-xs">#{m.round}</span>
-              <span className="truncate font-medium">{nameOf(m.teamA[0])} & {nameOf(m.teamA[1])}</span>
+              <span className="truncate font-medium">{nameOf(m.teamA[0])} & {nameOf(m.teamA[1])} {m.winner==='A' && '🏆'}</span>
               <span className="shrink-0 text-gray-400">vs</span>
-              <span className="truncate font-medium">{nameOf(m.teamB[0])} & {nameOf(m.teamB[1])}</span>
+              <span className="truncate font-medium">{nameOf(m.teamB[0])} & {nameOf(m.teamB[1])} {m.winner==='B' && '🏆'}</span>
             </div>
             <div className="flex items-center gap-3 text-sm">
               <label className="flex items-center gap-2">
@@ -263,7 +263,7 @@ function History({ allMatches, nameOf }: { allMatches: Match[]; nameOf: (id: str
               <span className="mx-1 text-gray-400">vs</span>
               <b>{nameOf(m.teamB[0])}</b> & <b>{nameOf(m.teamB[1])}</b>
               {m.winner ? (
-                <span className="ml-2">– Győztes: <b>{m.winner === 'A' ? `${nameOf(m.teamA[0])} & ${nameOf(m.teamA[1])}` : `${nameOf(m.teamB[0])} & ${nameOf(m.teamB[1])}`}</b></span>
+                <span className="ml-2">– Győztes: <b>{m.winner === 'A' ? `${nameOf(m.teamA[0])} & ${nameOf(m.teamA[1])}` : `${nameOf(m.teamB[0])} & ${nameOf(m.teamB[1])}`}</b> 🏆</span>
               ) : (
                 <span className="ml-2 text-gray-500">– nincs rögzített eredmény</span>
               )}
@@ -360,7 +360,9 @@ export default function App() {
 
   const seenTeammates = useMemo(() => { const s = new Set<string>(); matches.forEach((m) => { s.add(key(m.teamA[0], m.teamA[1])); s.add(key(m.teamB[0], m.teamB[1])); }); return s; }, [matches]);
   const currentRoundMatches = useMemo(() => matches.filter((m) => m.round === currentRound), [matches, currentRound]);
-  const canDraw = useMemo(() => currentRoundMatches.length === 0, [currentRoundMatches.length]);
+  const usedThisRound = useMemo(() => { const s = new Set<string>(); currentRoundMatches.forEach(m=>{ m.teamA.forEach(id=>s.add(id)); m.teamB.forEach(id=>s.add(id)); }); return s; }, [currentRoundMatches]);
+  const availableIds = useMemo(() => players.filter(p=>!usedThisRound.has(p.id)).map(p=>p.id), [players, usedThisRound]);
+  const canDraw = useMemo(() => availableIds.length >= 4, [availableIds.length]);
 
   const standings = useMemo(() => {
     const rows = players.map((p) => {
@@ -388,7 +390,7 @@ export default function App() {
     write({ matches: [...matches, ...ms] });
   };
 
-  const createMatch = (a: Pair, b: Pair) => { if (!isAdmin) return; if (!canDraw) { alert("Ebben a körben már vannak meccsek."); return; } write({ matches: [...matches, { id: uid(), teamA: a, teamB: b, round: currentRound }] }); };
+  const createMatch = (a: Pair, b: Pair) => { if (!isAdmin) return; write({ matches: [...matches, { id: uid(), teamA: a, teamB: b, round: currentRound }] }); };
   const pickWinner = (matchId: string, winner?: "A" | "B") => { if (!isAdmin) return; write({ matches: matches.map((m) => (m.id === matchId ? { ...m, winner } : m)) }); };
 
   const finalizeRound = () => {
@@ -427,8 +429,8 @@ export default function App() {
           <section className="grid gap-4 sm:gap-6 md:grid-cols-3">
             <div className="space-y-4 md:col-span-2">
               <RoundControls currentRound={currentRound} canDraw={canDraw} onAutoDraw={autoDraw} onFinalize={finalizeRound} isAdmin={isAdmin} />
-              {isAdmin && canDraw && (
-                <DnDPairs players={players} seenTeammates={seenTeammates} onCreateMatch={createMatch} />
+              {isAdmin && (
+                <DnDPairs players={players} availableIds={availableIds} seenTeammates={seenTeammates} onCreateMatch={createMatch} />
               )}
               <MatchList matches={currentRoundMatches} nameOf={nameOf} onPick={pickWinner} disabled={!isAdmin} />
               <History allMatches={matches} nameOf={nameOf} />
