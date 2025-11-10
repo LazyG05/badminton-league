@@ -223,4 +223,226 @@ function MatchList({ matches, nameOf, onPick, disabled }: { matches: Match[]; na
     <div className={card}>
       <ul className="space-y-3">
         {matches.map((m) => (
-          <li key={m.id} className="flex items-center justify-between rou
+          <li key={m.id} className="flex items-center justify-between rounded-xl border p-3">
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="shrink-0 rounded bg-gray-100 px-2 py-1 text-xs">#{m.round}</span>
+              <span className="truncate font-medium">{nameOf(m.teamA[0])} & {nameOf(m.teamA[1])}</span>
+              <span className="shrink-0 text-gray-400">vs</span>
+              <span className="truncate font-medium">{nameOf(m.teamB[0])} & {nameOf(m.teamB[1])}</span>
+            </div>
+            <div className="flex items-center gap-3 text-sm">
+              <label className="flex items-center gap-2">
+                <input className="h-5 w-5" type="radio" name={`winner-${m.id}`} checked={m.winner === 'A'} onChange={() => onPick(m.id, 'A')} disabled={!!disabled} />
+                <span className="hidden sm:inline">A csapat</span>
+              </label>
+              <label className="flex items-center gap-2">
+                <input className="h-5 w-5" type="radio" name={`winner-${m.id}`} checked={m.winner === 'B'} onChange={() => onPick(m.id, 'B')} disabled={!!disabled} />
+                <span className="hidden sm:inline">B csapat</span>
+              </label>
+              <button className={btnSecondary} onClick={() => onPick(m.id, undefined)} disabled={!!disabled}>törlés</button>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function History({ allMatches, nameOf }: { allMatches: Match[]; nameOf: (id: string) => string }) {
+  return (
+    <div className={card}>
+      <h3 className="mb-2 font-semibold">Meccstörténet</h3>
+      {allMatches.length === 0 ? (
+        <p className="text-sm text-gray-500">Még nincs meccs.</p>
+      ) : (
+        <ul className="divide-y">
+          {allMatches.slice().sort((a, b) => a.round - b.round).map((m) => (
+            <li key={m.id} className="py-2 text-sm">
+              <span className="mr-2 rounded bg-gray-100 px-2 py-0.5 text-xs">#{m.round}</span>
+              <b>{nameOf(m.teamA[0])}</b> & <b>{nameOf(m.teamA[1])}</b>
+              <span className="mx-1 text-gray-400">vs</span>
+              <b>{nameOf(m.teamB[0])}</b> & <b>{nameOf(m.teamB[1])}</b>
+              {m.winner ? (
+                <span className="ml-2">– Győztes: <b>{m.winner === 'A' ? `${nameOf(m.teamA[0])} & ${nameOf(m.teamA[1])}` : `${nameOf(m.teamB[0])} & ${nameOf(m.teamB[1])}`}</b></span>
+              ) : (
+                <span className="ml-2 text-gray-500">– nincs rögzített eredmény</span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function Standings({ rows }: { rows: { id: string; name: string; wins: number; losses: number; points: number }[] }) {
+  return (
+    <div className={card}>
+      <h2 className="mb-2 text-lg font-semibold">Egyéni tabella</h2>
+      {rows.length === 0 ? (
+        <p className="text-sm text-gray-500">Nincs versenyző.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-gray-500">
+                <th className="py-2 pr-2">#</th>
+                <th className="py-2 pr-2">Játékos</th>
+                <th className="py-2 pr-2">Győzelem</th>
+                <th className="py-2 pr-2">Vereség</th>
+                <th className="py-2 pr-2">Pont</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, idx) => (
+                <tr key={row.id} className="border-t">
+                  <td className="py-2 pr-2 align-middle">{idx + 1}</td>
+                  <td className="py-2 pr-2 align-middle font-medium">{row.name}</td>
+                  <td className="py-2 pr-2 align-middle">{row.wins}</td>
+                  <td className="py-2 pr-2 align-middle">{row.losses}</td>
+                  <td className="py-2 pr-2 align-middle font-semibold">{row.points}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PasswordGate({ onViewerOk, onAdminOk }: { onViewerOk: () => void; onAdminOk: () => void }) {
+  const [pw, setPw] = useState("");
+  const [err, setErr] = useState("");
+  return (
+    <div className="min-h-screen grid place-items-center bg-slate-50 p-6">
+      <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow">
+        <h2 className="mb-3 text-lg font-semibold">Belépés</h2>
+        <p className="mb-3 text-sm text-gray-600">Add meg a jelszót. Néző: <code>biatollas</code> · Admin: <code>biatollasadmin</code></p>
+        <input className={input} type="password" placeholder="Jelszó" value={pw} onChange={(e) => setPw(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handle(); }} />
+        <div className="mt-3 flex gap-2">
+          <button className={btnSecondary} onClick={() => { setPw('biatollas'); handle('viewer'); }}>Gyors néző</button>
+          <button className={btnPrimary} onClick={() => handle()}>Belépés</button>
+        </div>
+        {err && <p className="mt-2 text-sm text-rose-600">{err}</p>}
+      </div>
+    </div>
+  );
+  function handle(force?: 'viewer') {
+    const val = force === 'viewer' ? 'biatollas' : pw;
+    if (val === 'biatollasadmin') { onAdminOk(); }
+    else if (val === 'biatollas') { onViewerOk(); }
+    else setErr('Hibás jelszó');
+  }
+}
+
+// ========================= App =========================
+export default function App() {
+  const leagueId = useLeagueId();
+  const [state, write] = useLeagueSync(leagueId);
+  const { started, players, matches, currentRound } = state;
+
+  // Passwords & roles
+  const [authed, setAuthed] = useState(() => localStorage.getItem("bia_auth") === "ok");
+  const [isAdmin, setIsAdmin] = useState(() => localStorage.getItem("bia_admin") === "ok");
+  const enterViewer = () => { localStorage.setItem("bia_auth", "ok"); setAuthed(true); };
+  const enterAdmin = () => { localStorage.setItem("bia_auth", "ok"); localStorage.setItem("bia_admin", "ok"); setAuthed(true); setIsAdmin(true); };
+  if (!authed) return <PasswordGate onViewerOk={enterViewer} onAdminOk={enterAdmin} />;
+
+  const askAdmin = () => {
+    const pw = prompt("Admin jelszó?");
+    if (pw === 'biatollasadmin') { enterAdmin(); } else alert('Hibás jelszó');
+  };
+
+  // Derived
+  const playerMap = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
+  const nameOf = useCallback((id: string) => playerMap.get(id)?.name ?? "?", [playerMap]);
+
+  const seenTeammates = useMemo(() => { const s = new Set<string>(); matches.forEach((m) => { s.add(key(m.teamA[0], m.teamA[1])); s.add(key(m.teamB[0], m.teamB[1])); }); return s; }, [matches]);
+  const currentRoundMatches = useMemo(() => matches.filter((m) => m.round === currentRound), [matches, currentRound]);
+  const canDraw = useMemo(() => currentRoundMatches.length === 0, [currentRoundMatches.length]);
+
+  const standings = useMemo(() => {
+    const rows = players.map((p) => {
+      const played = matches.filter((m) => m.winner && ([m.teamA[0], m.teamA[1], m.teamB[0], m.teamB[1]].includes(p.id)));
+      const wins = played.filter((m) => (m.winner === 'A' && (m.teamA[0] === p.id || m.teamA[1] === p.id)) || (m.winner === 'B' && (m.teamB[0] === p.id || m.teamB[1] === p.id))).length;
+      const losses = played.length - wins; return { id: p.id, name: p.name, wins, losses, points: wins };
+    });
+    return rows.sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
+  }, [players, matches]);
+
+  // Actions
+  const addPlayerByName = (name: string) => { const t = name.trim(); if (!t) return; if (players.some((p) => p.name.toLowerCase() === t.toLowerCase())) return; write({ players: [...players, { id: uid(), name: t, wins: 0, losses: 0 }] }); };
+  const removePlayer = (id: string) => { write({ players: players.filter((p) => p.id !== id) }); };
+  const resetAll = () => { if (!confirm("Biztosan törlöd a teljes bajnokságot?")) return; write({ started: false, players: [], matches: [], currentRound: 0 }); };
+
+  const startLeague = () => { if (players.length < 4) { alert("Legalább 4 játékos szükséges a páros körökhöz."); return; } write({ started: true, currentRound: 1, matches: [] }); };
+
+  const autoDraw = () => {
+    if (!started) return;
+    if (!canDraw) { alert("Ebben a körben már vannak meccsek. Zárd le a kört, majd sorsolj a következőre."); return; }
+    const pairs = makePairsForRound(players.map((p) => p.id), seenTeammates);
+    if (pairs.length < 2) { alert("Most nem tudunk meccset kihozni. (Kevés játékos?)"); return; }
+    const ms: Match[] = [];
+    for (let i = 0; i + 1 < pairs.length; i += 2) { ms.push({ id: uid(), teamA: pairs[i], teamB: pairs[i + 1], round: currentRound }); }
+    write({ matches: [...matches, ...ms] });
+  };
+
+  const createMatch = (a: Pair, b: Pair) => { if (!isAdmin) return; if (!canDraw) { alert("Ebben a körben már vannak meccsek."); return; } write({ matches: [...matches, { id: uid(), teamA: a, teamB: b, round: currentRound }] }); };
+  const pickWinner = (matchId: string, winner?: "A" | "B") => { if (!isAdmin) return; write({ matches: matches.map((m) => (m.id === matchId ? { ...m, winner } : m)) }); };
+
+  const finalizeRound = () => {
+    if (!isAdmin) return;
+    const roundMs = matches.filter((m) => m.round === currentRound);
+    if (roundMs.length === 0) { alert("Nincs meccs ebben a körben."); return; }
+    if (roundMs.some((m) => !m.winner)) { alert("Minden meccshez válaszd ki a győztest!"); return; }
+    const map = new Map(players.map((p) => [p.id, { ...p }]));
+    roundMs.forEach((m) => { const winTeam = m.winner === 'A' ? m.teamA : m.teamB; const loseTeam = m.winner === 'A' ? m.teamB : m.teamA; winTeam.forEach((pid) => { const p = map.get(pid)!; p.wins += 1; }); loseTeam.forEach((pid) => { const p = map.get(pid)!; p.losses += 1; }); });
+    write({ players: Array.from(map.values()), currentRound: currentRound + 1 });
+  };
+
+  // Render
+  return (
+    <div className="min-h-screen bg-slate-50 text-slate-900">
+      <div className="mx-auto max-w-5xl p-4 sm:p-6">
+        <Header onReset={resetAll} isAdmin={isAdmin} onAdmin={askAdmin} />
+
+        {!started ? (
+          <section className="grid gap-4 sm:gap-6 md:grid-cols-2">
+            <div className={card}>
+              <h2 className="mb-2 text-lg font-semibold">Szabályok</h2>
+              <ul className="list-disc space-y-1 pl-5 text-sm text-gray-700">
+                <li>Csak páros meccsek játszhatók.</li>
+                <li>Minden körben új csapattársakat használjatok – sárga jelzés mutatja, ha a páros már volt együtt.</li>
+                <li>Az egyéni tabellán győzelem = 1 pont, vereség = 0 pont.</li>
+              </ul>
+            </div>
+            <PlayerEditor players={players} onAdd={addPlayerByName} onRemove={removePlayer} disabled={!isAdmin} />
+            <div className={`${card} md:col-span-2 flex flex-col items-stretch justify-between gap-2 sm:flex-row sm:items-center`}>
+              <p className="text-gray-700">Játékosok száma: <b>{players.length}</b> — legalább 4 kell a kezdéshez.</p>
+              <button className={btnPrimary} onClick={startLeague} disabled={!isAdmin || players.length < 4}>Bajnokság indítása</button>
+            </div>
+          </section>
+        ) : (
+          <section className="grid gap-4 sm:gap-6 md:grid-cols-3">
+            <div className="space-y-4 md:col-span-2">
+              <RoundControls currentRound={currentRound} canDraw={canDraw} onAutoDraw={autoDraw} onFinalize={finalizeRound} isAdmin={isAdmin} />
+              {isAdmin && canDraw && (
+                <DnDPairs players={players} seenTeammates={seenTeammates} onCreateMatch={createMatch} />
+              )}
+              <MatchList matches={currentRoundMatches} nameOf={nameOf} onPick={pickWinner} disabled={!isAdmin} />
+              <History allMatches={matches} nameOf={nameOf} />
+            </div>
+            <div className="space-y-4">
+              <Standings rows={standings} />
+              <div className={card}>
+                <h3 className="mb-2 font-semibold">Új játékos felvétele</h3>
+                <p className="text-sm text-gray-500">A bajnokság közben is hozzáadhatsz játékost – a <b>következő körben</b> már benne lesz a párosításban.</p>
+              </div>
+            </div>
+          </section>
+        )}
+      </div>
+    </div>
+  );
+}
