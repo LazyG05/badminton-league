@@ -7,16 +7,18 @@ import {
   setDoc,
   serverTimestamp,
   enableIndexedDbPersistence,
+  collection,
 } from "firebase/firestore";
 import { getAuth, signInAnonymously } from "firebase/auth";
 
 /**
  * =============================================================
- *  BIA-TOLLAS – v6
+ *  BIA-TOLLAS – v7
+ *  - Kezdőképernyő: ligaválasztó csempékkel + „+” új liga
+ *  - Csempe halvány tollaslabda háttérrel
  *  - PÁROS ONLY, EGYÉNI TABELLA
- *  - Nézői jelszó: "biatollas" (UI gate)
- *  - Admin jelszó: "biatollasadmin" → szerkesztő mód
- *  - Admin: Drag & Drop párosítás az aktuális körre + opcionális "Párok sorsolása" gomb
+ *  - Néző jelszó: "biatollas" · Admin jelszó: "biatollasadmin"
+ *  - Admin: Drag & Drop több meccs egy körben + opcionális automata sorsolás (szabad játékosokból)
  *  - Firestore realtime, anonim auth
  * =============================================================
  */
@@ -25,7 +27,15 @@ import { getAuth, signInAnonymously } from "firebase/auth";
 export type Player = { id: string; name: string; wins: number; losses: number };
 export type Pair = [string, string];
 export type Match = { id: string; teamA: Pair; teamB: Pair; winner?: "A" | "B"; round: number };
-export type LeagueState = { started: boolean; players: Player[]; matches: Match[]; currentRound: number; updatedAt?: unknown };
+export type LeagueState = {
+  started: boolean;
+  players: Player[];
+  matches: Match[];
+  currentRound: number;
+  title?: string;
+  createdAt?: unknown;
+  updatedAt?: unknown;
+};
 
 // ========================= Firebase =========================
 const firebaseConfig = {
@@ -46,6 +56,7 @@ enableIndexedDbPersistence(db).catch(() => {});
 const uid = () => Math.random().toString(36).slice(2, 10);
 const key = (a: string, b: string) => [a, b].sort().join("::");
 function shuffle<T>(arr: T[]): T[] { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function slugify(s: string) { return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)+/g, ""); }
 
 // Autó sorsoló: készít párokat úgy, hogy korábbi CSAPATTÁRS párok ne ismétlődjenek
 function makePairsForRound(playerIds: string[], seenTeammates: Set<string>): Pair[] {
@@ -69,11 +80,35 @@ const btnBase = "inline-flex items-center justify-center rounded-xl px-4 py-2 te
 const btnPrimary = `${btnBase} bg-indigo-600 text-white hover:bg-indigo-700 focus-visible:ring-indigo-600`;
 const btnSecondary = `${btnBase} border border-gray-300 bg-white text-gray-900 hover:bg-gray-50 focus-visible:ring-gray-400`;
 const btnDanger = `${btnBase} bg-rose-600 text-white hover:bg-rose-700 focus-visible:ring-rose-600`;
-const card = "rounded-2xl bg-white p-4 shadow";
+const card = "relative overflow-hidden rounded-2xl bg-white p-4 shadow";
 const input = "w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500";
 
+// halvány tollaslabda háttér SVG
+const ShuttleBg = () => (
+  <svg className="pointer-events-none absolute right-2 top-2 h-20 w-20 opacity-10" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M10 34c10-8 24-8 34 0l6 6-8 8-6-6c-8-10-8-24 0-34" stroke="currentColor" strokeWidth="2"/>
+    <circle cx="46" cy="46" r="6" stroke="currentColor" strokeWidth="2"/>
+  </svg>
+);
+
 // ========================= Hooks =========================
-function useLeagueId() { const params = new URLSearchParams(window.location.search); return params.get("leagueId") || "default"; }
+function getLeagueIdFromURL() { const params = new URLSearchParams(window.location.search); return params.get("leagueId"); }
+function useLeagueId() {
+  const [leagueId, setLeagueId] = useState<string | null>(() => getLeagueIdFromURL());
+  useEffect(() => {
+    const onPop = () => setLeagueId(getLeagueIdFromURL());
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+  const navigate = (id: string | null) => {
+    const url = new URL(window.location.href);
+    if (id) url.searchParams.set('leagueId', id); else url.searchParams.delete('leagueId');
+    window.history.pushState({}, '', url.toString());
+    setLeagueId(id);
+  };
+  return { leagueId, navigate } as const;
+}
+
 function useLeagueSync(leagueId: string) {
   const [state, setState] = useState<LeagueState>({ started: false, players: [], matches: [], currentRound: 0 });
   const suppressWriteRef = useRef(false); const writeTimeout = useRef<number | null>(null);
@@ -100,11 +135,30 @@ function useLeagueSync(leagueId: string) {
   return [state, write] as const;
 }
 
+function useLeaguesIndex() {
+  const [items, setItems] = useState<{ id: string; title?: string; players?: number; createdAt?: any; updatedAt?: any }[]>([]);
+  useEffect(() => {
+    const cref = collection(db, 'leagues');
+    const unsub = onSnapshot(cref, (snap) => {
+      const arr: typeof items = [];
+      snap.forEach((d) => {
+        const data = d.data() as LeagueState;
+        arr.push({ id: d.id, title: data.title, players: data.players?.length ?? 0, createdAt: (data as any).createdAt, updatedAt: data.updatedAt });
+      });
+      // rendezzük frissítés szerint
+      arr.sort((a, b) => (b.updatedAt?.toMillis?.() ?? 0) - (a.updatedAt?.toMillis?.() ?? 0));
+      setItems(arr);
+    });
+    return () => unsub();
+  }, []);
+  return items;
+}
+
 // ========================= Components =========================
-function Header({ onReset, isAdmin, onAdmin }: { onReset: () => void; isAdmin: boolean; onAdmin: () => void }) {
+function Header({ onReset, isAdmin, onAdmin, title }: { onReset: () => void; isAdmin: boolean; onAdmin: () => void; title?: string }) {
   return (
     <header className="mb-4 flex flex-col gap-2 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
-      <h1 className="text-xl font-bold sm:text-2xl">🏸 Bia-Tollas bajnokság – páros meccsek, egyéni tabella</h1>
+      <h1 className="text-xl font-bold sm:text-2xl">🏸 {title || 'Bia-Tollas bajnokság'} – páros meccsek, egyéni tabella</h1>
       <div className="flex gap-2">
         {!isAdmin && <button onClick={onAdmin} className={btnSecondary}>Szerkesztő mód</button>}
         <button onClick={onReset} className={btnSecondary}>Új bajnokság</button>
@@ -117,6 +171,7 @@ function PlayerEditor({ players, onAdd, onRemove, disabled }: { players: Player[
   const [name, setName] = useState("");
   return (
     <div className={card}>
+      <ShuttleBg />
       <h2 className="mb-2 text-lg font-semibold">Játékosok ({players.length})</h2>
       <div className="flex w-full flex-col gap-2 sm:flex-row">
         <input className={input} placeholder="Játékos neve" value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !disabled) { onAdd(name); setName(''); } }} disabled={!!disabled} />
@@ -139,6 +194,7 @@ function PlayerEditor({ players, onAdd, onRemove, disabled }: { players: Player[
 function RoundControls({ currentRound, canDraw, onAutoDraw, onFinalize, isAdmin }: { currentRound: number; canDraw: boolean; onAutoDraw: () => void; onFinalize: () => void; isAdmin: boolean; }) {
   return (
     <div className={card}>
+      <ShuttleBg />
       <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-lg font-semibold">Aktuális kör: {currentRound}</h2>
         <div className="flex gap-2">
@@ -151,7 +207,7 @@ function RoundControls({ currentRound, canDraw, onAutoDraw, onFinalize, isAdmin 
   );
 }
 
-// ---- Drag & Drop párosító (admin) ----
+// ---- Drag & Drop párosító (admin, több meccs hozzádás egymás után) ----
 function DnDPairs({ players, availableIds, seenTeammates, onCreateMatch, disabled }: { players: Player[]; availableIds: string[]; seenTeammates: Set<string>; onCreateMatch: (a: Pair, b: Pair) => void; disabled?: boolean; }) {
   const [pool, setPool] = useState<string[]>(availableIds);
   const [teamA, setTeamA] = useState<string[]>([]);
@@ -161,7 +217,6 @@ function DnDPairs({ players, availableIds, seenTeammates, onCreateMatch, disable
   const onDragStart = (pid: string) => (e: React.DragEvent) => { e.dataTransfer.setData("text/plain", pid); };
   const onDropFactory = (target: 'A' | 'B' | 'POOL') => (e: React.DragEvent) => {
     e.preventDefault(); const pid = e.dataTransfer.getData("text/plain"); if (!pid) return;
-    // remove from all
     setTeamA((t) => t.filter((x) => x !== pid)); setTeamB((t) => t.filter((x) => x !== pid)); setPool((t) => t.filter((x) => x !== pid));
     if (target === 'A') setTeamA((t) => (t.length < 2 ? [...t, pid] : t));
     else if (target === 'B') setTeamB((t) => (t.length < 2 ? [...t, pid] : t));
@@ -175,7 +230,8 @@ function DnDPairs({ players, availableIds, seenTeammates, onCreateMatch, disable
 
   return (
     <div className={card}>
-      <h3 className="mb-2 font-semibold">Párosítás (Drag & Drop)</h3>
+      <ShuttleBg />
+      <h3 className="mb-2 font-semibold">Párosítás (Drag & Drop) – elérhető játékosok: {pool.length}</h3>
       <div className="grid gap-3 md:grid-cols-3">
         <div className="rounded-xl border p-3" onDrop={onDropFactory('POOL')} onDragOver={allowDrop}>
           <div className="mb-2 text-sm font-medium text-gray-600">Választhatók</div>
@@ -202,11 +258,11 @@ function DnDPairs({ players, availableIds, seenTeammates, onCreateMatch, disable
           </div>
         </div>
       </div>
-      <div className="mt-3 flex gap-2">
-        <button className={btnPrimary} disabled={!canCreate} onClick={() => { onCreateMatch([teamA[0], teamA[1]], [teamB[0], teamB[1]]); setTeamA([]); setTeamB([]); }}>Meccs hozzáadása ehhez a körhöz</button>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button className={btnPrimary} disabled={!canCreate} onClick={() => { onCreateMatch([teamA[0], teamA[1]], [teamB[0], teamB[1]]); setTeamA([]); setTeamB([]); }}>Hozzáadás ehhez a körhöz</button>
         <button className={btnSecondary} onClick={() => { setPool(availableIds); setTeamA([]); setTeamB([]); }} disabled={!!disabled}>Visszaállítás</button>
+        <span className="text-xs text-gray-500">Tipp: 8 játékos → 2 meccs, 12 játékos → 3 meccs stb. Egymás után add hozzá a meccseket; a rendszer mindig a még szabad játékosokat mutatja.</span>
       </div>
-      <p className="mt-2 text-xs text-gray-500">Tipp: a sárga keret jelzi, ha a kiválasztott páros már volt együtt.</p>
     </div>
   );
 }
@@ -215,12 +271,14 @@ function MatchList({ matches, nameOf, onPick, disabled }: { matches: Match[]; na
   if (matches.length === 0) {
     return (
       <div className={card}>
+        <ShuttleBg />
         <p className="text-sm text-gray-500">Még nincs meccs ebben a körben. Hozz létre kettőt Drag & Drop-pal vagy használd a sorsolót.</p>
       </div>
     );
   }
   return (
     <div className={card}>
+      <ShuttleBg />
       <ul className="space-y-3">
         {matches.map((m) => (
           <li key={m.id} className="flex items-center justify-between rounded-xl border p-3">
@@ -251,6 +309,7 @@ function MatchList({ matches, nameOf, onPick, disabled }: { matches: Match[]; na
 function History({ allMatches, nameOf }: { allMatches: Match[]; nameOf: (id: string) => string }) {
   return (
     <div className={card}>
+      <ShuttleBg />
       <h3 className="mb-2 font-semibold">Meccstörténet</h3>
       {allMatches.length === 0 ? (
         <p className="text-sm text-gray-500">Még nincs meccs.</p>
@@ -278,6 +337,7 @@ function History({ allMatches, nameOf }: { allMatches: Match[]; nameOf: (id: str
 function Standings({ rows }: { rows: { id: string; name: string; wins: number; losses: number; points: number }[] }) {
   return (
     <div className={card}>
+      <ShuttleBg />
       <h2 className="mb-2 text-lg font-semibold">Egyéni tabella</h2>
       {rows.length === 0 ? (
         <p className="text-sm text-gray-500">Nincs versenyző.</p>
@@ -336,11 +396,42 @@ function PasswordGate({ onViewerOk, onAdminOk }: { onViewerOk: () => void; onAdm
   }
 }
 
+function LeagueTile({ title, subtitle, onClick, plus }: { title: string; subtitle?: string; onClick: () => void; plus?: boolean }) {
+  return (
+    <button onClick={onClick} className="relative flex h-28 w-full items-center justify-between gap-3 rounded-2xl border bg-white p-4 text-left shadow hover:shadow-md">
+      <ShuttleBg />
+      <div className="flex items-center gap-3">
+        <div className={`grid h-10 w-10 place-items-center rounded-xl ${plus ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-100 text-slate-600'}`}>{plus ? '+' : '🏸'}</div>
+        <div>
+          <div className="text-base font-semibold">{title}</div>
+          {subtitle && <div className="text-xs text-gray-500">{subtitle}</div>}
+        </div>
+      </div>
+      {!plus && <span className="text-sm text-gray-400">Megnyitás →</span>}
+    </button>
+  );
+}
+
+function LeaguePicker({ onOpen, onCreate }: { onOpen: (id: string) => void; onCreate: () => void }) {
+  const leagues = useLeaguesIndex();
+  return (
+    <div className="min-h-screen bg-slate-50 text-slate-900">
+      <div className="mx-auto max-w-3xl p-6">
+        <h1 className="mb-4 text-2xl font-bold">Válassz bajnokságot</h1>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {leagues.map((l) => (
+            <LeagueTile key={l.id} title={l.title || l.id} subtitle={`${l.players ?? 0} játékos`} onClick={() => onOpen(l.id)} />
+          ))}
+          <LeagueTile title="Új bajnokság" subtitle="Hozz létre egyet" plus onClick={onCreate} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ========================= App =========================
 export default function App() {
-  const leagueId = useLeagueId();
-  const [state, write] = useLeagueSync(leagueId);
-  const { started, players, matches, currentRound } = state;
+  const { leagueId, navigate } = useLeagueId();
 
   // Passwords & roles
   const [authed, setAuthed] = useState(() => localStorage.getItem("bia_auth") === "ok");
@@ -349,17 +440,33 @@ export default function App() {
   const enterAdmin = () => { localStorage.setItem("bia_auth", "ok"); localStorage.setItem("bia_admin", "ok"); setAuthed(true); setIsAdmin(true); };
   if (!authed) return <PasswordGate onViewerOk={enterViewer} onAdminOk={enterAdmin} />;
 
-  const askAdmin = () => {
-    const pw = prompt("Admin jelszó?");
-    if (pw === 'biatollasadmin') { enterAdmin(); } else alert('Hibás jelszó');
-  };
+  // Ha nincs kiválasztott liga → kezdőképernyő
+  if (!leagueId) {
+    const onOpen = (id: string) => navigate(id);
+    const onCreate = async () => {
+      const name = prompt('Új bajnokság neve? (pl. Bia-Tollas 2025/Ősz)')?.trim();
+      if (!name) return;
+      const base = slugify(name) || `liga-${uid()}`;
+      const id = `${base}-${uid().slice(0,4)}`;
+      const initial: LeagueState = { started: false, players: [], matches: [], currentRound: 0, title: name, createdAt: serverTimestamp(), updatedAt: serverTimestamp() };
+      await setDoc(doc(db, 'leagues', id), initial, { merge: true });
+      navigate(id);
+    };
+    return <LeaguePicker onOpen={onOpen} onCreate={onCreate} />;
+  }
+
+  // Liga nézet
+  const [state, write] = useLeagueSync(leagueId);
+  const { started, players, matches, currentRound, title } = state;
+
+  const askAdmin = () => { const pw = prompt("Admin jelszó?"); if (pw === 'biatollasadmin') { enterAdmin(); } else alert('Hibás jelszó'); };
 
   // Derived
   const playerMap = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
   const nameOf = useCallback((id: string) => playerMap.get(id)?.name ?? "?", [playerMap]);
 
-  const seenTeammates = useMemo(() => { const s = new Set<string>(); matches.forEach((m) => { s.add(key(m.teamA[0], m.teamA[1])); s.add(key(m.teamB[0], m.teamB[1])); }); return s; }, [matches]);
   const currentRoundMatches = useMemo(() => matches.filter((m) => m.round === currentRound), [matches, currentRound]);
+  const seenTeammates = useMemo(() => { const s = new Set<string>(); matches.forEach((m) => { s.add(key(m.teamA[0], m.teamA[1])); s.add(key(m.teamB[0], m.teamB[1])); }); return s; }, [matches]);
   const usedThisRound = useMemo(() => { const s = new Set<string>(); currentRoundMatches.forEach(m=>{ m.teamA.forEach(id=>s.add(id)); m.teamB.forEach(id=>s.add(id)); }); return s; }, [currentRoundMatches]);
   const availableIds = useMemo(() => players.filter(p=>!usedThisRound.has(p.id)).map(p=>p.id), [players, usedThisRound]);
   const canDraw = useMemo(() => availableIds.length >= 4, [availableIds.length]);
@@ -378,13 +485,14 @@ export default function App() {
   const removePlayer = (id: string) => { write({ players: players.filter((p) => p.id !== id) }); };
   const resetAll = () => { if (!confirm("Biztosan törlöd a teljes bajnokságot?")) return; write({ started: false, players: [], matches: [], currentRound: 0 }); };
 
-  const startLeague = () => { if (players.length < 4) { alert("Legalább 4 játékos szükséges a páros körökhöz."); return; } write({ started: true, currentRound: 1, matches: [] }); };
+  const startLeague = () => { if (players.length < 4) { alert("Legalább 4 játékos szükséges a páros körökhöz."); return; } write({ started: true, currentRound: 1, matches: [], title: title || `Liga ${leagueId}` }); };
 
   const autoDraw = () => {
     if (!started) return;
-    if (!canDraw) { alert("Ebben a körben már vannak meccsek. Zárd le a kört, majd sorsolj a következőre."); return; }
-    const pairs = makePairsForRound(players.map((p) => p.id), seenTeammates);
-    if (pairs.length < 2) { alert("Most nem tudunk meccset kihozni. (Kevés játékos?)"); return; }
+    const ids = availableIds; // csak a még nem pályán lévők
+    if (ids.length < 4) { alert("Nincs elég szabad játékos ehhez a körhöz."); return; }
+    const pairs = makePairsForRound(ids, seenTeammates);
+    if (pairs.length < 2) { alert("Most nem tudunk meccset kihozni. (Kevés szabad játékos?)"); return; }
     const ms: Match[] = [];
     for (let i = 0; i + 1 < pairs.length; i += 2) { ms.push({ id: uid(), teamA: pairs[i], teamB: pairs[i + 1], round: currentRound }); }
     write({ matches: [...matches, ...ms] });
@@ -403,15 +511,16 @@ export default function App() {
     write({ players: Array.from(map.values()), currentRound: currentRound + 1 });
   };
 
-  // Render
+  // Render – liga
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <div className="mx-auto max-w-5xl p-4 sm:p-6">
-        <Header onReset={resetAll} isAdmin={isAdmin} onAdmin={askAdmin} />
+        <Header onReset={resetAll} isAdmin={isAdmin} onAdmin={askAdmin} title={title || leagueId} />
 
         {!started ? (
           <section className="grid gap-4 sm:gap-6 md:grid-cols-2">
             <div className={card}>
+              <ShuttleBg />
               <h2 className="mb-2 text-lg font-semibold">Szabályok</h2>
               <ul className="list-disc space-y-1 pl-5 text-sm text-gray-700">
                 <li>Csak páros meccsek játszhatók.</li>
@@ -421,8 +530,12 @@ export default function App() {
             </div>
             <PlayerEditor players={players} onAdd={addPlayerByName} onRemove={removePlayer} disabled={!isAdmin} />
             <div className={`${card} md:col-span-2 flex flex-col items-stretch justify-between gap-2 sm:flex-row sm:items-center`}>
+              <ShuttleBg />
               <p className="text-gray-700">Játékosok száma: <b>{players.length}</b> — legalább 4 kell a kezdéshez.</p>
-              <button className={btnPrimary} onClick={startLeague} disabled={!isAdmin || players.length < 4}>Bajnokság indítása</button>
+              <div className="flex gap-2">
+                <button className={btnSecondary} onClick={() => navigate(null)}>Vissza a ligalistához</button>
+                <button className={btnPrimary} onClick={startLeague} disabled={!isAdmin || players.length < 4}>Bajnokság indítása</button>
+              </div>
             </div>
           </section>
         ) : (
@@ -438,8 +551,10 @@ export default function App() {
             <div className="space-y-4">
               <Standings rows={standings} />
               <div className={card}>
+                <ShuttleBg />
                 <h3 className="mb-2 font-semibold">Új játékos felvétele</h3>
                 <p className="text-sm text-gray-500">A bajnokság közben is hozzáadhatsz játékost – a <b>következő körben</b> már benne lesz a párosításban.</p>
+                <button className={`${btnSecondary} mt-2`} onClick={() => navigate(null)}>Vissza a ligalistához</button>
               </div>
             </div>
           </section>
