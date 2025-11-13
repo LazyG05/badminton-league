@@ -362,17 +362,38 @@ export default function App() {
   const freeIds = useMemo(()=> players.map(p=> p.id), [players]);
 
   // Standings (aggregate all dates)
-  const standings = useMemo(()=>{
+   const standings = useMemo(() => {
     const map = new Map<string, { id: string; name: string; wins: number; losses: number; points: number }>();
-    players.forEach(p => map.set(p.id, { id: p.id, name: p.name, wins:0, losses:0, points:0 }));
-    league.matches.forEach(m => {
-      if(!m.winner) return;
-      const win = m.winner==='A'? m.teamA : m.teamB; const lose = m.winner==='A'? m.teamB : m.teamA;
-      win.forEach(id => { const r = map.get(id)!; r.wins++; r.points++; });
-      lose.forEach(id => { const r = map.get(id)!; r.losses++; });
+
+    players.forEach((p) =>
+      map.set(p.id, { id: p.id, name: p.name, wins: 0, losses: 0, points: 0 })
+    );
+
+    league.matches.forEach((m) => {
+      if (!m.winner) return;
+
+      const win = m.winner === "A" ? m.teamA : m.teamB;
+      const lose = m.winner === "A" ? m.teamB : m.teamA;
+
+      win.forEach((id) => {
+        const r = map.get(id);
+        if (!r) return; // ha a játékost már törölték, ugorjuk
+        r.wins++;
+        r.points++;
+      });
+
+      lose.forEach((id) => {
+        const r = map.get(id);
+        if (!r) return; // ugyanígy itt is
+        r.losses++;
+      });
     });
-    return Array.from(map.values()).sort((a,b)=> b.points - a.points || a.name.localeCompare(b.name));
+
+    return Array.from(map.values()).sort(
+      (a, b) => b.points - a.points || a.name.localeCompare(b.name)
+    );
   }, [league.matches, players]);
+
 
   // Grouped results for Player view
   const grouped = useMemo(()=>{
@@ -382,31 +403,40 @@ export default function App() {
   }, [league.matches]);
 
   // Actions
-    const addPlayer = (name: string) => {
-    const t = name.trim();
-    if (!t) return;
+const addPlayer = (name: string) => {
+  const t = name.trim();
+  if (!t) return;
 
-    // prevent duplicates ignoring the emoji prefix
-    if (
-      players.some(
-        (p) => p.name.replace(/^.+?\s/, "").toLowerCase() === t.toLowerCase()
-      )
+  // prevent duplicates ignoring emoji prefix
+  if (
+    players.some(
+      (p) => p.name.replace(/^.+?\s/, "").toLowerCase() === t.toLowerCase()
     )
-      return;
+  )
+    return;
 
-    const animals = [
-      "🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼","🐨","🐯","🦁","🐮","🐷","🐸",
-      "🐵","🐔","🐧","🐦","🐤","🦆","🦅","🦉","🐺","🦄","🐝","🐛","🦋","🐌",
-      "🐞","🐢","🐍","🦎"
-    ];
-    const emoji = animals[Math.floor(Math.random() * animals.length)];
+  const animals = [
+    "🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼","🐨","🐯","🦁","🐮","🐷","🐸",
+    "🐵","🐔","🐧","🐦","🐤","🦆","🦅","🦉","🐺","🦄","🐝","🐛","🦋","🐌",
+    "🐞","🐢","🐍","🦎"
+  ];
+  const emoji = animals[Math.floor(Math.random() * animals.length)];
 
-    write({
-      players: [...players, { id: uid(), name: `${emoji} ${t}` }],
-    });
-  };
+  write({
+    players: [...players, { id: uid(), name: `${emoji} ${t}` }]
+  });
+};
 
-  const removePlayer = (id: string) => { write({ players: players.filter(p=> p.id!==id) }); };
+
+const removePlayer = (id: string) => {
+  const nextPlayers = players.filter((p) => p.id !== id);
+  const nextMatches = league.matches.filter(
+    (m) => ![...m.teamA, ...m.teamB].includes(id)
+  );
+
+  write({ players: nextPlayers, matches: nextMatches });
+};
+
 
   const addMatch = (a: Pair, b: Pair) => { if(!isAdmin) return; write({ matches: [...league.matches, { id: uid(), date, teamA: a, teamB: b }] }); };
   const pickWinner = (id: string, w: 'A'|'B') => { if(!isAdmin) return; write({ matches: league.matches.map(m=> m.id===id? { ...m, winner: w } : m) }); };
