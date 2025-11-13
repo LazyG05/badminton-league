@@ -382,10 +382,30 @@ export default function App() {
   }, [league.matches]);
 
   // Actions
-  const addPlayer = (name: string) => {
-    const t = name.trim(); if(!t) return; if(players.some(p=> p.name.toLowerCase()===t.toLowerCase())) return;
-    write({ players: [...players, { id: uid(), name: t }] });
+    const addPlayer = (name: string) => {
+    const t = name.trim();
+    if (!t) return;
+
+    // prevent duplicates ignoring the emoji prefix
+    if (
+      players.some(
+        (p) => p.name.replace(/^.+?\s/, "").toLowerCase() === t.toLowerCase()
+      )
+    )
+      return;
+
+    const animals = [
+      "🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼","🐨","🐯","🦁","🐮","🐷","🐸",
+      "🐵","🐔","🐧","🐦","🐤","🦆","🦅","🦉","🐺","🦄","🐝","🐛","🦋","🐌",
+      "🐞","🐢","🐍","🦎"
+    ];
+    const emoji = animals[Math.floor(Math.random() * animals.length)];
+
+    write({
+      players: [...players, { id: uid(), name: `${emoji} ${t}` }],
+    });
   };
+
   const removePlayer = (id: string) => { write({ players: players.filter(p=> p.id!==id) }); };
 
   const addMatch = (a: Pair, b: Pair) => { if(!isAdmin) return; write({ matches: [...league.matches, { id: uid(), date, teamA: a, teamB: b }] }); };
