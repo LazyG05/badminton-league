@@ -201,7 +201,7 @@ function DnDPairs({ players, freeIds, seenTeammates, onCreate, disabled }: { pla
   return (
     <div className={card}>
       <ShuttleBg />
-      <h3 className="mb-2 font-semibold">Pairing (Drag & Drop) – available: {pool.length}</h3>
+      <h3 className="mb-2 font-semibold">Pairing (Drag & Drop) – players available: {pool.length} (players can appear in multiple matches today)</h3>
       <div className="grid gap-3 md:grid-cols-3">
         <div className="rounded-xl border p-3" onDrop={drop('POOL')} onDragOver={allow}>
           <div className="mb-2 text-sm font-medium text-gray-600">Available</div>
@@ -212,7 +212,7 @@ function DnDPairs({ players, freeIds, seenTeammates, onCreate, disabled }: { pla
           </div>
         </div>
         <div className={`rounded-xl border p-3 ${warnA? 'border-amber-400':''}`} onDrop={drop('A')} onDragOver={allow}>
-          <div className="mb-2 text-sm font-medium">Team A {warnA && <span className="ml-2 text-amber-600">(teammates before)</span>}</div>
+          <div className="mb-2 text-sm font-medium">Team A {warnA && <span className="ml-2 text-amber-600">(pair already used today)</span>}</div>
           <div className="flex flex-wrap gap-2 min-h-[2.25rem]">
             {teamA.map(pid=> (
               <span key={pid} draggable={!disabled} onDragStart={onDragStart(pid)} className="cursor-move select-none rounded-lg bg-indigo-100 px-3 py-1 text-sm">{players.find(p=>p.id===pid)?.name}</span>
@@ -220,7 +220,7 @@ function DnDPairs({ players, freeIds, seenTeammates, onCreate, disabled }: { pla
           </div>
         </div>
         <div className={`rounded-xl border p-3 ${warnB? 'border-amber-400':''}`} onDrop={drop('B')} onDragOver={allow}>
-          <div className="mb-2 text-sm font-medium">Team B {warnB && <span className="ml-2 text-amber-600">(teammates before)</span>}</div>
+          <div className="mb-2 text-sm font-medium">Team B {warnB && <span className="ml-2 text-amber-600">(pair already used today)</span>}</div>
           <div className="flex flex-wrap gap-2 min-h-[2.25rem]">
             {teamB.map(pid=> (
               <span key={pid} draggable={!disabled} onDragStart={onDragStart(pid)} className="cursor-move select-none rounded-lg bg-indigo-100 px-3 py-1 text-sm">{players.find(p=>p.id===pid)?.name}</span>
@@ -356,19 +356,11 @@ export default function App() {
   const nameOf = useCallback((id:string)=> players.find(p=>p.id===id)?.name || '?', [players]);
 
   // seen teammate pairs across ALL matches
-  const seenTeammates = useMemo(()=>{
-    const s = new Set<string>();
-    league.matches.forEach(m => { s.add(key(m.teamA[0], m.teamA[1])); s.add(key(m.teamB[0], m.teamB[1])); });
-    return s;
-  }, [league.matches]);
+  const seenTeammatesAll = useMemo(()=>{ const s = new Set<string>(); league.matches.forEach(m => { s.add(key(m.teamA[0], m.teamA[1])); s.add(key(m.teamB[0], m.teamB[1])); }); return s; }, [league.matches]);
+  const seenTeammatesToday = useMemo(()=>{ const s = new Set<string>(); matchesForDate.forEach(m => { s.add(key(m.teamA[0], m.teamA[1])); s.add(key(m.teamB[0], m.teamB[1])); }); return s; }, [matchesForDate]);
 
   // who is already scheduled on selected date
-  const usedToday = useMemo(()=>{
-    const s = new Set<string>();
-    matchesForDate.forEach(m => { m.teamA.forEach(id=>s.add(id)); m.teamB.forEach(id=>s.add(id)); });
-    return s;
-  }, [matchesForDate]);
-  const freeIds = useMemo(()=> players.filter(p=> !usedToday.has(p.id)).map(p=>p.id), [players, usedToday]);
+  const freeIds = useMemo(()=> players.map(p=> p.id), [players]);
 
   // Standings (aggregate all dates)
   const standings = useMemo(()=>{
@@ -403,7 +395,7 @@ export default function App() {
 
   const autoDraw = () => {
     if(freeIds.length < 4) { alert('Not enough free players today.'); return; }
-    const pairs = makePairsForRound(freeIds, seenTeammates);
+    const pairs = makePairsForRound(freeIds, seenTeammatesToday);
     if(pairs.length < 2) { alert('Could not form a match.'); return; }
     const ms: Match[] = [];
     for(let i=0; i+1<pairs.length; i+=2){ ms.push({ id: uid(), date, teamA: pairs[i], teamB: pairs[i+1] }); }
@@ -429,11 +421,11 @@ export default function App() {
                     <button className={btnSecondary} onClick={autoDraw} disabled={freeIds.length<4}>Auto draw pairs</button>
                   </div>
                 </div>
-                <p className="text-sm text-gray-600">Free players today: <b>{freeIds.length}</b></p>
+                <p className="text-sm text-gray-600">Players in league: <b>{players.length}</b></p>
               </div>
 
               {/* Drag&Drop pairing to add multiple matches for the selected date */}
-              <DnDPairs players={players} freeIds={freeIds} seenTeammates={seenTeammates} onCreate={addMatch} />
+              <DnDPairs players={players} freeIds={freeIds} seenTeammates={seenTeammatesToday} onCreate={addMatch} />
 
               {/* Matches list (edit results) */}
               <MatchesAdmin matches={matchesForDate} nameOf={nameOf} onPick={pickWinner} onClear={clearWinner} />
