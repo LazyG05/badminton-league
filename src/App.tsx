@@ -356,7 +356,6 @@ export default function App() {
   const nameOf = useCallback((id:string)=> players.find(p=>p.id===id)?.name || '?', [players]);
 
   // seen teammate pairs across ALL matches
-  const seenTeammatesAll = useMemo(()=>{ const s = new Set<string>(); league.matches.forEach(m => { s.add(key(m.teamA[0], m.teamA[1])); s.add(key(m.teamB[0], m.teamB[1])); }); return s; }, [league.matches]);
   const seenTeammatesToday = useMemo(()=>{ const s = new Set<string>(); matchesForDate.forEach(m => { s.add(key(m.teamA[0], m.teamA[1])); s.add(key(m.teamB[0], m.teamB[1])); }); return s; }, [matchesForDate]);
 
   // who is already scheduled on selected date
