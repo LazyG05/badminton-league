@@ -102,7 +102,7 @@ function useLeague() {
   const [data, setData] = useState<LeagueDoc>({ players: [], matches: [] });
   const suppress = useRef(false); const tRef = useRef<number| null>(null);
   useEffect(() => {
-    const ref = doc(db, "league", "default");
+    const ref = doc(db, "leagues", "default");
     const unsub = onSnapshot(ref, async (snap) => {
       if (snap.metadata.hasPendingWrites) return;
       if (snap.exists()) { suppress.current = true; setData(snap.data() as LeagueDoc); setTimeout(() => (suppress.current = false), 0); }
@@ -115,7 +115,7 @@ function useLeague() {
     if (suppress.current) return;
     if (tRef.current) window.clearTimeout(tRef.current);
     tRef.current = window.setTimeout(async () => {
-      const ref = doc(db, "league", "default");
+      const ref = doc(db, "leagues", "default");
       const payload = { ...data, ...patch, updatedAt: serverTimestamp() } as LeagueDoc;
       try { await setDoc(ref, payload, { merge: true }); } catch {}
     }, 120);
