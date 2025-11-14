@@ -796,15 +796,6 @@ export default function App() {
 //   return s; 
 // }, [league.matches]);
 
-const seenTeammatesToday = useMemo(()=>{ 
-  const s = new Set<string>(); 
-  matchesForDate.forEach(m => { 
-    s.add(key(m.teamA[0], m.teamA[1])); 
-    s.add(key(m.teamB[0], m.teamB[1])); 
-  }); 
-  return s; 
-}, [matchesForDate]);
-
   const seenTeammatesToday = useMemo(() => {
     const s = new Set<string>();
     matchesForDate.forEach((m) => {
