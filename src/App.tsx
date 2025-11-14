@@ -12,22 +12,23 @@ import { getAuth, signInAnonymously } from "firebase/auth";
 
 /**
  * =============================================================
- *  BIA-TOLLAS – Fresh App v2
+ *  BIA-TOLLAS – Fresh App v1 (emoji picker)
  *  - English UI, no passwords; role toggle: Player/Admin
  *  - Practice nights with end-of-session doubles matches
- *  - Add players; each new player gets a random animal emoji 🐼🦊🐢
+ *  - Player has:
+ *      - name (text)
+ *      - emoji (chosen from animal emoji picker)
  *  - Drag & Drop to create multiple pairings per selected date
  *  - Record winners; standings are INDIVIDUAL (win=1, loss=0)
- *  - Rounds = calendar dates (YYYY-MM-DD); pick from a simple date picker
- *  - Player view: standings + per-round results (read-only)
- *  - Admin view: add players, create/edit results, BACKUP & RESTORE
- *  - Mobile-first responsive; cheerful badminton design
- *  - Firestore realtime sync (single league doc: "leagues/default")
+ *  - Rounds = calendar dates (YYYY-MM-DD)
+ *  - Player view: standings + per-round results
+ *  - Admin view: add players, change emojis, edit results
+ *  - Firestore realtime sync (single league doc: "league/default")
  * =============================================================
  */
 
 // ========================= Types =========================
-export type Player = { id: string; name: string };
+export type Player = { id: string; name: string; emoji?: string };
 export type Pair = [string, string];
 export type Match = {
   id: string;
@@ -36,21 +37,12 @@ export type Match = {
   teamB: Pair;
   winner?: "A" | "B";
 };
-
-export type Backup = {
-  id: string;
-  createdAt: string;
-  note?: string;
-  data: { players: Player[]; matches: Match[] };
-};
-
 export type LeagueDoc = {
   players: Player[];
-  matches: Match[];
+  matches: Match[]; // across all dates
   createdAt?: any;
   updatedAt?: any;
   title?: string;
-  backups?: Backup[];
 };
 
 // ========================= Firebase =========================
@@ -85,7 +77,74 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-// Build pairs avoiding previous TEAMMATE combos (for the given date) as much as possible
+// csak állatos emojik – pickerhez
+const ANIMAL_EMOJIS = [
+  "🐶",
+  "🐱",
+  "🐭",
+  "🐹",
+  "🐰",
+  "🦊",
+  "🐻",
+  "🐼",
+  "🐨",
+  "🐯",
+  "🦁",
+  "🐮",
+  "🐷",
+  "🐸",
+  "🐵",
+  "🐔",
+  "🐣",
+  "🐤",
+  "🐦",
+  "🕊️",
+  "🦅",
+  "🦉",
+  "🦆",
+  "🦢",
+  "🐺",
+  "🦝",
+  "🦄",
+  "🐴",
+  "🦓",
+  "🦌",
+  "🐑",
+  "🐏",
+  "🐐",
+  "🐪",
+  "🐫",
+  "🦙",
+  "🦒",
+  "🐘",
+  "🦛",
+  "🦏",
+  "🐗",
+  "🐢",
+  "🐍",
+  "🦎",
+  "🐊",
+  "🐙",
+  "🦑",
+  "🦐",
+  "🦞",
+  "🦀",
+  "🐡",
+  "🐠",
+  "🐟",
+  "🐬",
+  "🐳",
+  "🐋",
+  "🦈",
+  "🦦",
+  "🦭",
+  "🐝",
+  "🦋",
+  "🐞",
+  "🐜",
+];
+
+// Build pairs avoiding previous TEAMMATE combos as much as possible
 function makePairsForRound(ids: string[], seenTeammates: Set<string>): Pair[] {
   const list = shuffle(ids);
   function backtrack(rem: string[], cur: Pair[]): Pair[] {
@@ -141,16 +200,11 @@ const ShuttleBg = () => (
 
 // ========================= Data sync (single league doc) =========================
 function useLeague() {
-  const [data, setData] = useState<LeagueDoc>({
-    players: [],
-    matches: [],
-    backups: [],
-  });
+  const [data, setData] = useState<LeagueDoc>({ players: [], matches: [] });
   const suppress = useRef(false);
   const tRef = useRef<number | null>(null);
-
   useEffect(() => {
-    const ref = doc(db, "leagues", "default");
+    const ref = doc(db, "league", "default");
     const unsub = onSnapshot(ref, async (snap) => {
       if (snap.metadata.hasPendingWrites) return;
       if (snap.exists()) {
@@ -161,7 +215,6 @@ function useLeague() {
         await setDoc(ref, {
           players: [],
           matches: [],
-          backups: [],
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
@@ -169,17 +222,15 @@ function useLeague() {
     });
     return () => unsub();
   }, []);
-
   const write = useCallback(
     (patch: Partial<LeagueDoc>) => {
       setData((prev) => ({ ...prev, ...patch }));
       if (suppress.current) return;
       if (tRef.current) window.clearTimeout(tRef.current);
       tRef.current = window.setTimeout(async () => {
-        const ref = doc(db, "leagues", "default");
-        const current = data;
+        const ref = doc(db, "league", "default");
         const payload = {
-          ...current,
+          ...data,
           ...patch,
           updatedAt: serverTimestamp(),
         } as LeagueDoc;
@@ -190,7 +241,6 @@ function useLeague() {
     },
     [data]
   );
-
   return [data, write] as const;
 }
 
@@ -270,19 +320,37 @@ function PlayerEditor({
   players,
   onAdd,
   onRemove,
+  onEmojiChange,
   disabled,
 }: {
   players: Player[];
-  onAdd: (name: string) => void;
+  onAdd: (name: string, emoji: string) => void;
   onRemove: (id: string) => void;
+  onEmojiChange: (id: string, emoji: string) => void;
   disabled?: boolean;
 }) {
   const [name, setName] = useState("");
+  const [emoji, setEmoji] = useState<string>(ANIMAL_EMOJIS[0]);
+
   return (
     <div className={card}>
       <ShuttleBg />
-      <h2 className="mb-2 text-lg font-semibold">Players ({players.length})</h2>
+      <h2 className="mb-2 text-lg font-semibold">
+        Players ({players.length})
+      </h2>
       <div className="flex w-full flex-col gap-2 sm:flex-row">
+        <select
+          className="w-full max-w-[4.5rem] rounded-xl border border-gray-300 bg-white px-2 py-2 text-lg"
+          value={emoji}
+          onChange={(e) => setEmoji(e.target.value)}
+          disabled={!!disabled}
+        >
+          {ANIMAL_EMOJIS.map((e) => (
+            <option key={e} value={e}>
+              {e}
+            </option>
+          ))}
+        </select>
         <input
           className={input}
           placeholder="Player name"
@@ -290,7 +358,7 @@ function PlayerEditor({
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !disabled) {
-              onAdd(name);
+              onAdd(name, emoji);
               setName("");
             }
           }}
@@ -300,7 +368,7 @@ function PlayerEditor({
           className={btnPrimary}
           onClick={() => {
             if (!disabled) {
-              onAdd(name);
+              onAdd(name, emoji);
               setName("");
             }
           }}
@@ -314,9 +382,25 @@ function PlayerEditor({
           {players.map((p) => (
             <li
               key={p.id}
-              className="flex items-center justify-between py-2"
+              className="flex items-center justify-between py-2 gap-2"
             >
-              <span className="truncate">{p.name}</span>
+              <div className="flex items-center gap-2 min-w-0">
+                <select
+                  className="w-[3rem] rounded-xl border border-gray-300 bg-white px-1 py-1 text-lg"
+                  value={p.emoji || ANIMAL_EMOJIS[0]}
+                  onChange={(e) => onEmojiChange(p.id, e.target.value)}
+                  disabled={!!disabled}
+                >
+                  {ANIMAL_EMOJIS.map((e) => (
+                    <option key={e} value={e}>
+                      {e}
+                    </option>
+                  ))}
+                </select>
+                <span className="truncate">
+                  {p.emoji ? `${p.emoji} ${p.name}` : p.name}
+                </span>
+              </div>
               <button
                 className={btnDanger}
                 onClick={() => onRemove(p.id)}
@@ -348,11 +432,18 @@ function DnDPairs({
   const [pool, setPool] = useState<string[]>(freeIds);
   const [teamA, setTeamA] = useState<string[]>([]);
   const [teamB, setTeamB] = useState<string[]>([]);
+
   useEffect(() => {
     setPool(freeIds);
     setTeamA([]);
     setTeamB([]);
   }, [freeIds.join(",")]);
+
+  const label = (pid: string) => {
+    const p = players.find((p) => p.id === pid);
+    if (!p) return "?";
+    return p.emoji ? `${p.emoji} ${p.name}` : p.name;
+  };
 
   const onDragStart = (pid: string) => (e: React.DragEvent) => {
     e.dataTransfer.setData("text/plain", pid);
@@ -370,8 +461,10 @@ function DnDPairs({
     else setPool((t) => [...t, pid]);
   };
 
-  const warnA = teamA.length === 2 && seenTeammates.has(key(teamA[0], teamA[1]));
-  const warnB = teamB.length === 2 && seenTeammates.has(key(teamB[0], teamB[1]));
+  const warnA =
+    teamA.length === 2 && seenTeammates.has(key(teamA[0], teamA[1]));
+  const warnB =
+    teamB.length === 2 && seenTeammates.has(key(teamB[0], teamB[1]));
   const canCreate = teamA.length === 2 && teamB.length === 2 && !disabled;
 
   return (
@@ -387,7 +480,9 @@ function DnDPairs({
           onDrop={drop("POOL")}
           onDragOver={allow}
         >
-          <div className="mb-2 text-sm font-medium text-gray-600">Available</div>
+          <div className="mb-2 text-sm font-medium text-gray-600">
+            Available
+          </div>
           <div className="flex flex-wrap gap-2">
             {pool.map((pid) => (
               <span
@@ -396,7 +491,7 @@ function DnDPairs({
                 onDragStart={onDragStart(pid)}
                 className="cursor-move select-none rounded-lg bg-gray-100 px-3 py-1 text-sm"
               >
-                {players.find((p) => p.id === pid)?.name}
+                {label(pid)}
               </span>
             ))}
           </div>
@@ -424,7 +519,7 @@ function DnDPairs({
                 onDragStart={onDragStart(pid)}
                 className="cursor-move select-none rounded-lg bg-indigo-100 px-3 py-1 text-sm"
               >
-                {players.find((p) => p.id === pid)?.name}
+                {label(pid)}
               </span>
             ))}
           </div>
@@ -452,7 +547,7 @@ function DnDPairs({
                 onDragStart={onDragStart(pid)}
                 className="cursor-move select-none rounded-lg bg-indigo-100 px-3 py-1 text-sm"
               >
-                {players.find((p) => p.id === pid)?.name}
+                {label(pid)}
               </span>
             ))}
           </div>
@@ -654,60 +749,6 @@ function Standings({
   );
 }
 
-function BackupPanel({
-  backups,
-  onCreate,
-  onRestore,
-}: {
-  backups: Backup[];
-  onCreate: () => void;
-  onRestore: (id: string) => void;
-}) {
-  const sorted = [...backups].sort((a, b) =>
-    b.createdAt.localeCompare(a.createdAt)
-  );
-
-  return (
-    <div className={card}>
-      <ShuttleBg />
-      <h3 className="mb-2 font-semibold">Backups</h3>
-      <button className={btnSecondary} onClick={onCreate}>
-        Create backup now
-      </button>
-      {sorted.length === 0 ? (
-        <p className="mt-2 text-sm text-gray-500">No backups yet.</p>
-      ) : (
-        <ul className="mt-3 space-y-2 text-sm">
-          {sorted.map((b) => (
-            <li
-              key={b.id}
-              className="flex items-center justify-between rounded-xl border px-2 py-1"
-            >
-              <div className="mr-2 min-w-0">
-                <div className="truncate font-medium">
-                  {new Date(b.createdAt).toLocaleString()}
-                </div>
-                <div className="truncate text-xs text-gray-500">
-                  {b.note}
-                </div>
-              </div>
-              <button
-                className={btnSecondary}
-                onClick={() => onRestore(b.id)}
-              >
-                Restore
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-      <p className="mt-2 text-xs text-gray-400">
-        Tip: Create a backup before deleting players or changing many results.
-      </p>
-    </div>
-  );
-}
-
 // ========================= App =========================
 export default function App() {
   const [league, write] = useLeague();
@@ -730,19 +771,29 @@ export default function App() {
   const [date, setDate] = useState(() => fmt(new Date()));
 
   // Derive
-  const players = league.players || [];
-  const backups = league.backups ?? [];
-
+  const players = league.players;
   const matchesForDate = useMemo(
     () => league.matches.filter((m) => m.date === date),
     [league.matches, date]
   );
   const nameOf = useCallback(
-    (id: string) => players.find((p) => p.id === id)?.name || "?",
+    (id: string) => {
+      const p = players.find((p) => p.id === id);
+      if (!p) return "?";
+      return p.emoji ? `${p.emoji} ${p.name}` : p.name;
+    },
     [players]
   );
 
-  // seen teammate pairs only for this date
+  // seen teammate pairs across ALL matches
+  const seenTeammatesAll = useMemo(() => {
+    const s = new Set<string>();
+    league.matches.forEach((m) => {
+      s.add(key(m.teamA[0], m.teamA[1]));
+      s.add(key(m.teamB[0], m.teamB[1]));
+    });
+    return s;
+  }, [league.matches]);
   const seenTeammatesToday = useMemo(() => {
     const s = new Set<string>();
     matchesForDate.forEach((m) => {
@@ -752,45 +803,40 @@ export default function App() {
     return s;
   }, [matchesForDate]);
 
-  // everyone can appear in multiple matches on a date
+  // who is already scheduled on selected date
   const freeIds = useMemo(() => players.map((p) => p.id), [players]);
 
-  // Standings (aggregate all dates)
+  // Standings (aggregate all dates) – a név itt már emoji+név
   const standings = useMemo(() => {
     const map = new Map<
       string,
       { id: string; name: string; wins: number; losses: number; points: number }
     >();
-
     players.forEach((p) =>
       map.set(p.id, {
         id: p.id,
-        name: p.name,
+        name: p.emoji ? `${p.emoji} ${p.name}` : p.name,
         wins: 0,
         losses: 0,
         points: 0,
       })
     );
-
     league.matches.forEach((m) => {
       if (!m.winner) return;
       const win = m.winner === "A" ? m.teamA : m.teamB;
       const lose = m.winner === "A" ? m.teamB : m.teamA;
-
       win.forEach((id) => {
         const r = map.get(id);
         if (!r) return;
         r.wins++;
         r.points++;
       });
-
       lose.forEach((id) => {
         const r = map.get(id);
         if (!r) return;
         r.losses++;
       });
     });
-
     return Array.from(map.values()).sort(
       (a, b) => b.points - a.points || a.name.localeCompare(b.name)
     );
@@ -808,64 +854,21 @@ export default function App() {
   }, [league.matches]);
 
   // Actions
-  const addPlayer = (name: string) => {
+  const addPlayer = (name: string, emoji: string) => {
     const t = name.trim();
     if (!t) return;
+    if (players.some((p) => p.name.toLowerCase() === t.toLowerCase())) return;
+    write({ players: [...players, { id: uid(), name: t, emoji }] });
+  };
 
-    // prevent duplicates ignoring emoji prefix
-    if (
-      players.some(
-        (p) => p.name.replace(/^.+?\s/, "").toLowerCase() === t.toLowerCase()
-      )
-    )
-      return;
-
-    const animals = [
-      "🐶",
-      "🐱",
-      "🐭",
-      "🐹",
-      "🐰",
-      "🦊",
-      "🐻",
-      "🐼",
-      "🐨",
-      "🐯",
-      "🦁",
-      "🐮",
-      "🐷",
-      "🐸",
-      "🐵",
-      "🐔",
-      "🐧",
-      "🐦",
-      "🐤",
-      "🦆",
-      "🦅",
-      "🦉",
-      "🐺",
-      "🦄",
-      "🐝",
-      "🐛",
-      "🦋",
-      "🐌",
-      "🐞",
-      "🐢",
-      "🐍",
-      "🦎",
-    ];
-    const emoji = animals[Math.floor(Math.random() * animals.length)];
-
-    write({ players: [...players, { id: uid(), name: `${emoji} ${t}` }] });
+  const updatePlayerEmoji = (id: string, emoji: string) => {
+    write({
+      players: players.map((p) => (p.id === id ? { ...p, emoji } : p)),
+    });
   };
 
   const removePlayer = (id: string) => {
-    const nextPlayers = players.filter((p) => p.id !== id);
-    const nextMatches = league.matches.filter(
-      (m) => ![...m.teamA, ...m.teamB].includes(id)
-    );
-
-    write({ players: nextPlayers, matches: nextMatches });
+    write({ players: players.filter((p) => p.id !== id) });
   };
 
   const addMatch = (a: Pair, b: Pair) => {
@@ -874,7 +877,6 @@ export default function App() {
       matches: [...league.matches, { id: uid(), date, teamA: a, teamB: b }],
     });
   };
-
   const pickWinner = (id: string, w: "A" | "B") => {
     if (!isAdmin) return;
     write({
@@ -883,7 +885,6 @@ export default function App() {
       ),
     });
   };
-
   const clearWinner = (id: string) => {
     if (!isAdmin) return;
     write({
@@ -908,29 +909,6 @@ export default function App() {
       ms.push({ id: uid(), date, teamA: pairs[i], teamB: pairs[i + 1] });
     }
     write({ matches: [...league.matches, ...ms] });
-  };
-
-  const createBackup = () => {
-    const snapshot: Backup = {
-      id: uid(),
-      createdAt: new Date().toISOString(),
-      note: `Backup ${new Date().toLocaleString()}`,
-      data: { players, matches: league.matches },
-    };
-    const next = [...backups, snapshot].slice(-10); // keep last 10 backups
-    write({ backups: next });
-  };
-
-  const restoreBackup = (id: string) => {
-    const b = backups.find((b) => b.id === id);
-    if (!b) return;
-    if (
-      !confirm(
-        "Restore this backup? This will overwrite current players and matches."
-      )
-    )
-      return;
-    write({ players: b.data.players, matches: b.data.matches });
   };
 
   return (
@@ -991,11 +969,7 @@ export default function App() {
                 players={players}
                 onAdd={addPlayer}
                 onRemove={removePlayer}
-              />
-              <BackupPanel
-                backups={backups}
-                onCreate={createBackup}
-                onRestore={restoreBackup}
+                onEmojiChange={updatePlayerEmoji}
               />
             </div>
           </section>
@@ -1009,7 +983,7 @@ export default function App() {
               <div className={card}>
                 <ShuttleBg />
                 <h3 className="mb-2 font-semibold">How it works</h3>
-                <ul className="list-disc space-y-1 pl-5 text-sm text-gray-700">
+                <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1">
                   <li>
                     Admin creates pairings at the end of each session date.
                   </li>
