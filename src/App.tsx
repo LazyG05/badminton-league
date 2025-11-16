@@ -136,6 +136,103 @@ const card =
 const input =
   "w-full rounded-xl border border-[#e7f0ff] bg-white px-3 py-2 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#a6e3e9]";
 
+const BiatorbagyViaductBg = () => (
+  <svg
+    className="pointer-events-none fixed bottom-[-40px] left-1/2 -translate-x-1/2 w-[1400px] max-w-none opacity-20 -z-10 text-slate-500"
+    viewBox="0 0 1200 300"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    {/* Dombos alap */}
+    <path
+      d="M0 230 C 200 205 400 215 600 210 C 800 205 1000 220 1200 210 L 1200 300 L 0 300 Z"
+      fill="url(#groundGradient)"
+    />
+
+    {/* Kőpillérek */}
+    {/* kicsit eltolt, különböző szélességek – mint a fotón */}
+    <g opacity="0.85">
+      <rect x="110" y="140" width="46" height="95" rx="6" fill="currentColor" />
+      <rect x="270" y="140" width="46" height="100" rx="6" fill="currentColor" />
+      <rect x="430" y="140" width="46" height="105" rx="6" fill="currentColor" />
+      <rect x="590" y="140" width="46" height="110" rx="6" fill="currentColor" />
+      <rect x="750" y="140" width="46" height="105" rx="6" fill="currentColor" />
+      <rect x="910" y="140" width="46" height="100" rx="6" fill="currentColor" />
+      <rect x="1070" y="140" width="46" height="95" rx="6" fill="currentColor" />
+    </g>
+
+    {/* Kisebb boltívek a bal oldalon – utalás a képre */}
+    <g opacity="0.8">
+      <path
+        d="M110 210 Q 133 185 156 210"
+        stroke="currentColor"
+        strokeWidth="4"
+        fill="none"
+      />
+      <path
+        d="M270 210 Q 293 185 316 210"
+        stroke="currentColor"
+        strokeWidth="4"
+        fill="none"
+      />
+      <path
+        d="M430 210 Q 453 185 476 210"
+        stroke="currentColor"
+        strokeWidth="4"
+        fill="none"
+      />
+    </g>
+
+    {/* Felső acélszerkezet – rácsos tartó */}
+    <g stroke="currentColor" strokeWidth="4" strokeLinecap="round">
+      {/* felső és alsó hídvonal */}
+      <path d="M60 130 H1140" />
+      <path d="M60 150 H1140" />
+
+      {/* függőleges rácsok */}
+      {Array.from({ length: 18 }).map((_, i) => {
+        const x = 60 + i * 60;
+        return <path key={`v-${x}`} d={`M${x} 130 L${x} 150`} />;
+      })}
+
+      {/* ferde merevítők */}
+      {Array.from({ length: 18 }).map((_, i) => {
+        const x = 60 + i * 60;
+        return (
+          <path
+            key={`d-${x}`}
+            d={`M${x} 130 L${x + 60} 150`}
+            opacity="0.7"
+          />
+        );
+      })}
+    </g>
+
+    {/* kis út / patak a híd alatt – hangulatnak */}
+    <path
+      d="M0 250 C 150 240 280 255 380 250 C 520 242 700 260 900 255 C 1040 250 1120 260 1200 270"
+      stroke="currentColor"
+      strokeWidth="3"
+      opacity="0.25"
+    />
+
+    <defs>
+      <linearGradient
+        id="groundGradient"
+        x1="0"
+        y1="210"
+        x2="0"
+        y2="300"
+        gradientUnits="userSpaceOnUse"
+      >
+        <stop stopColor="#bbf7d0" stopOpacity="0.9" />
+        <stop offset="1" stopColor="#86efac" stopOpacity="1" />
+      </linearGradient>
+    </defs>
+  </svg>
+);
+
+
 // Shuttlecock watermark – pasztell lila
 const ShuttleBg = () => (
   <svg
@@ -1036,14 +1133,16 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f5faff] text-slate-900">
-      <div className="mx-auto max-w-5xl p-4 sm:p-6">
-        <Header
-          title={league.title || "Bia-Tollas"}
-          role={role}
-          setPlayer={setPlayer}
-          setAdmin={setAdmin}
-        />
+  <div className="relative min-h-screen bg-[#e5edff] text-slate-900 overflow-hidden">
+    <BiatorbagyViaductBg />
+
+    <div className="relative z-10 mx-auto max-w-5xl p-4 sm:p-6">
+      <Header
+        title={league.title || "Bia-Tollas"}
+        role={role}
+        setPlayer={setPlayer}
+        setAdmin={setAdmin}
+      />
 
         {/* Date selector */}
         <DatePicker value={date} onChange={setDate} />
