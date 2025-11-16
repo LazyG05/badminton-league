@@ -722,9 +722,14 @@ export default function App() {
     setRole("player");
   };
   const setAdmin = () => {
+  const pwd = prompt("Admin password:");
+  if (pwd === "biatollas") {
     localStorage.setItem("bia_role", "admin");
     setRole("admin");
-  };
+  } else {
+    alert("Incorrect password.");
+  }
+};
 
   // Date (round)
   const [date, setDate] = useState(() => fmt(new Date()));
