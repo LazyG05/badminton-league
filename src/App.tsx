@@ -1037,7 +1037,7 @@ export default function App() {
 
   return (
   <div className="relative min-h-screen bg-[#e5edff] text-slate-900 overflow-hidden">
-    <BiatorbagyViaductBg />
+    
 
     <div className="relative z-10 mx-auto max-w-5xl p-4 sm:p-6">
       <Header
