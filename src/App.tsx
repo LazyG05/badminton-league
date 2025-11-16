@@ -12,11 +12,11 @@ import { getAuth, signInAnonymously } from "firebase/auth";
 
 /**
  * =============================================================
- *  BIA-TOLLAS – Pastel Court Edition
+ *  BIA-TOLLAS – Biatorbágy
  *  - Player/Admin toggle, adminhoz jelszó: "biatollas"
- *  - Emoji választás új játékoshoz (40 emoji)
- *  - Admin oldalon játékos emoji később is módosítható
- *  - Pastell, családbarát tollaslabda dizájn
+ *  - Emoji választás új játékoshoz (40 emoji) + utólagos módosítás
+ *  - Dátum-navigáció a Player nézetben + "Last session" badge
+ *  - Edzésnapok: hétfő & szerda; default dátum = legközelebbi ilyen nap
  *  - Firestore realtime sync (single league doc: "leagues/default")
  * =============================================================
  */
@@ -80,6 +80,17 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
+// Edzésnapok: hétfő (1), szerda (3) – JS Date.getDay()
+const TRAINING_DAYS = [1, 3];
+
+function nextTrainingDate(from: Date = new Date()): Date {
+  const d = new Date(from);
+  while (!TRAINING_DAYS.includes(d.getDay())) {
+    d.setDate(d.getDate() + 1);
+  }
+  return d;
+}
+
 // Build pairs avoiding previous TEAMMATE combos (for the given date) as much as possible
 function makePairsForRound(ids: string[], seenTeammates: Set<string>): Pair[] {
   const list = shuffle(ids);
@@ -109,52 +120,81 @@ function makePairsForRound(ids: string[], seenTeammates: Set<string>): Pair[] {
 
 // ========================= Emoji list =========================
 const EMOJIS = [
-  "🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼","🐨","🐯",
-  "🦁","🐮","🐷","🐸","🐵","🐔","🐧","🐦","🐤","🦆",
-  "🦅","🦉","🐺","🦄","🐝","🐛","🦋","🐌","🐞","🐢",
-  "🐍","🦎","🐙","🦑","🦀","🐡","🐠","🐳","🐬","🐊",
+  "🐶",
+  "🐱",
+  "🐭",
+  "🐹",
+  "🐰",
+  "🦊",
+  "🐻",
+  "🐼",
+  "🐨",
+  "🐯",
+  "🦁",
+  "🐮",
+  "🐷",
+  "🐸",
+  "🐵",
+  "🐔",
+  "🐧",
+  "🐦",
+  "🐤",
+  "🦆",
+  "🦅",
+  "🦉",
+  "🐺",
+  "🦄",
+  "🐝",
+  "🐛",
+  "🦋",
+  "🐌",
+  "🐞",
+  "🐢",
+  "🐍",
+  "🦎",
+  "🐙",
+  "🦑",
+  "🦀",
+  "🐡",
+  "🐠",
+  "🐳",
+  "🐬",
+  "🐊",
 ];
 
-// ========================= UI tokens (Pastel Court) =========================
+// ========================= UI tokens =========================
 const btnBase =
   "inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-40 disabled:cursor-not-allowed";
 
-// pasztell türkiz fő gomb
-const btnPrimary = `${btnBase} bg-[#a6e3e9] text-slate-900 hover:bg-[#94d8df] focus-visible:ring-[#a6e3e9]`;
-
-// könnyű kontúros gomb
-const btnSecondary = `${btnBase} border border-[#e7f0ff] bg-white text-slate-800 hover:bg-[#f5faff] focus-visible:ring-[#a6e3e9]`;
-
-// veszély gomb: kicsit lágyított piros
+const btnPrimary = `${btnBase} bg-[#4f8ef7] text-white hover:bg-[#3b7ae0] focus-visible:ring-[#4f8ef7]`;
+const btnSecondary = `${btnBase} border border-slate-200 bg-white text-slate-800 hover:bg-slate-50 focus-visible:ring-[#4f8ef7]`;
 const btnDanger = `${btnBase} bg-rose-500 text-white hover:bg-rose-600 focus-visible:ring-rose-400`;
 
-// kártyák: puha, nagy lekerekítés, halvány keret
 const card =
-  "relative overflow-hidden rounded-3xl bg-white/90 p-4 shadow-sm border border-[#e7f0ff]";
+  "relative overflow-hidden rounded-3xl bg-white/95 p-4 shadow-sm border border-slate-100";
 
-// input: halvány szegély, türkiz fókusz
 const input =
-  "w-full rounded-xl border border-[#e7f0ff] bg-white px-3 py-2 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#a6e3e9]";
+  "w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#4f8ef7]";
 
-// Shuttlecock watermark – pasztell lila
+// Shuttlecock watermark
 const ShuttleBg = () => (
   <svg
-    className="pointer-events-none absolute right-2 top-2 h-20 w-20 opacity-20 text-violet-300"
+    className="pointer-events-none absolute right-2 top-2 h-16 w-16 opacity-15 text-slate-300"
     viewBox="0 0 64 64"
     fill="none"
     xmlns="http://www.w3.org/2000/svg"
   >
     <path
-      d="M12 34c9-7 22-8 32-2l6 4-6 10-6-4C28 37 21 30 18 22"
+      d="M14 38c6-10 16-16 26-20l6 6-8 22-10-4-8-4Z"
       stroke="currentColor"
       strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
     />
     <circle
-      cx="46"
+      cx="40"
       cy="46"
-      r="6"
+      r="5"
       stroke="currentColor"
       strokeWidth="2"
     />
@@ -231,17 +271,22 @@ function Header({
   const isAdmin = role === "admin";
   return (
     <header className="mb-4 flex flex-col gap-2 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
-      <h1 className="text-xl font-bold sm:text-2xl">
-        🏸 {title || "Bia-Tollas League"}
-      </h1>
+      <div>
+        <h1 className="text-xl font-bold sm:text-2xl">
+          🏸 {title || "Bia-Tollas League"}
+        </h1>
+        <p className="text-xs text-slate-500">
+          Biatorbágy – training on Monday & Wednesday
+        </p>
+      </div>
       <div className="flex gap-2">
-        <div className="rounded-full border border-[#e7f0ff] bg-white p-1 shadow-sm">
+        <div className="rounded-full border border-slate-200 bg-white p-1 shadow-sm">
           <button
             type="button"
             onClick={setPlayer}
             className={`${btnBase} ${
               !isAdmin
-                ? "bg-[#a6e3e9] text-slate-900"
+                ? "bg-[#4f8ef7] text-white"
                 : "bg-white text-slate-700"
             } px-3 py-1`}
           >
@@ -252,7 +297,7 @@ function Header({
             onClick={setAdmin}
             className={`${btnBase} ${
               isAdmin
-                ? "bg-[#a6e3e9] text-slate-900"
+                ? "bg-[#4f8ef7] text-white"
                 : "bg-white text-slate-700"
             } px-3 py-1`}
           >
@@ -310,7 +355,7 @@ function PlayerEditor({
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const getBaseName = (full: string) =>
-    full.replace(/^.+?\s/, ""); // eldobja az első "szót" (emoji) és a space-t
+    full.replace(/^.+?\s/, ""); // emoji + space levágása
 
   const getEmoji = (full: string) => {
     const m = full.match(/^(\S+)/);
@@ -329,7 +374,7 @@ function PlayerEditor({
       <ShuttleBg />
       <h2 className="mb-2 text-lg font-semibold">Players ({players.length})</h2>
 
-      {/* Emoji választó új játékos felvételéhez */}
+      {/* Emoji választó új játékoshoz */}
       <div className="mb-3">
         <div className="mb-1 text-xs text-gray-500">Choose emoji</div>
         <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
@@ -339,8 +384,8 @@ function PlayerEditor({
               type="button"
               className={`rounded-lg border px-2 py-1 text-sm ${
                 selectedEmoji === e
-                  ? "bg-[#fbcfe8] border-[#f9a8d4]"
-                  : "bg-white border-[#e7f0ff]"
+                  ? "bg-[#e0edff] border-[#4f8ef7]"
+                  : "bg-white border-slate-200"
               }`}
               onClick={() => setSelectedEmoji(e)}
               disabled={!!disabled}
@@ -386,7 +431,7 @@ function PlayerEditor({
                   <div className="min-w-0 flex items-center gap-2">
                     <button
                       type="button"
-                      className="rounded-lg border border-[#e7f0ff] bg-white px-2 py-1 text-sm"
+                      className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm"
                       onClick={() =>
                         setEditingId(isEditing ? null : p.id)
                       }
@@ -414,8 +459,8 @@ function PlayerEditor({
                         type="button"
                         className={`rounded-lg border px-2 py-1 text-xs ${
                           e === emoji
-                            ? "bg-[#fbcfe8] border-[#f9a8d4]"
-                            : "bg-white border-[#e7f0ff]"
+                            ? "bg-[#e0edff] border-[#4f8ef7]"
+                            : "bg-white border-slate-200"
                         }`}
                         onClick={() => {
                           onUpdateEmoji(p.id, e);
@@ -488,7 +533,7 @@ function DnDPairs({
       </h3>
       <div className="grid gap-3 md:grid-cols-3">
         <div
-          className="rounded-xl border border-[#e7f0ff] p-3"
+          className="rounded-xl border border-slate-200 p-3"
           onDrop={drop("POOL")}
           onDragOver={allow}
         >
@@ -510,7 +555,7 @@ function DnDPairs({
         </div>
         <div
           className={`rounded-xl border p-3 ${
-            warnA ? "border-amber-400" : "border-[#e7f0ff]"
+            warnA ? "border-amber-400" : "border-slate-200"
           }`}
           onDrop={drop("A")}
           onDragOver={allow}
@@ -529,7 +574,7 @@ function DnDPairs({
                 key={pid}
                 draggable={!disabled}
                 onDragStart={onDragStart(pid)}
-                className="cursor-move select-none rounded-lg bg-[#fbcfe8] px-3 py-1 text-sm"
+                className="cursor-move select-none rounded-lg bg-[#fee2e2] px-3 py-1 text-sm"
               >
                 {players.find((p) => p.id === pid)?.name}
               </span>
@@ -538,7 +583,7 @@ function DnDPairs({
         </div>
         <div
           className={`rounded-xl border p-3 ${
-            warnB ? "border-amber-400" : "border-[#e7f0ff]"
+            warnB ? "border-amber-400" : "border-slate-200"
           }`}
           onDrop={drop("B")}
           onDragOver={allow}
@@ -557,7 +602,7 @@ function DnDPairs({
                 key={pid}
                 draggable={!disabled}
                 onDragStart={onDragStart(pid)}
-                className="cursor-move select-none rounded-lg bg-[#d8b4fe] px-3 py-1 text-sm"
+                className="cursor-move select-none rounded-lg bg-[#dcfce7] px-3 py-1 text-sm"
               >
                 {players.find((p) => p.id === pid)?.name}
               </span>
@@ -619,7 +664,7 @@ function MatchesAdmin({
           {matches.map((m) => (
             <li
               key={m.id}
-              className="flex items-center justify-between rounded-xl border border-[#e7f0ff] bg-white p-3"
+              className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-3"
             >
               <div className="flex min-w-0 items-center gap-2">
                 <span className="truncate font-medium">
@@ -663,9 +708,11 @@ function MatchesAdmin({
 function MatchesPlayer({
   grouped,
   nameOf,
+  lastSessionDate,
 }: {
   grouped: { date: string; matches: Match[] }[];
   nameOf: (id: string) => string;
+  lastSessionDate?: string | null;
 }) {
   return (
     <div className={card}>
@@ -676,9 +723,16 @@ function MatchesPlayer({
       ) : (
         <div className="space-y-4">
           {grouped.map((g) => (
-            <div key={g.date}>
-              <div className="mb-1 text-sm text-gray-600">
-                {g.date} / {weekday(g.date)}
+            <div key={g.date} id={`date-${g.date}`}>
+              <div className="mb-1 flex items-center justify-between text-sm text-gray-600">
+                <span>
+                  {g.date} / {weekday(g.date)}
+                </span>
+                {lastSessionDate === g.date && (
+                  <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                    Last session
+                  </span>
+                )}
               </div>
               <ul className="divide-y">
                 {g.matches.map((m) => (
@@ -747,7 +801,7 @@ function Standings({
               {rows.map((row, idx) => (
                 <tr
                   key={row.id}
-                  className={idx % 2 === 0 ? "border-t bg-[#f9fbff]" : "border-t"}
+                  className={idx % 2 === 0 ? "border-t bg-slate-50/60" : "border-t"}
                 >
                   <td className="py-2 pr-2 align-middle">{idx + 1}</td>
                   <td className="py-2 pr-2 align-middle font-medium">
@@ -795,7 +849,7 @@ function BackupPanel({
           {sorted.map((b) => (
             <li
               key={b.id}
-              className="flex items-center justify-between rounded-xl border border-[#e7f0ff] bg-white px-2 py-1"
+              className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-2 py-1"
             >
               <div className="mr-2 min-w-0">
                 <div className="truncate font-medium">
@@ -845,8 +899,8 @@ export default function App() {
     }
   };
 
-  // Date (round)
-  const [date, setDate] = useState(() => fmt(new Date()));
+  // Date (round) – legközelebbi hétfő / szerda
+  const [date, setDate] = useState(() => fmt(nextTrainingDate()));
 
   // Derive
   const players = league.players || [];
@@ -915,7 +969,7 @@ export default function App() {
     );
   }, [league.matches, players]);
 
-  // Grouped results for Player view
+  // Grouped results for Player view + last session date
   const grouped = useMemo(() => {
     const by: Record<string, Match[]> = {};
     league.matches.forEach((m) => {
@@ -925,6 +979,10 @@ export default function App() {
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([d, arr]) => ({ date: d, matches: arr }));
   }, [league.matches]);
+
+  const lastSessionDate = grouped.length
+    ? grouped[grouped.length - 1].date
+    : null;
 
   // Actions
   const addPlayer = (fullName: string) => {
@@ -1036,16 +1094,14 @@ export default function App() {
   };
 
   return (
-  <div className="relative min-h-screen bg-[#e5edff] text-slate-900 overflow-hidden">
-    
-
-    <div className="relative z-10 mx-auto max-w-5xl p-4 sm:p-6">
-      <Header
-        title={league.title || "Bia-Tollas"}
-        role={role}
-        setPlayer={setPlayer}
-        setAdmin={setAdmin}
-      />
+    <div className="min-h-screen bg-[#eef2ff] text-slate-900">
+      <div className="mx-auto max-w-5xl p-4 sm:p-6">
+        <Header
+          title={league.title || "Bia-Tollas"}
+          role={role}
+          setPlayer={setPlayer}
+          setAdmin={setAdmin}
+        />
 
         {/* Date selector */}
         <DatePicker value={date} onChange={setDate} />
@@ -1107,10 +1163,48 @@ export default function App() {
         ) : (
           <section className="grid gap-4 sm:gap-6 md:grid-cols-3">
             <div className="space-y-4 md:col-span-2">
-              <MatchesPlayer grouped={grouped} nameOf={nameOf} />
+              <MatchesPlayer
+                grouped={grouped}
+                nameOf={nameOf}
+                lastSessionDate={lastSessionDate}
+              />
             </div>
             <div className="space-y-4">
+              {/* Dátum-navigáció kártya */}
+              <div className={card}>
+                <ShuttleBg />
+                <h3 className="mb-2 font-semibold">Jump to date</h3>
+                {grouped.length === 0 ? (
+                  <p className="text-sm text-gray-500">No matches yet.</p>
+                ) : (
+                  <ul className="text-sm space-y-1 max-h-52 overflow-y-auto">
+                    {grouped.map((g) => (
+                      <li key={g.date}>
+                        <a
+                          href={`#date-${g.date}`}
+                          className="flex items-center justify-between hover:text-[#4f8ef7]"
+                        >
+                          <span>{g.date}</span>
+                          <span className="flex items-center gap-1 text-xs text-gray-500">
+                            {weekday(g.date)}
+                            {lastSessionDate === g.date && (
+                              <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 border border-emerald-200">
+                                Last
+                              </span>
+                            )}
+                          </span>
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <p className="mt-2 text-xs text-gray-400">
+                  Training days: Monday & Wednesday
+                </p>
+              </div>
+
               <Standings rows={standings} />
+
               <div className={card}>
                 <ShuttleBg />
                 <h3 className="mb-2 font-semibold">How it works</h3>
