@@ -837,6 +837,7 @@ function AdminDateJump({
     <div className={card}>
       <ShuttleBg />
       <h3 className="mb-2 font-semibold">Jump to date</h3>
+
       {grouped.length === 0 ? (
         <p className="text-sm text-gray-500">No matches yet.</p>
       ) : (
@@ -846,13 +847,24 @@ function AdminDateJump({
               <button
                 type="button"
                 onClick={() => setDate(g.date)}
-                className={`flex w-full items-center justify-between rounded-lg px-2 py-1 text-left ${
-                  date === g.date ? "bg-slate-100" : "hover:bg-slate-50"
-                }`}
+                className={`
+                  flex w-full items-center justify-between
+                  rounded-lg px-2 py-1 text-left
+                  bg-white text-slate-700
+                  border border-slate-200
+                  transition
+                  ${
+                    date === g.date
+                      ? "bg-indigo-50 border-indigo-300 text-indigo-700"
+                      : "hover:bg-slate-100"
+                  }
+                `}
               >
                 <span>{g.date}</span>
+
                 <span className="flex items-center gap-1 text-xs text-gray-500">
                   {weekday(g.date)}
+
                   {lastSessionDate === g.date && (
                     <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 border border-emerald-200">
                       Last
@@ -864,12 +876,14 @@ function AdminDateJump({
           ))}
         </ul>
       )}
+
       <p className="mt-2 text-xs text-gray-400">
         Pick a date to edit or add matches (including past sessions).
       </p>
     </div>
   );
 }
+
 
 
 function BackupPanel({
