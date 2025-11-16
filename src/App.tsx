@@ -12,16 +12,11 @@ import { getAuth, signInAnonymously } from "firebase/auth";
 
 /**
  * =============================================================
- *  BIA-TOLLAS – Fresh App v2
- *  - English UI, no passwords; role toggle: Player/Admin
- *  - Practice nights with end-of-session doubles matches
- *  - Add players; each new player gets a random animal emoji 🐼🦊🐢
- *  - Drag & Drop to create multiple pairings per selected date
- *  - Record winners; standings are INDIVIDUAL (win=1, loss=0)
- *  - Rounds = calendar dates (YYYY-MM-DD); pick from a simple date picker
- *  - Player view: standings + per-round results (read-only)
- *  - Admin view: add players, create/edit results, BACKUP & RESTORE
- *  - Mobile-first responsive; cheerful badminton design
+ *  BIA-TOLLAS – Pastel Court Edition
+ *  - Player/Admin toggle, adminhoz jelszó: "biatollas"
+ *  - Emoji választás új játékoshoz (40 emoji)
+ *  - Admin oldalon játékos emoji később is módosítható
+ *  - Pastell, családbarát tollaslabda dizájn
  *  - Firestore realtime sync (single league doc: "leagues/default")
  * =============================================================
  */
@@ -112,7 +107,15 @@ function makePairsForRound(ids: string[], seenTeammates: Set<string>): Pair[] {
   return backtrack(list, []);
 }
 
-// ========================= UI tokens =========================
+// ========================= Emoji list =========================
+const EMOJIS = [
+  "🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼","🐨","🐯",
+  "🦁","🐮","🐷","🐸","🐵","🐔","🐧","🐦","🐤","🦆",
+  "🦅","🦉","🐺","🦄","🐝","🐛","🦋","🐌","🐞","🐢",
+  "🐍","🦎","🐙","🦑","🦀","🐡","🐠","🐳","🐬","🐊",
+];
+
+// ========================= UI tokens (Pastel Court) =========================
 const btnBase =
   "inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-40 disabled:cursor-not-allowed";
 
@@ -122,7 +125,7 @@ const btnPrimary = `${btnBase} bg-[#a6e3e9] text-slate-900 hover:bg-[#94d8df] fo
 // könnyű kontúros gomb
 const btnSecondary = `${btnBase} border border-[#e7f0ff] bg-white text-slate-800 hover:bg-[#f5faff] focus-visible:ring-[#a6e3e9]`;
 
-// veszély gomb maradhat erősebb, de kicsit lágyabb árnyalattal
+// veszély gomb: kicsit lágyított piros
 const btnDanger = `${btnBase} bg-rose-500 text-white hover:bg-rose-600 focus-visible:ring-rose-400`;
 
 // kártyák: puha, nagy lekerekítés, halvány keret
@@ -133,15 +136,7 @@ const card =
 const input =
   "w-full rounded-xl border border-[#e7f0ff] bg-white px-3 py-2 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#a6e3e9]";
 
-
-const EMOJIS = [
-  "🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼","🐨","🐯",
-  "🦁","🐮","🐷","🐸","🐵","🐔","🐧","🐦","🐤","🦆",
-  "🦅","🦉","🐺","🦄","🐝","🐛","🦋","🐌","🐞","🐢",
-  "🐍","🦎","🐙","🦑","🦀","🐡","🐠","🐳","🐬","🐊",
-];
-
-// Shuttlecock watermark
+// Shuttlecock watermark – pasztell lila
 const ShuttleBg = () => (
   <svg
     className="pointer-events-none absolute right-2 top-2 h-20 w-20 opacity-20 text-violet-300"
@@ -165,7 +160,6 @@ const ShuttleBg = () => (
     />
   </svg>
 );
-
 
 // ========================= Data sync (single league doc) =========================
 function useLeague() {
@@ -238,15 +232,17 @@ function Header({
   return (
     <header className="mb-4 flex flex-col gap-2 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
       <h1 className="text-xl font-bold sm:text-2xl">
-        🏸 {title || "Bia-Tollas League"} – doubles, individual standings
+        🏸 {title || "Bia-Tollas League"}
       </h1>
       <div className="flex gap-2">
-        <div className="rounded-xl border bg-white p-1">
+        <div className="rounded-full border border-[#e7f0ff] bg-white p-1 shadow-sm">
           <button
             type="button"
             onClick={setPlayer}
             className={`${btnBase} ${
-              !isAdmin ? "bg-indigo-600 text-white" : "bg-white text-gray-900"
+              !isAdmin
+                ? "bg-[#a6e3e9] text-slate-900"
+                : "bg-white text-slate-700"
             } px-3 py-1`}
           >
             Player
@@ -255,7 +251,9 @@ function Header({
             type="button"
             onClick={setAdmin}
             className={`${btnBase} ${
-              isAdmin ? "bg-indigo-600 text-white" : "bg-white text-gray-900"
+              isAdmin
+                ? "bg-[#a6e3e9] text-slate-900"
+                : "bg-white text-slate-700"
             } px-3 py-1`}
           >
             Admin
@@ -341,8 +339,8 @@ function PlayerEditor({
               type="button"
               className={`rounded-lg border px-2 py-1 text-sm ${
                 selectedEmoji === e
-                  ? "bg-indigo-100 border-indigo-400"
-                  : "bg-white"
+                  ? "bg-[#fbcfe8] border-[#f9a8d4]"
+                  : "bg-white border-[#e7f0ff]"
               }`}
               onClick={() => setSelectedEmoji(e)}
               disabled={!!disabled}
@@ -388,7 +386,7 @@ function PlayerEditor({
                   <div className="min-w-0 flex items-center gap-2">
                     <button
                       type="button"
-                      className="rounded-lg border bg-white px-2 py-1 text-sm"
+                      className="rounded-lg border border-[#e7f0ff] bg-white px-2 py-1 text-sm"
                       onClick={() =>
                         setEditingId(isEditing ? null : p.id)
                       }
@@ -416,8 +414,8 @@ function PlayerEditor({
                         type="button"
                         className={`rounded-lg border px-2 py-1 text-xs ${
                           e === emoji
-                            ? "bg-indigo-100 border-indigo-400"
-                            : "bg-white"
+                            ? "bg-[#fbcfe8] border-[#f9a8d4]"
+                            : "bg-white border-[#e7f0ff]"
                         }`}
                         onClick={() => {
                           onUpdateEmoji(p.id, e);
@@ -438,7 +436,6 @@ function PlayerEditor({
     </div>
   );
 }
-
 
 function DnDPairs({
   players,
@@ -491,18 +488,20 @@ function DnDPairs({
       </h3>
       <div className="grid gap-3 md:grid-cols-3">
         <div
-          className="rounded-xl border p-3"
+          className="rounded-xl border border-[#e7f0ff] p-3"
           onDrop={drop("POOL")}
           onDragOver={allow}
         >
-          <div className="mb-2 text-sm font-medium text-gray-600">Available</div>
+          <div className="mb-2 text-sm font-medium text-gray-600">
+            Available
+          </div>
           <div className="flex flex-wrap gap-2">
             {pool.map((pid) => (
               <span
                 key={pid}
                 draggable={!disabled}
                 onDragStart={onDragStart(pid)}
-                className="cursor-move select-none rounded-lg bg-gray-100 px-3 py-1 text-sm"
+                className="cursor-move select-none rounded-lg bg-[#e0f2fe] px-3 py-1 text-sm"
               >
                 {players.find((p) => p.id === pid)?.name}
               </span>
@@ -511,7 +510,7 @@ function DnDPairs({
         </div>
         <div
           className={`rounded-xl border p-3 ${
-            warnA ? "border-amber-400" : ""
+            warnA ? "border-amber-400" : "border-[#e7f0ff]"
           }`}
           onDrop={drop("A")}
           onDragOver={allow}
@@ -519,7 +518,7 @@ function DnDPairs({
           <div className="mb-2 text-sm font-medium">
             Team A{" "}
             {warnA && (
-              <span className="ml-2 text-amber-600">
+              <span className="ml-2 text-amber-600 text-xs">
                 (pair already used today)
               </span>
             )}
@@ -530,7 +529,7 @@ function DnDPairs({
                 key={pid}
                 draggable={!disabled}
                 onDragStart={onDragStart(pid)}
-                className="cursor-move select-none rounded-lg bg-indigo-100 px-3 py-1 text-sm"
+                className="cursor-move select-none rounded-lg bg-[#fbcfe8] px-3 py-1 text-sm"
               >
                 {players.find((p) => p.id === pid)?.name}
               </span>
@@ -539,7 +538,7 @@ function DnDPairs({
         </div>
         <div
           className={`rounded-xl border p-3 ${
-            warnB ? "border-amber-400" : ""
+            warnB ? "border-amber-400" : "border-[#e7f0ff]"
           }`}
           onDrop={drop("B")}
           onDragOver={allow}
@@ -547,7 +546,7 @@ function DnDPairs({
           <div className="mb-2 text-sm font-medium">
             Team B{" "}
             {warnB && (
-              <span className="ml-2 text-amber-600">
+              <span className="ml-2 text-amber-600 text-xs">
                 (pair already used today)
               </span>
             )}
@@ -558,7 +557,7 @@ function DnDPairs({
                 key={pid}
                 draggable={!disabled}
                 onDragStart={onDragStart(pid)}
-                className="cursor-move select-none rounded-lg bg-indigo-100 px-3 py-1 text-sm"
+                className="cursor-move select-none rounded-lg bg-[#d8b4fe] px-3 py-1 text-sm"
               >
                 {players.find((p) => p.id === pid)?.name}
               </span>
@@ -620,7 +619,7 @@ function MatchesAdmin({
           {matches.map((m) => (
             <li
               key={m.id}
-              className="flex items-center justify-between rounded-xl border p-3"
+              className="flex items-center justify-between rounded-xl border border-[#e7f0ff] bg-white p-3"
             >
               <div className="flex min-w-0 items-center gap-2">
                 <span className="truncate font-medium">
@@ -692,8 +691,12 @@ function MatchesPlayer({
                         – Winner:{" "}
                         <b>
                           {m.winner === "A"
-                            ? `${nameOf(m.teamA[0])} & ${nameOf(m.teamA[1])}`
-                            : `${nameOf(m.teamB[0])} & ${nameOf(m.teamB[1])}`}
+                            ? `${nameOf(m.teamA[0])} & ${nameOf(
+                                m.teamA[1]
+                              )}`
+                            : `${nameOf(m.teamB[0])} & ${nameOf(
+                                m.teamB[1]
+                              )}`}
                         </b>{" "}
                         🏆
                       </span>
@@ -742,7 +745,10 @@ function Standings({
             </thead>
             <tbody>
               {rows.map((row, idx) => (
-                <tr key={row.id} className="border-t">
+                <tr
+                  key={row.id}
+                  className={idx % 2 === 0 ? "border-t bg-[#f9fbff]" : "border-t"}
+                >
                   <td className="py-2 pr-2 align-middle">{idx + 1}</td>
                   <td className="py-2 pr-2 align-middle font-medium">
                     {row.name}
@@ -789,7 +795,7 @@ function BackupPanel({
           {sorted.map((b) => (
             <li
               key={b.id}
-              className="flex items-center justify-between rounded-xl border px-2 py-1"
+              className="flex items-center justify-between rounded-xl border border-[#e7f0ff] bg-white px-2 py-1"
             >
               <div className="mr-2 min-w-0">
                 <div className="truncate font-medium">
@@ -830,14 +836,14 @@ export default function App() {
     setRole("player");
   };
   const setAdmin = () => {
-  const pwd = prompt("Admin password:");
-  if (pwd === "biatollas") {
-    localStorage.setItem("bia_role", "admin");
-    setRole("admin");
-  } else {
-    alert("Incorrect password.");
-  }
-};
+    const pwd = prompt("Admin password:");
+    if (pwd === "biatollas") {
+      localStorage.setItem("bia_role", "admin");
+      setRole("admin");
+    } else if (pwd !== null) {
+      alert("Incorrect password.");
+    }
+  };
 
   // Date (round)
   const [date, setDate] = useState(() => fmt(new Date()));
@@ -922,24 +928,23 @@ export default function App() {
 
   // Actions
   const addPlayer = (fullName: string) => {
-  const t = fullName.trim();
-  if (!t) return;
+    const t = fullName.trim();
+    if (!t) return;
 
-  // base név: az emoji utáni rész
-  const base = t.replace(/^.+?\s/, "");
+    // base név: az emoji utáni rész
+    const base = t.replace(/^.+?\s/, "");
 
-  // duplikátum ellenőrzés: emoji-t figyelmen kívül hagyjuk
-  if (
-    players.some(
-      (p) =>
-        p.name.replace(/^.+?\s/, "").toLowerCase() === base.toLowerCase()
+    // duplikátum ellenőrzés: emoji-t figyelmen kívül hagyjuk
+    if (
+      players.some(
+        (p) =>
+          p.name.replace(/^.+?\s/, "").toLowerCase() === base.toLowerCase()
+      )
     )
-  )
-    return;
+      return;
 
-  write({ players: [...players, { id: uid(), name: t }] });
-};
-
+    write({ players: [...players, { id: uid(), name: t }] });
+  };
 
   const removePlayer = (id: string) => {
     const nextPlayers = players.filter((p) => p.id !== id);
@@ -951,21 +956,19 @@ export default function App() {
   };
 
   const updatePlayerEmoji = (id: string, emoji: string) => {
-  const nextPlayers = players.map((p) => {
-    if (p.id !== id) return p;
-    const parts = p.name.split(" ");
-    if (parts.length > 1) {
-      const [, ...rest] = parts;
-      return { ...p, name: `${emoji} ${rest.join(" ")}` };
-    } else {
-      // ha valamiért nincs space/emoji, akkor is tegyük elé
-      return { ...p, name: `${emoji} ${p.name}` };
-    }
-  });
+    const nextPlayers = players.map((p) => {
+      if (p.id !== id) return p;
+      const parts = p.name.split(" ");
+      if (parts.length > 1) {
+        const [, ...rest] = parts;
+        return { ...p, name: `${emoji} ${rest.join(" ")}` };
+      } else {
+        return { ...p, name: `${emoji} ${p.name}` };
+      }
+    });
 
-  write({ players: nextPlayers });
-};
-
+    write({ players: nextPlayers });
+  };
 
   const addMatch = (a: Pair, b: Pair) => {
     if (!isAdmin) return;
@@ -1087,12 +1090,11 @@ export default function App() {
             <div className="space-y-4">
               <Standings rows={standings} />
               <PlayerEditor
-  players={players}
-  onAdd={addPlayer}
-  onRemove={removePlayer}
-  onUpdateEmoji={updatePlayerEmoji}
-/>
-
+                players={players}
+                onAdd={addPlayer}
+                onRemove={removePlayer}
+                onUpdateEmoji={updatePlayerEmoji}
+              />
               <BackupPanel
                 backups={backups}
                 onCreate={createBackup}
