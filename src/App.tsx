@@ -115,12 +115,24 @@ function makePairsForRound(ids: string[], seenTeammates: Set<string>): Pair[] {
 // ========================= UI tokens =========================
 const btnBase =
   "inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-40 disabled:cursor-not-allowed";
-const btnPrimary = `${btnBase} bg-indigo-600 text-white hover:bg-indigo-700 focus-visible:ring-indigo-600`;
-const btnSecondary = `${btnBase} border border-gray-300 bg-white text-gray-900 hover:bg-gray-50 focus-visible:ring-gray-400`;
-const btnDanger = `${btnBase} bg-rose-600 text-white hover:bg-rose-700 focus-visible:ring-rose-600`;
-const card = "relative overflow-hidden rounded-2xl bg-white p-4 shadow";
+
+// pasztell türkiz fő gomb
+const btnPrimary = `${btnBase} bg-[#a6e3e9] text-slate-900 hover:bg-[#94d8df] focus-visible:ring-[#a6e3e9]`;
+
+// könnyű kontúros gomb
+const btnSecondary = `${btnBase} border border-[#e7f0ff] bg-white text-slate-800 hover:bg-[#f5faff] focus-visible:ring-[#a6e3e9]`;
+
+// veszély gomb maradhat erősebb, de kicsit lágyabb árnyalattal
+const btnDanger = `${btnBase} bg-rose-500 text-white hover:bg-rose-600 focus-visible:ring-rose-400`;
+
+// kártyák: puha, nagy lekerekítés, halvány keret
+const card =
+  "relative overflow-hidden rounded-3xl bg-white/90 p-4 shadow-sm border border-[#e7f0ff]";
+
+// input: halvány szegély, türkiz fókusz
 const input =
-  "w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500";
+  "w-full rounded-xl border border-[#e7f0ff] bg-white px-3 py-2 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#a6e3e9]";
+
 
 const EMOJIS = [
   "🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼","🐨","🐯",
@@ -132,19 +144,28 @@ const EMOJIS = [
 // Shuttlecock watermark
 const ShuttleBg = () => (
   <svg
-    className="pointer-events-none absolute right-2 top-2 h-20 w-20 opacity-10"
+    className="pointer-events-none absolute right-2 top-2 h-20 w-20 opacity-20 text-violet-300"
     viewBox="0 0 64 64"
     fill="none"
     xmlns="http://www.w3.org/2000/svg"
   >
     <path
-      d="M10 34c10-8 24-8 34 0l6 6-8 8-6-6c-8-10-8-24 0-34"
+      d="M12 34c9-7 22-8 32-2l6 4-6 10-6-4C28 37 21 30 18 22"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <circle
+      cx="46"
+      cy="46"
+      r="6"
       stroke="currentColor"
       strokeWidth="2"
     />
-    <circle cx="46" cy="46" r="6" stroke="currentColor" strokeWidth="2" />
   </svg>
 );
+
 
 // ========================= Data sync (single league doc) =========================
 function useLeague() {
@@ -1012,7 +1033,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
+    <div className="min-h-screen bg-[#f5faff] text-slate-900">
       <div className="mx-auto max-w-5xl p-4 sm:p-6">
         <Header
           title={league.title || "Bia-Tollas"}
