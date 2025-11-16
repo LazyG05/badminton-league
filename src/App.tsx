@@ -1154,7 +1154,36 @@ export default function App() {
         />
 
         {/* Date selector */}
-        <DatePicker value={date} onChange={setDate} />
+        <div className="space-y-2">
+  <DatePicker value={date} onChange={setDate} />
+
+  <div className="flex flex-wrap gap-2 text-xs text-gray-600">
+    <button
+      type="button"
+      className={`${btnSecondary} px-3 py-1`}
+      onClick={() => setDate(fmt(new Date()))}
+    >
+      Today
+    </button>
+    <button
+      type="button"
+      className={`${btnSecondary} px-3 py-1`}
+      onClick={() => setDate(fmt(nextTrainingDate()))}
+    >
+      Next training
+    </button>
+    {lastSessionDate && (
+      <button
+        type="button"
+        className={`${btnSecondary} px-3 py-1`}
+        onClick={() => setDate(lastSessionDate)}
+      >
+        Last session
+      </button>
+    )}
+  </div>
+</div>
+
 
         {role === "admin" ? (
           <section className="grid gap-4 sm:gap-6 md:grid-cols-3">
