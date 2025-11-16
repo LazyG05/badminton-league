@@ -822,6 +822,56 @@ function Standings({
   );
 }
 
+function AdminDateJump({
+  grouped,
+  date,
+  setDate,
+  lastSessionDate,
+}: {
+  grouped: { date: string; matches: Match[] }[];
+  date: string;
+  setDate: (d: string) => void;
+  lastSessionDate?: string | null;
+}) {
+  return (
+    <div className={card}>
+      <ShuttleBg />
+      <h3 className="mb-2 font-semibold">Jump to date</h3>
+      {grouped.length === 0 ? (
+        <p className="text-sm text-gray-500">No matches yet.</p>
+      ) : (
+        <ul className="text-sm space-y-1 max-h-52 overflow-y-auto">
+          {grouped.map((g) => (
+            <li key={g.date}>
+              <button
+                type="button"
+                onClick={() => setDate(g.date)}
+                className={`flex w-full items-center justify-between rounded-lg px-2 py-1 text-left ${
+                  date === g.date ? "bg-slate-100" : "hover:bg-slate-50"
+                }`}
+              >
+                <span>{g.date}</span>
+                <span className="flex items-center gap-1 text-xs text-gray-500">
+                  {weekday(g.date)}
+                  {lastSessionDate === g.date && (
+                    <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 border border-emerald-200">
+                      Last
+                    </span>
+                  )}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="mt-2 text-xs text-gray-400">
+        Pick a date to edit or add matches (including past sessions).
+      </p>
+    </div>
+  );
+}
+
+
 function BackupPanel({
   backups,
   onCreate,
@@ -1146,6 +1196,14 @@ export default function App() {
             </div>
 
             <div className="space-y-4">
+
+              {/* Admin dátum-navigáció */}
+      <AdminDateJump
+        grouped={grouped}
+        date={date}
+        setDate={setDate}
+        lastSessionDate={lastSessionDate}
+      />
               <Standings rows={standings} />
               <PlayerEditor
                 players={players}
