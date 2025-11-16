@@ -122,6 +122,13 @@ const card = "relative overflow-hidden rounded-2xl bg-white p-4 shadow";
 const input =
   "w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500";
 
+const EMOJIS = [
+  "🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼","🐨","🐯",
+  "🦁","🐮","🐷","🐸","🐵","🐔","🐧","🐦","🐤","🦆",
+  "🦅","🦉","🐺","🦄","🐝","🐛","🦋","🐌","🐞","🐢",
+  "🐍","🦎","🐙","🦑","🦀","🐡","🐠","🐳","🐬","🐊",
+];
+
 // Shuttlecock watermark
 const ShuttleBg = () => (
   <svg
@@ -270,18 +277,61 @@ function PlayerEditor({
   players,
   onAdd,
   onRemove,
+  onUpdateEmoji,
   disabled,
 }: {
   players: Player[];
   onAdd: (name: string) => void;
   onRemove: (id: string) => void;
+  onUpdateEmoji: (id: string, emoji: string) => void;
   disabled?: boolean;
 }) {
   const [name, setName] = useState("");
+  const [selectedEmoji, setSelectedEmoji] = useState<string>(EMOJIS[0]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const getBaseName = (full: string) =>
+    full.replace(/^.+?\s/, ""); // eldobja az első "szót" (emoji) és a space-t
+
+  const getEmoji = (full: string) => {
+    const m = full.match(/^(\S+)/);
+    return m ? m[1] : "😀";
+  };
+
+  const handleAdd = () => {
+    const t = name.trim();
+    if (!t || disabled) return;
+    onAdd(`${selectedEmoji} ${t}`);
+    setName("");
+  };
+
   return (
     <div className={card}>
       <ShuttleBg />
       <h2 className="mb-2 text-lg font-semibold">Players ({players.length})</h2>
+
+      {/* Emoji választó új játékos felvételéhez */}
+      <div className="mb-3">
+        <div className="mb-1 text-xs text-gray-500">Choose emoji</div>
+        <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
+          {EMOJIS.map((e) => (
+            <button
+              key={e}
+              type="button"
+              className={`rounded-lg border px-2 py-1 text-sm ${
+                selectedEmoji === e
+                  ? "bg-indigo-100 border-indigo-400"
+                  : "bg-white"
+              }`}
+              onClick={() => setSelectedEmoji(e)}
+              disabled={!!disabled}
+            >
+              {e}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="flex w-full flex-col gap-2 sm:flex-row">
         <input
           className={input}
@@ -290,47 +340,84 @@ function PlayerEditor({
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !disabled) {
-              onAdd(name);
-              setName("");
+              handleAdd();
             }
           }}
           disabled={!!disabled}
         />
         <button
           className={btnPrimary}
-          onClick={() => {
-            if (!disabled) {
-              onAdd(name);
-              setName("");
-            }
-          }}
-          disabled={!!disabled}
+          onClick={handleAdd}
+          disabled={!!disabled || !name.trim()}
         >
           Add
         </button>
       </div>
+
       {players.length > 0 && (
         <ul className="mt-3 divide-y text-sm">
-          {players.map((p) => (
-            <li
-              key={p.id}
-              className="flex items-center justify-between py-2"
-            >
-              <span className="truncate">{p.name}</span>
-              <button
-                className={btnDanger}
-                onClick={() => onRemove(p.id)}
-                disabled={!!disabled}
-              >
-                remove
-              </button>
-            </li>
-          ))}
+          {players.map((p) => {
+            const emoji = getEmoji(p.name);
+            const baseName = getBaseName(p.name);
+            const isEditing = editingId === p.id;
+
+            return (
+              <li key={p.id} className="py-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0 flex items-center gap-2">
+                    <button
+                      type="button"
+                      className="rounded-lg border bg-white px-2 py-1 text-sm"
+                      onClick={() =>
+                        setEditingId(isEditing ? null : p.id)
+                      }
+                      disabled={!!disabled}
+                    >
+                      {emoji}
+                    </button>
+                    <span className="truncate">{baseName}</span>
+                  </div>
+                  <button
+                    className={btnDanger}
+                    onClick={() => onRemove(p.id)}
+                    disabled={!!disabled}
+                  >
+                    remove
+                  </button>
+                </div>
+
+                {/* Emoji csere panel adott játékoshoz */}
+                {isEditing && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {EMOJIS.map((e) => (
+                      <button
+                        key={e}
+                        type="button"
+                        className={`rounded-lg border px-2 py-1 text-xs ${
+                          e === emoji
+                            ? "bg-indigo-100 border-indigo-400"
+                            : "bg-white"
+                        }`}
+                        onClick={() => {
+                          onUpdateEmoji(p.id, e);
+                          setEditingId(null);
+                        }}
+                        disabled={!!disabled}
+                      >
+                        {e}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>
   );
 }
+
 
 function DnDPairs({
   players,
@@ -813,56 +900,25 @@ export default function App() {
   }, [league.matches]);
 
   // Actions
-  const addPlayer = (name: string) => {
-    const t = name.trim();
-    if (!t) return;
+  const addPlayer = (fullName: string) => {
+  const t = fullName.trim();
+  if (!t) return;
 
-    // prevent duplicates ignoring emoji prefix
-    if (
-      players.some(
-        (p) => p.name.replace(/^.+?\s/, "").toLowerCase() === t.toLowerCase()
-      )
+  // base név: az emoji utáni rész
+  const base = t.replace(/^.+?\s/, "");
+
+  // duplikátum ellenőrzés: emoji-t figyelmen kívül hagyjuk
+  if (
+    players.some(
+      (p) =>
+        p.name.replace(/^.+?\s/, "").toLowerCase() === base.toLowerCase()
     )
-      return;
+  )
+    return;
 
-    const animals = [
-      "🐶",
-      "🐱",
-      "🐭",
-      "🐹",
-      "🐰",
-      "🦊",
-      "🐻",
-      "🐼",
-      "🐨",
-      "🐯",
-      "🦁",
-      "🐮",
-      "🐷",
-      "🐸",
-      "🐵",
-      "🐔",
-      "🐧",
-      "🐦",
-      "🐤",
-      "🦆",
-      "🦅",
-      "🦉",
-      "🐺",
-      "🦄",
-      "🐝",
-      "🐛",
-      "🦋",
-      "🐌",
-      "🐞",
-      "🐢",
-      "🐍",
-      "🦎",
-    ];
-    const emoji = animals[Math.floor(Math.random() * animals.length)];
+  write({ players: [...players, { id: uid(), name: t }] });
+};
 
-    write({ players: [...players, { id: uid(), name: `${emoji} ${t}` }] });
-  };
 
   const removePlayer = (id: string) => {
     const nextPlayers = players.filter((p) => p.id !== id);
@@ -872,6 +928,23 @@ export default function App() {
 
     write({ players: nextPlayers, matches: nextMatches });
   };
+
+  const updatePlayerEmoji = (id: string, emoji: string) => {
+  const nextPlayers = players.map((p) => {
+    if (p.id !== id) return p;
+    const parts = p.name.split(" ");
+    if (parts.length > 1) {
+      const [, ...rest] = parts;
+      return { ...p, name: `${emoji} ${rest.join(" ")}` };
+    } else {
+      // ha valamiért nincs space/emoji, akkor is tegyük elé
+      return { ...p, name: `${emoji} ${p.name}` };
+    }
+  });
+
+  write({ players: nextPlayers });
+};
+
 
   const addMatch = (a: Pair, b: Pair) => {
     if (!isAdmin) return;
@@ -993,10 +1066,12 @@ export default function App() {
             <div className="space-y-4">
               <Standings rows={standings} />
               <PlayerEditor
-                players={players}
-                onAdd={addPlayer}
-                onRemove={removePlayer}
-              />
+  players={players}
+  onAdd={addPlayer}
+  onRemove={removePlayer}
+  onUpdateEmoji={updatePlayerEmoji}
+/>
+
               <BackupPanel
                 backups={backups}
                 onCreate={createBackup}
