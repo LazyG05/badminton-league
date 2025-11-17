@@ -696,16 +696,19 @@ function MatchesAdmin({
   nameOf,
   onPick,
   onClear,
+  onDelete,
 }: {
   matches: Match[];
   nameOf: (id: string) => string;
   onPick: (id: string, w: "A" | "B") => void;
   onClear: (id: string) => void;
+  onDelete: (id: string) => void;
 }) {
   return (
     <div className={card}>
       <ShuttleBg />
-      <h3 className="mb-2 font-semibold">Matches</h3>
+      <h3 className="mb-2 font-semibold">Matches (Admin)</h3>
+
       {matches.length === 0 ? (
         <p className="text-sm text-gray-500">No matches for this date yet.</p>
       ) : (
@@ -713,37 +716,64 @@ function MatchesAdmin({
           {matches.map((m) => (
             <li
               key={m.id}
-              className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-3"
+              className="rounded-xl border border-slate-200 p-3 bg-white shadow-sm"
             >
-              <div className="flex min-w-0 items-center gap-2">
-                <span className="truncate font-medium">
-                  {nameOf(m.teamA[0])} & {nameOf(m.teamA[1])}{" "}
-                  {m.winner === "A" && "🏆"}
-                </span>
-                <span className="shrink-0 text-gray-400">vs</span>
-                <span className="truncate font-medium">
-                  {nameOf(m.teamB[0])} & {nameOf(m.teamB[1])}{" "}
-                  {m.winner === "B" && "🏆"}
-                </span>
+              {/* Felső sor – csapatok szépen tördelve */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                <div
+                  className={`p-2 rounded-lg border ${
+                    m.winner === "A"
+                      ? "bg-indigo-50 border-indigo-300"
+                      : "border-slate-200"
+                  }`}
+                >
+                  <div className="font-medium">
+                    {nameOf(m.teamA[0])} & {nameOf(m.teamA[1])}
+                  </div>
+                  {m.winner === "A" && (
+                    <div className="text-indigo-600 text-xs font-semibold mt-1">
+                      Winner 🏆
+                    </div>
+                  )}
+                </div>
+
+                <div
+                  className={`p-2 rounded-lg border ${
+                    m.winner === "B"
+                      ? "bg-indigo-50 border-indigo-300"
+                      : "border-slate-200"
+                  }`}
+                >
+                  <div className="font-medium">
+                    {nameOf(m.teamB[0])} & {nameOf(m.teamB[1])}
+                  </div>
+                  {m.winner === "B" && (
+                    <div className="text-indigo-600 text-xs font-semibold mt-1">
+                      Winner 🏆
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className="flex items-center gap-2 text-sm">
+
+              {/* Alsó sor – műveletek */}
+              <div className="mt-3 flex flex-wrap gap-2 text-xs">
                 <button
                   className={btnSecondary}
                   onClick={() => onPick(m.id, "A")}
                 >
-                  Team A
+                  Set winner: Team A
                 </button>
                 <button
                   className={btnSecondary}
                   onClick={() => onPick(m.id, "B")}
                 >
-                  Team B
+                  Set winner: Team B
                 </button>
-                <button
-                  className={btnSecondary}
-                  onClick={() => onClear(m.id)}
-                >
-                  clear
+                <button className={btnSecondary} onClick={() => onClear(m.id)}>
+                  Clear winner
+                </button>
+                <button className={btnDanger} onClick={() => onDelete(m.id)}>
+                  Delete match
                 </button>
               </div>
             </li>
@@ -753,6 +783,7 @@ function MatchesAdmin({
     </div>
   );
 }
+
 
 function MatchesPlayer({
   grouped,
@@ -1157,6 +1188,14 @@ export default function App() {
     });
   };
 
+  const deleteMatch = (id: string) => {
+  if (!isAdmin) return;
+  if (!confirm("Delete this match permanently?")) return;
+  write({
+    matches: league.matches.filter((m) => m.id !== id),
+  });
+};
+
   const clearWinner = (id: string) => {
     if (!isAdmin) return;
     write({
@@ -1279,12 +1318,13 @@ export default function App() {
               />
 
               {/* Matches list (edit results) */}
-              <MatchesAdmin
-                matches={matchesForDate}
-                nameOf={nameOf}
-                onPick={pickWinner}
-                onClear={clearWinner}
-              />
+             <MatchesAdmin
+  matches={matchesForDate}
+  nameOf={nameOf}
+  onPick={pickWinner}
+  onClear={clearWinner}
+  onDelete={deleteMatch}
+/>
             </div>
 
             <div className="space-y-4">
