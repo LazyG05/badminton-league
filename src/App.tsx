@@ -788,54 +788,78 @@ function MatchesAdmin({
 function MatchesPlayer({
   grouped,
   nameOf,
-  lastSessionDate,
 }: {
   grouped: { date: string; matches: Match[] }[];
   nameOf: (id: string) => string;
-  lastSessionDate?: string | null;
 }) {
   return (
     <div className={card}>
       <ShuttleBg />
       <h3 className="mb-2 font-semibold">Results by date</h3>
+
       {grouped.length === 0 ? (
         <p className="text-sm text-gray-500">No matches yet.</p>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-6">
           {grouped.map((g) => (
             <div key={g.date} id={`date-${g.date}`}>
-              <div className="mb-1 flex items-center justify-between text-sm text-gray-600">
-                <span>
+              {/* Dátum fejlec */}
+              <div className="mb-2 flex items-center gap-2">
+                <span className="text-sm text-gray-600">
                   {g.date} / {weekday(g.date)}
                 </span>
-                {lastSessionDate === g.date && (
-                  <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
-                    Last session
-                  </span>
-                )}
               </div>
-              <ul className="divide-y">
+
+              {/* Meccsek kártyái */}
+              <ul className="space-y-3">
                 {g.matches.map((m) => (
-                  <li key={m.id} className="py-2 text-sm">
-                    <b>{nameOf(m.teamA[0])}</b> & <b>{nameOf(m.teamA[1])}</b>
-                    <span className="mx-1 text-gray-400">vs</span>
-                    <b>{nameOf(m.teamB[0])}</b> & <b>{nameOf(m.teamB[1])}</b>
-                    {m.winner ? (
-                      <span className="ml-2">
-                        – Winner:{" "}
-                        <b>
-                          {m.winner === "A"
-                            ? `${nameOf(m.teamA[0])} & ${nameOf(
-                                m.teamA[1]
-                              )}`
-                            : `${nameOf(m.teamB[0])} & ${nameOf(
-                                m.teamB[1]
-                              )}`}
-                        </b>{" "}
-                        🏆
-                      </span>
-                    ) : (
-                      <span className="ml-2 text-gray-500">– no result</span>
+                  <li
+                    key={m.id}
+                    className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm"
+                  >
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                      {/* Team A */}
+                      <div
+                        className={`p-2 rounded-lg border ${
+                          m.winner === "A"
+                            ? "bg-indigo-50 border-indigo-300"
+                            : "border-slate-200"
+                        }`}
+                      >
+                        <div className="font-medium">
+                          {nameOf(m.teamA[0])} & {nameOf(m.teamA[1])}
+                        </div>
+                        {m.winner === "A" && (
+                          <div className="text-indigo-600 text-xs font-semibold mt-1">
+                            Winner 🏆
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Team B */}
+                      <div
+                        className={`p-2 rounded-lg border ${
+                          m.winner === "B"
+                            ? "bg-indigo-50 border-indigo-300"
+                            : "border-slate-200"
+                        }`}
+                      >
+                        <div className="font-medium">
+                          {nameOf(m.teamB[0])} & {nameOf(m.teamB[1])}
+                        </div>
+                        {m.winner === "B" && (
+                          <div className="text-indigo-600 text-xs font-semibold mt-1">
+                            Winner 🏆
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Ha nincs eredmény */}
+                    {!m.winner && (
+                      <div className="mt-2 text-xs text-gray-500">
+                        Result pending
+                      </div>
                     )}
                   </li>
                 ))}
@@ -847,6 +871,7 @@ function MatchesPlayer({
     </div>
   );
 }
+
 
 function Standings({
   rows,
@@ -1356,7 +1381,6 @@ export default function App() {
               <MatchesPlayer
                 grouped={grouped}
                 nameOf={nameOf}
-                lastSessionDate={lastSessionDate}
               />
             </div>
             <div className="space-y-4">
