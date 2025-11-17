@@ -352,7 +352,19 @@ function PlayerEditor({
 }) {
   const [name, setName] = useState("");
   const [selectedEmoji, setSelectedEmoji] = useState<string>(EMOJIS[0]);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingEmoji, setEditingEmoji] = useState(false);
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(
+    players.length ? players[0].id : null
+  );
+
+  // ha változik a players tömb (pl. új játékos), frissítsük a selectet
+  useEffect(() => {
+    if (!players.length) {
+      setSelectedPlayerId(null);
+    } else if (!selectedPlayerId || !players.some(p => p.id === selectedPlayerId)) {
+      setSelectedPlayerId(players[0].id);
+    }
+  }, [players, selectedPlayerId]);
 
   const getBaseName = (full: string) =>
     full.replace(/^.+?\s/, ""); // emoji + space levágása
@@ -369,118 +381,155 @@ function PlayerEditor({
     setName("");
   };
 
+  const selectedPlayer =
+    selectedPlayerId && players.find((p) => p.id === selectedPlayerId)
+      ? players.find((p) => p.id === selectedPlayerId)!
+      : null;
+
   return (
     <div className={card}>
       <ShuttleBg />
-      <h2 className="mb-2 text-lg font-semibold">Players ({players.length})</h2>
+      <h2 className="mb-2 text-lg font-semibold">
+        Players ({players.length})
+      </h2>
 
-      {/* Emoji választó új játékoshoz */}
-      <div className="mb-3">
-        <div className="mb-1 text-xs text-gray-500">Choose emoji</div>
-        <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
-          {EMOJIS.map((e) => (
-            <button
-              key={e}
-              type="button"
-              className={`rounded-lg border px-2 py-1 text-sm ${
-                selectedEmoji === e
-                  ? "bg-[#e0edff] border-[#4f8ef7]"
-                  : "bg-white border-slate-200"
-              }`}
-              onClick={() => setSelectedEmoji(e)}
-              disabled={!!disabled}
-            >
-              {e}
-            </button>
-          ))}
+      {/* Új játékos felvétele */}
+      <div className="mb-4 space-y-2">
+        <div>
+          <div className="mb-1 text-xs text-gray-500">New player emoji</div>
+          <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
+            {EMOJIS.map((e) => (
+              <button
+                key={e}
+                type="button"
+                className={`rounded-lg border px-2 py-1 text-sm ${
+                  selectedEmoji === e
+                    ? "bg-[#e0edff] border-[#4f8ef7]"
+                    : "bg-white border-slate-200"
+                }`}
+                onClick={() => setSelectedEmoji(e)}
+                disabled={!!disabled}
+              >
+                {e}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex w-full flex-col gap-2 sm:flex-row">
+          <input
+            className={input}
+            placeholder="Player name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !disabled) {
+                handleAdd();
+              }
+            }}
+            disabled={!!disabled}
+          />
+          <button
+            className={btnPrimary}
+            onClick={handleAdd}
+            disabled={!!disabled || !name.trim()}
+          >
+            Add
+          </button>
         </div>
       </div>
 
-      <div className="flex w-full flex-col gap-2 sm:flex-row">
-        <input
-          className={input}
-          placeholder="Player name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !disabled) {
-              handleAdd();
-            }
-          }}
-          disabled={!!disabled}
-        />
-        <button
-          className={btnPrimary}
-          onClick={handleAdd}
-          disabled={!!disabled || !name.trim()}
-        >
-          Add
-        </button>
-      </div>
+      {/* Meglévő játékosok kezelése – dropdown */}
+      <div className="border-t border-slate-100 pt-3 mt-2">
+        <h3 className="mb-2 text-sm font-semibold text-slate-700">
+          Manage existing player
+        </h3>
 
-      {players.length > 0 && (
-        <ul className="mt-3 divide-y text-sm">
-          {players.map((p) => {
-            const emoji = getEmoji(p.name);
-            const baseName = getBaseName(p.name);
-            const isEditing = editingId === p.id;
+        {players.length === 0 ? (
+          <p className="text-sm text-gray-500">
+            No players yet. Add someone above.
+          </p>
+        ) : (
+          <>
+            <select
+              className={`${input} mb-3`}
+              value={selectedPlayerId ?? ""}
+              onChange={(e) => {
+                setSelectedPlayerId(e.target.value || null);
+                setEditingEmoji(false);
+              }}
+              disabled={!!disabled}
+            >
+              {players.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
 
-            return (
-              <li key={p.id} className="py-2">
+            {selectedPlayer && (
+              <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 text-sm">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="min-w-0 flex items-center gap-2">
-                    <button
-                      type="button"
-                      className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm"
-                      onClick={() =>
-                        setEditingId(isEditing ? null : p.id)
-                      }
-                      disabled={!!disabled}
-                    >
-                      {emoji}
-                    </button>
-                    <span className="truncate">{baseName}</span>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-lg">
+                      {getEmoji(selectedPlayer.name)}
+                    </span>
+                    <span className="truncate font-medium">
+                      {getBaseName(selectedPlayer.name)}
+                    </span>
                   </div>
                   <button
                     className={btnDanger}
-                    onClick={() => onRemove(p.id)}
+                    onClick={() => onRemove(selectedPlayer.id)}
                     disabled={!!disabled}
                   >
                     remove
                   </button>
                 </div>
 
-                {/* Emoji csere panel adott játékoshoz */}
-                {isEditing && (
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {EMOJIS.map((e) => (
-                      <button
-                        key={e}
-                        type="button"
-                        className={`rounded-lg border px-2 py-1 text-xs ${
-                          e === emoji
-                            ? "bg-[#e0edff] border-[#4f8ef7]"
-                            : "bg-white border-slate-200"
-                        }`}
-                        onClick={() => {
-                          onUpdateEmoji(p.id, e);
-                          setEditingId(null);
-                        }}
-                        disabled={!!disabled}
-                      >
-                        {e}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      )}
+                <div className="mt-3">
+                  <button
+                    type="button"
+                    className={btnSecondary}
+                    onClick={() => setEditingEmoji((v) => !v)}
+                    disabled={!!disabled}
+                  >
+                    {editingEmoji ? "Close emoji picker" : "Change emoji"}
+                  </button>
+
+                  {editingEmoji && (
+                    <div className="mt-2 flex flex-wrap gap-1 max-h-24 overflow-y-auto">
+                      {EMOJIS.map((e) => (
+                        <button
+                          key={e}
+                          type="button"
+                          className={`rounded-lg border px-2 py-1 text-xs ${
+                            e === getEmoji(selectedPlayer.name)
+                              ? "bg-[#e0edff] border-[#4f8ef7]"
+                              : "bg-white border-slate-200"
+                          }`}
+                          onClick={() => {
+                            onUpdateEmoji(selectedPlayer.id, e);
+                            // nem muszáj bezárni, de lehet:
+                            // setEditingEmoji(false);
+                          }}
+                          disabled={!!disabled}
+                        >
+                          {e}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
+
 
 function DnDPairs({
   players,
