@@ -827,26 +827,31 @@ function MatchesPlayer({
                 className="rounded-xl border border-slate-200 bg-white"
               >
                 {/* Date "header" – kattintható sor, mint egy dropdown */}
-                <button
-                  type="button"
-                  onClick={() =>
-                    setOpenDate(isOpen ? null : g.date)
-                  }
-                  className="flex w-full items-center justify-between px-3 py-2 text-sm"
-                >
-                  <span className="flex flex-col items-start">
-                    <span className="font-medium">{g.date}</span>
-                    <span className="text-xs text-gray-500">
-                      {weekday(g.date)}
-                    </span>
-                  </span>
-                  <span className="text-xs text-gray-500">
-                    {g.matches.length} match
-                    <span className="ml-2 inline-block">
-                      {isOpen ? "▲" : "▼"}
-                    </span>
-                  </span>
-                </button>
+<button
+  type="button"
+  onClick={() => setOpenDate(isOpen ? null : g.date)}
+  className="
+    flex w-full items-center justify-between 
+    px-3 py-2 text-sm rounded-t-xl
+    bg-white text-slate-800     /* <-- EZ A FONTOS!!! */
+    border-b border-slate-200
+    hover:bg-slate-50
+  "
+>
+  <span className="flex flex-col items-start">
+    <span className="font-medium">{g.date}</span>
+    <span className="text-xs text-gray-500">
+      {weekday(g.date)}
+    </span>
+  </span>
+  <span className="text-xs text-gray-500">
+    {g.matches.length} match
+    <span className="ml-2 inline-block">
+      {isOpen ? "▲" : "▼"}
+    </span>
+  </span>
+</button>
+
 
                 {/* Lenyíló rész – csak ha nyitva van */}
                 {isOpen && (
