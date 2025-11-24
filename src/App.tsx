@@ -792,6 +792,23 @@ function MatchesPlayer({
   grouped: { date: string; matches: Match[] }[];
   nameOf: (id: string) => string;
 }) {
+  // alapból a legutolsó dátum legyen nyitva
+  const [openDate, setOpenDate] = useState<string | null>(() =>
+    grouped.length ? grouped[grouped.length - 1].date : null
+  );
+
+  useEffect(() => {
+    if (grouped.length === 0) {
+      setOpenDate(null);
+      return;
+    }
+    // ha új dátumok kerülnek be, és eddig nem volt open, nyissuk a legutolsót
+    setOpenDate((prev) => {
+      if (prev && grouped.some((g) => g.date === prev)) return prev;
+      return grouped[grouped.length - 1].date;
+    });
+  }, [grouped]);
+
   return (
     <div className={card}>
       <ShuttleBg />
@@ -800,77 +817,103 @@ function MatchesPlayer({
       {grouped.length === 0 ? (
         <p className="text-sm text-gray-500">No matches yet.</p>
       ) : (
-        <div className="space-y-6">
-          {grouped.map((g) => (
-            <div key={g.date} id={`date-${g.date}`}>
-              {/* Dátum fejlec */}
-              <div className="mb-2 flex items-center gap-2">
-                <span className="text-sm text-gray-600">
-                  {g.date} / {weekday(g.date)}
-                </span>
+        <div className="space-y-2">
+          {grouped.map((g) => {
+            const isOpen = openDate === g.date;
+            return (
+              <div
+                key={g.date}
+                id={`date-${g.date}`}
+                className="rounded-xl border border-slate-200 bg-white"
+              >
+                {/* Date "header" – kattintható sor, mint egy dropdown */}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setOpenDate(isOpen ? null : g.date)
+                  }
+                  className="flex w-full items-center justify-between px-3 py-2 text-sm"
+                >
+                  <span className="flex flex-col items-start">
+                    <span className="font-medium">{g.date}</span>
+                    <span className="text-xs text-gray-500">
+                      {weekday(g.date)}
+                    </span>
+                  </span>
+                  <span className="text-xs text-gray-500">
+                    {g.matches.length} match
+                    <span className="ml-2 inline-block">
+                      {isOpen ? "▲" : "▼"}
+                    </span>
+                  </span>
+                </button>
+
+                {/* Lenyíló rész – csak ha nyitva van */}
+                {isOpen && (
+                  <div className="border-t border-slate-200 px-3 py-2">
+                    <ul className="space-y-3">
+                      {g.matches.map((m) => (
+                        <li
+                          key={m.id}
+                          className="rounded-lg border border-slate-200 bg-slate-50/70 p-3 text-sm"
+                        >
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {/* Team A */}
+                            <div
+                              className={`p-2 rounded-lg border ${
+                                m.winner === "A"
+                                  ? "bg-indigo-50 border-indigo-300"
+                                  : "border-slate-200 bg-white"
+                              }`}
+                            >
+                              <div className="font-medium">
+                                {nameOf(m.teamA[0])} & {nameOf(m.teamA[1])}
+                              </div>
+                              {m.winner === "A" && (
+                                <div className="text-indigo-600 text-xs font-semibold mt-1">
+                                  Winner 🏆
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Team B */}
+                            <div
+                              className={`p-2 rounded-lg border ${
+                                m.winner === "B"
+                                  ? "bg-indigo-50 border-indigo-300"
+                                  : "border-slate-200 bg-white"
+                              }`}
+                            >
+                              <div className="font-medium">
+                                {nameOf(m.teamB[0])} & {nameOf(m.teamB[1])}
+                              </div>
+                              {m.winner === "B" && (
+                                <div className="text-indigo-600 text-xs font-semibold mt-1">
+                                  Winner 🏆
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {!m.winner && (
+                            <div className="mt-2 text-xs text-gray-500">
+                              Result pending
+                            </div>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
-
-              {/* Meccsek kártyái */}
-              <ul className="space-y-3">
-                {g.matches.map((m) => (
-                  <li
-                    key={m.id}
-                    className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm"
-                  >
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                      {/* Team A */}
-                      <div
-                        className={`p-2 rounded-lg border ${
-                          m.winner === "A"
-                            ? "bg-indigo-50 border-indigo-300"
-                            : "border-slate-200"
-                        }`}
-                      >
-                        <div className="font-medium">
-                          {nameOf(m.teamA[0])} & {nameOf(m.teamA[1])}
-                        </div>
-                        {m.winner === "A" && (
-                          <div className="text-indigo-600 text-xs font-semibold mt-1">
-                            Winner 🏆
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Team B */}
-                      <div
-                        className={`p-2 rounded-lg border ${
-                          m.winner === "B"
-                            ? "bg-indigo-50 border-indigo-300"
-                            : "border-slate-200"
-                        }`}
-                      >
-                        <div className="font-medium">
-                          {nameOf(m.teamB[0])} & {nameOf(m.teamB[1])}
-                        </div>
-                        {m.winner === "B" && (
-                          <div className="text-indigo-600 text-xs font-semibold mt-1">
-                            Winner 🏆
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Ha nincs eredmény */}
-                    {!m.winner && (
-                      <div className="mt-2 text-xs text-gray-500">
-                        Result pending
-                      </div>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
   );
 }
+
 
 
 function Standings({
