@@ -326,31 +326,39 @@ export function computeAchievementsFull(
     });
 
   // --- Melinda challenge ---
-  const melinda = players.find((p) =>
-    p.name.toLowerCase().includes("melinda")
-  );
-  if (melinda) {
-    const beatMelinda = playerMatches.some((m) => {
-      const melInA = m.teamA.includes(melinda.id);
-      const melInB = m.teamB.includes(melinda.id);
+const melinda = players.find((p) =>
+  p.name.toLowerCase().includes("melinda")
+);
 
-      if (!melInA && !melInB) return false;
+if (melinda) {
+  const beatMelinda = matches.some((m) => {
+    const melInA = m.teamA.includes(melinda.id);
+    const melInB = m.teamB.includes(melinda.id);
 
-      // player & melinda must both be in match
-      const inA = m.teamA.includes(playerId);
-      const inB = m.teamB.includes(playerId);
+    if (!melInA && !melInB) return false;
 
-      if (!inA && !inB) return false;
+    const inA = m.teamA.includes(playerId);
+    const inB = m.teamB.includes(playerId);
 
-      // winner?
-      if (!m.winner) return false;
+    if (!inA && !inB) return false;
+    if (!m.winner) return false;
 
-      const playerWon =
-        (m.winner === "A" && inA) ||
-        (m.winner === "B" && inB);
+    const playerWon =
+      (m.winner === "A" && inA) ||
+      (m.winner === "B" && inB);
 
-      return playerWon;
+    return playerWon;
+  });
+
+  if (beatMelinda) {
+    out.push({
+      id: "beatMelinda",
+      title: "Beat Melinda!",
+      description: "Won a match against Coach Melinda.",
     });
+  }
+}
+
 
     if (beatMelinda) {
       out.push({
