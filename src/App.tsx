@@ -441,9 +441,9 @@ function nextTrainingDate(from: Date = new Date()): Date {
 // Egymást követő liganapok, amelyeken a játékos játszott.
 // Itt "session" = bármely dátum, amikor volt bármilyen meccs a ligában.
 function computeAttendanceStreak(playerId: string, matches: Match[]): number {
-  if (matches.length === 0) return 0;
+  if (!matches.length) return 0;
 
-  // Összes liganap (bármelyik meccs dátuma), sorbarendezve
+  // Összes liganap (bármelyik meccs dátuma), sorba rendezve
   const allDates = Array.from(new Set(matches.map((m) => m.date))).sort();
 
   // Olyan napok, amikor a player játszott
@@ -1438,9 +1438,12 @@ function Standings({
     name: string;
     wins: number;
     losses: number;
-    points: number;
+    basePoints: number;
+    bonusPoints: number;
+    totalPoints: number;
   }[];
 }) {
+
   return (
     <div className={card}>
       <ShuttleBg />
@@ -1471,9 +1474,17 @@ function Standings({
                   </td>
                   <td className="py-2 pr-2 align-middle">{row.wins}</td>
                   <td className="py-2 pr-2 align-middle">{row.losses}</td>
-                  <td className="py-2 pr-2 align-middle font-semibold">
-                    {row.points}
-                  </td>
+                <td className="py-2 pr-2 align-middle font-semibold">
+  {row.totalPoints}
+  {row.bonusPoints > 0 && (
+    <span
+      className="ml-1 text-xs text-emerald-600 font-medium"
+      title={`Includes ${row.bonusPoints} bonus point(s) from achievements`}
+    >
+      +{row.bonusPoints}⭐
+    </span>
+  )}
+</td>
                 </tr>
               ))}
             </tbody>
@@ -1663,24 +1674,37 @@ export default function App() {
   const freeIds = useMemo(() => players.map((p) => p.id), [players]);
 
   // Standings (aggregate all dates)
-  const standings = useMemo(() => {
+    const standings = useMemo(() => {
     const map = new Map<
       string,
-      { id: string; name: string; wins: number; losses: number; points: number }
+      {
+        id: string;
+        name: string;
+        wins: number;
+        losses: number;
+        basePoints: number;
+        bonusPoints: number;
+        totalPoints: number;
+      }
     >();
 
+    // Alap stat blokkok
     players.forEach((p) =>
       map.set(p.id, {
         id: p.id,
         name: p.name,
         wins: 0,
         losses: 0,
-        points: 0,
+        basePoints: 0,
+        bonusPoints: 0,
+        totalPoints: 0,
       })
     );
 
+    // Alappontok: meccsgyőzelmek
     league.matches.forEach((m) => {
       if (!m.winner) return;
+
       const win = m.winner === "A" ? m.teamA : m.teamB;
       const lose = m.winner === "A" ? m.teamB : m.teamA;
 
@@ -1688,7 +1712,7 @@ export default function App() {
         const r = map.get(id);
         if (!r) return;
         r.wins++;
-        r.points++;
+        r.basePoints++;
       });
 
       lose.forEach((id) => {
@@ -1698,10 +1722,29 @@ export default function App() {
       });
     });
 
+    // BONUS pontok: Beat Melinda + Ironman (10 streak)
+    players.forEach((p) => {
+      const ach = computeAchievementsFull(p.id, league.matches, players);
+
+      const hasBeatMelinda = ach.some((a) => a.id === "beatMelinda");
+      const hasIronman = ach.some((a) => a.id === "streak10");
+
+      const r = map.get(p.id);
+      if (!r) return;
+
+      if (hasBeatMelinda) r.bonusPoints += 1;
+      if (hasIronman) r.bonusPoints += 1;
+
+      r.totalPoints = r.basePoints + r.bonusPoints;
+    });
+
     return Array.from(map.values()).sort(
-      (a, b) => b.points - a.points || a.name.localeCompare(b.name)
+      (a, b) =>
+        b.totalPoints - a.totalPoints ||
+        a.name.localeCompare(b.name)
     );
   }, [league.matches, players]);
+
 
   // Grouped results for Player view + last session date
   const grouped = useMemo(() => {
