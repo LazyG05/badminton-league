@@ -1680,9 +1680,20 @@ function Standings({
           </table>
         </div>
       )}
-      <p className="mt-2 text-[11px] text-gray-400">
-        ❕ = less than 5 matches played (ranking still provisional).
-      </p>
+     <div className="mt-3 space-y-1 text-[11px] text-gray-500 leading-tight">
+  <p>
+    ❕ = Less than 5 matches played – provisional ranking.
+  </p>
+  <p>
+    📊 <b>Ranking rules:</b> first we rank players with at least 5 matches,
+    then by win rate (Win%). If equal, more matches count higher.
+  </p>
+  <p>
+    ⭐ <b>Bonus points:</b> +1 point for achievements such as beating Melinda,
+    or reaching the Ironman 10-session streak.
+  </p>
+</div>
+
     </div>
   );
 }
