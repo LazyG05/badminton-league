@@ -1634,16 +1634,19 @@ function Standings({
                                 };
                               return (
                                 <span
-                                  key={a.id}
-                                  className="
-                                    inline-flex items-center justify-center
-                                    rounded-full bg-slate-100 px-1.5 py-0.5
-                                    text-[12px]
-                                  "
-                                  title={a.title}
-                                >
-                                  {meta.icon}
-                                </span>
+  key={a.id}
+  className="
+    inline-flex items-center justify-center
+    rounded-full bg-slate-100 px-1.5 py-0.5
+    text-[12px]
+    transition-transform transition-shadow duration-150
+    hover:-translate-y-0.5 hover:scale-110 hover:shadow-sm
+  "
+  title={a.title}
+>
+  {meta.icon}
+</span>
+
                               );
                             })}
                           </span>
