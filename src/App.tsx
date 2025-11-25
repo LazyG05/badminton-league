@@ -142,6 +142,47 @@ function PlayerAchievements({
     },
   };
 
+  // Minden létező badge (bemutató lista)
+  const ALL_BADGES: Achievement[] = [
+    {
+      id: "win5",
+      title: "Novice Winner",
+      description: "Win 5 matches.",
+    },
+    {
+      id: "win10",
+      title: "Pro Winner",
+      description: "Win 10 matches.",
+    },
+    {
+      id: "win25",
+      title: "Champion",
+      description: "Win 25 matches.",
+    },
+    {
+      id: "beatMelinda",
+      title: "Beat Melinda!",
+      description: "Win a match against Coach Melinda.",
+    },
+    {
+      id: "streak3",
+      title: "Regular",
+      description: "Attend 3 sessions in a row.",
+    },
+    {
+      id: "streak6",
+      title: "Dedicated",
+      description: "Attend 6 sessions in a row.",
+    },
+    {
+      id: "streak10",
+      title: "Ironman",
+      description: "Attend 10 sessions in a row.",
+    },
+  ];
+
+  const earnedIds = new Set(ach.map((a) => a.id));
+
   return (
     <div className={card}>
       <ShuttleBg />
@@ -153,61 +194,115 @@ function PlayerAchievements({
         <span className="font-medium text-slate-800">{me.name}</span>
       </p>
 
-      {ach.length === 0 && (
-        <p className="text-sm text-gray-500">
+      {/* Megszerzett badge-ek */}
+      {ach.length === 0 ? (
+        <p className="text-sm text-gray-500 mb-3">
           No achievements yet. Keep playing! 🏸
         </p>
+      ) : (
+        <ul className="space-y-2 mb-4">
+          {ach.map((a) => {
+            const meta = BADGE_META[a.id] || {
+              icon: "⭐",
+              accent: "text-slate-700",
+              bg: "from-slate-50 via-white to-slate-50",
+            };
+
+            return (
+              <li
+                key={a.id}
+                className={`
+                  group relative overflow-hidden
+                  rounded-2xl border border-slate-200
+                  bg-gradient-to-r ${meta.bg}
+                  px-3 py-2 text-sm shadow-sm
+                  transition-transform hover:-translate-y-0.5 hover:shadow-md
+                `}
+              >
+                {/* kis „csillogás” overlay */}
+                <div className="pointer-events-none absolute -right-6 -top-6 h-16 w-16 rounded-full bg-white/40 blur-2 opacity-0 group-hover:opacity-70 transition-opacity" />
+
+                <div className="flex items-center gap-3 relative">
+                  <div
+                    className={`
+                      flex h-9 w-9 items-center justify-center
+                      rounded-full bg-white shadow
+                      text-lg ${meta.accent}
+                    `}
+                  >
+                    {meta.icon}
+                  </div>
+
+                  <div className="min-w-0">
+                    <div className="truncate font-semibold text-slate-800">
+                      {a.title}
+                    </div>
+                    <div className="text-xs text-gray-600">
+                      {a.description}
+                    </div>
+                  </div>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
       )}
 
-      <ul className="space-y-2">
-        {ach.map((a) => {
-          const meta = BADGE_META[a.id] || {
-            icon: "⭐",
-            accent: "text-slate-700",
-            bg: "from-slate-50 via-white to-slate-50",
-          };
+      {/* Összes badge bemutatása */}
+      <div className="mt-1">
+        <h4 className="mb-1 text-xs font-semibold text-slate-600 uppercase tracking-wide">
+          All badges
+        </h4>
+        <ul className="space-y-1">
+          {ALL_BADGES.map((b) => {
+            const meta = BADGE_META[b.id] || {
+              icon: "⭐",
+              accent: "text-slate-700",
+              bg: "from-slate-50 via-white to-slate-50",
+            };
+            const earned = earnedIds.has(b.id);
 
-          return (
-            <li
-              key={a.id}
-              className={`
-                group relative overflow-hidden
-                rounded-2xl border border-slate-200
-                bg-gradient-to-r ${meta.bg}
-                px-3 py-2 text-sm shadow-sm
-                transition-transform hover:-translate-y-0.5 hover:shadow-md
-              `}
-            >
-              {/* kis „csillogás” overlay */}
-              <div className="pointer-events-none absolute -right-6 -top-6 h-16 w-16 rounded-full bg-white/40 blur-2 opacity-0 group-hover:opacity-70 transition-opacity" />
-
-              <div className="flex items-center gap-3 relative">
-                <div
+            return (
+              <li
+                key={b.id}
+                className={`
+                  flex items-center gap-2 rounded-xl border px-2 py-1
+                  text-xs
+                  ${
+                    earned
+                      ? "border-emerald-200 bg-emerald-50/60 text-slate-800"
+                      : "border-slate-200 bg-slate-50 text-slate-500"
+                  }
+                `}
+              >
+                <span
                   className={`
-                    flex h-9 w-9 items-center justify-center
-                    rounded-full bg-white shadow
-                    text-lg ${meta.accent}
+                    flex h-6 w-6 items-center justify-center rounded-full bg-white text-base
+                    ${earned ? meta.accent : "text-slate-400"}
                   `}
                 >
                   {meta.icon}
-                </div>
-
+                </span>
                 <div className="min-w-0">
-                  <div className="truncate font-semibold text-slate-800">
-                    {a.title}
+                  <div className="truncate font-medium">
+                    {b.title}
+                    {earned && (
+                      <span className="ml-1 text-[10px] text-emerald-700">
+                        (earned)
+                      </span>
+                    )}
                   </div>
-                  <div className="text-xs text-gray-600">
-                    {a.description}
-                  </div>
+                  <div className="text-[10px] truncate">{b.description}</div>
                 </div>
-              </div>
-            </li>
-          );
-        })}
-      </ul>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
     </div>
   );
 }
+
 
 
 export function computeAchievementsFull(
@@ -1243,15 +1338,21 @@ function PlayerStats({
   meId: string;
   setMeId: (id: string) => void;
 }) {
-  // ha még nincs meId elmentve, válasszuk az első playert
-  useEffect(() => {
-    if (!meId && players.length) {
-      setMeId(players[0].id);
-    }
-  }, [meId, players, setMeId]);
+  // ABC szerinti sorrend
+  const sortedPlayers = useMemo(
+    () => [...players].sort((a, b) => a.name.localeCompare(b.name)),
+    [players]
+  );
 
-  const me = players.find((p) => p.id === meId);
-  if (!me || !players.length) return null;
+  // ha még nincs meId elmentve, válasszuk az első (ABC szerinti) playert
+  useEffect(() => {
+    if (!meId && sortedPlayers.length) {
+      setMeId(sortedPlayers[0].id);
+    }
+  }, [meId, sortedPlayers, setMeId]);
+
+  const me = sortedPlayers.find((p) => p.id === meId);
+  if (!me || !sortedPlayers.length) return null;
 
   const stats = computePlayerStats(meId, matches);
 
@@ -1262,13 +1363,13 @@ function PlayerStats({
         My stats
       </h3>
 
-      {/* Játékosválasztó */}
+      {/* Játékosválasztó – ABC szerint rendezve */}
       <select
         className={`${input} text-sm mb-3`}
         value={meId}
         onChange={(e) => setMeId(e.target.value)}
       >
-        {players.map((p) => (
+        {sortedPlayers.map((p) => (
           <option key={p.id} value={p.id}>
             {p.name}
           </option>
