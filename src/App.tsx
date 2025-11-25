@@ -1540,6 +1540,8 @@ function PlayerStats({
 
 function Standings({
   rows,
+  players,
+  matches,
 }: {
   rows: {
     id: string;
@@ -1553,7 +1555,21 @@ function Standings({
     totalPoints: number;
     qualified: boolean;
   }[];
+  players: Player[];
+  matches: Match[];
 }) {
+  // ugyanaz a badge-ikon mapping, mint Achievementsnél, csak egyszerűsítve
+  const BADGE_META: Record<string, { icon: string; label: string }> = {
+    win5: { icon: "🥉", label: "Win 5 matches" },
+    win10: { icon: "🥈", label: "Win 10 matches" },
+    win25: { icon: "🥇", label: "Win 25 matches" },
+    beatMelinda: { icon: "🎯", label: "Beat Melinda" },
+    streak3: { icon: "🔥", label: "3-session streak" },
+    streak6: { icon: "💪", label: "6-session streak" },
+    streak10: { icon: "🏆", label: "10-session streak" },
+    min5matches: { icon: "📅", label: "Played 5+ matches" },
+  };
+
   return (
     <div className={card}>
       <ShuttleBg />
@@ -1575,50 +1591,88 @@ function Standings({
               </tr>
             </thead>
             <tbody>
-              {rows.map((row, idx) => (
-                <tr
-                  key={row.id}
-                  className={
-                    idx % 2 === 0 ? "border-t bg-slate-50/60" : "border-t"
-                  }
-                >
-                  <td className="py-2 px-2 align-middle">{idx + 1}</td>
-                  <td className="py-2 px-2 align-middle font-medium">
-                    <span>{row.name}</span>
-                    {!row.qualified && (
-                      <span
-                        className="
-                          ml-1 inline-flex items-center
-                          rounded-full bg-amber-50 px-1.5 py-0.5
-                          text-[10px] font-semibold text-amber-700 border border-amber-200
-                        "
-                        title="Less than 5 matches – provisional ranking"
-                      >
-                        ❕
-                      </span>
-                    )}
-                  </td>
-                  <td className="py-2 px-2 align-middle">{row.wins}</td>
-                  <td className="py-2 px-2 align-middle">{row.losses}</td>
-                  <td className="py-2 px-2 align-middle">
-                    {row.matches > 0
-                      ? Math.round(row.winRate * 100) + "%"
-                      : "-"}
-                  </td>
-                  <td className="py-2 px-2 align-middle">{row.matches}</td>
-                  <td className="py-2 px-2 align-middle font-semibold">
-                    {row.totalPoints}
-                    {row.bonusPoints > 0 && (
-                      <span
-                        className="ml-1 text-xs text-emerald-600 font-medium"
-                        title={`Includes ${row.bonusPoints} bonus point(s) from achievements`}
-                      >
-                        +{row.bonusPoints}⭐
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              ))}
+              {rows.map((row, idx) => {
+                const ach = computeAchievementsFull(row.id, matches, players);
+
+                return (
+                  <tr
+                    key={row.id}
+                    className={
+                      idx % 2 === 0 ? "border-t bg-slate-50/60" : "border-t"
+                    }
+                  >
+                    <td className="py-2 px-2 align-middle">{idx + 1}</td>
+
+                    {/* Név + ❕ + badge ikonok EGY SORBAN */}
+                    <td className="py-2 px-2 align-middle">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-medium flex items-center gap-1">
+                          {row.name}
+
+                          {!row.qualified && (
+                            <span
+                              className="
+                                inline-flex items-center rounded-full
+                                bg-amber-50 px-1.5 py-0.5
+                                text-[10px] font-semibold text-amber-700
+                                border border-amber-200
+                              "
+                              title="Less than 5 matches – provisional ranking"
+                            >
+                              ❕
+                            </span>
+                          )}
+                        </span>
+
+                        {ach.length > 0 && (
+                          <span className="flex items-center flex-wrap gap-1">
+                            {ach.map((a) => {
+                              const meta =
+                                BADGE_META[a.id] || {
+                                  icon: "⭐",
+                                  label: a.title,
+                                };
+                              return (
+                                <span
+                                  key={a.id}
+                                  className="
+                                    inline-flex items-center justify-center
+                                    rounded-full bg-slate-100 px-1.5 py-0.5
+                                    text-[12px]
+                                  "
+                                  title={a.title}
+                                >
+                                  {meta.icon}
+                                </span>
+                              );
+                            })}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+
+                    <td className="py-2 px-2 align-middle">{row.wins}</td>
+                    <td className="py-2 px-2 align-middle">{row.losses}</td>
+                    <td className="py-2 px-2 align-middle">
+                      {row.matches > 0
+                        ? Math.round(row.winRate * 100) + "%"
+                        : "-"}
+                    </td>
+                    <td className="py-2 px-2 align-middle">{row.matches}</td>
+                    <td className="py-2 px-2 align-middle font-semibold">
+                      {row.totalPoints}
+                      {row.bonusPoints > 0 && (
+                        <span
+                          className="ml-1 text-xs text-emerald-600 font-medium"
+                          title={`Includes ${row.bonusPoints} bonus point(s) from achievements`}
+                        >
+                          +{row.bonusPoints}⭐
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -2151,7 +2205,7 @@ export default function App() {
 
     {/* 🆕 Standings teljes szélességben */}
     <div className="mt-4 sm:mt-6">
-      <Standings rows={standings} />
+      <Standings rows={standings} players={players} matches={league.matches} />
     </div>
   </>
 ) : (
@@ -2226,7 +2280,7 @@ export default function App() {
 
     {/* 🆕 Standings teljes szélességben */}
     <div className="mt-4 sm:mt-6">
-      <Standings rows={standings} />
+      <Standings rows={standings} players={players} matches={league.matches} />
     </div>
   </>
 )}
