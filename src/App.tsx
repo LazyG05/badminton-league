@@ -80,6 +80,314 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
+export type Achievement = {
+  id: string;
+  title: string;
+  description: string;
+};
+
+export function computeAchievements(
+  playerId: string,
+  matches: Match[],
+  nameOf: (id: string) => string
+): Achievement[] {
+  const out: Achievement[] = [];
+
+  // --- Basic stats ---
+  let wins = 0;
+  const winDates = new Set<string>(); // for attendance
+   
+  matches.forEach((m) => {
+    const inA = m.teamA.includes(playerId);
+    const inB = m.teamB.includes(playerId);
+    if (!inA && !inB) return;
+    if (!m.winner) return;
+
+    const didWin =
+      (m.winner === "A" && inA) ||
+      (m.winner === "B" && inB);
+
+    if (didWin) {
+      wins++;
+      winDates.add(m.date);
+    }
+  });
+
+  // --- Win Achievements ----
+  if (wins >= 5)
+    out.push({
+      id: "win5",
+      title: "5 Wins!",
+      description: "You reached 5 victories.",
+    });
+
+  if (wins >= 10)
+    out.push({
+      id: "win10",
+      title: "10 Wins!",
+      description: "A strong performance so far!",
+    });
+
+  if (wins >= 25)
+    out.push({
+      id: "win25",
+      title: "25 Wins!",
+      description: "You're becoming a league legend!",
+    });
+
+
+  // --- Melinda Challenge ---
+  const melinda = Object.entries(nameOf)
+    // nameOf is a function, so we search players instead:
+    // We'll detect Melinda below in PlayerStats where we have "players".
+    // This part will be replaced there.
+    ;
+
+
+  // (Melinda detection will come later — this stays empty here)
+  
+  return out;
+}
+
+function PlayerAchievements({
+  players,
+  matches,
+  meId,
+}: {
+  players: Player[];
+  matches: Match[];
+  meId: string;
+}) {
+  const me = players.find((p) => p.id === meId);
+  if (!me || !players.length) return null;
+
+  const ach = computeAchievementsFull(meId, matches, players);
+
+  // badge meta: ikon + színek per achievement id
+  const BADGE_META: Record<
+    string,
+    { icon: string; accent: string; bg: string }
+  > = {
+    win5: {
+      icon: "🥉",
+      accent: "text-amber-700",
+      bg: "from-amber-50 via-white to-slate-50",
+    },
+    win10: {
+      icon: "🥈",
+      accent: "text-slate-700",
+      bg: "from-slate-50 via-white to-indigo-50",
+    },
+    win25: {
+      icon: "🥇",
+      accent: "text-yellow-700",
+      bg: "from-yellow-50 via-white to-amber-50",
+    },
+    beatMelinda: {
+      icon: "🎯",
+      accent: "text-rose-700",
+      bg: "from-rose-50 via-white to-indigo-50",
+    },
+    streak3: {
+      icon: "🔥",
+      accent: "text-orange-700",
+      bg: "from-orange-50 via-white to-emerald-50",
+    },
+    streak6: {
+      icon: "💪",
+      accent: "text-emerald-700",
+      bg: "from-emerald-50 via-white to-sky-50",
+    },
+    streak10: {
+      icon: "🏆",
+      accent: "text-indigo-700",
+      bg: "from-indigo-50 via-white to-amber-50",
+    },
+  };
+
+  return (
+    <div className={card}>
+      <ShuttleBg />
+      <h3 className="mb-1 text-sm font-semibold text-slate-700">
+        Achievements
+      </h3>
+      <p className="mb-3 text-xs text-gray-500">
+        Badges earned by{" "}
+        <span className="font-medium text-slate-800">{me.name}</span>
+      </p>
+
+      {ach.length === 0 && (
+        <p className="text-sm text-gray-500">
+          No achievements yet. Keep playing! 🏸
+        </p>
+      )}
+
+      <ul className="space-y-2">
+        {ach.map((a) => {
+          const meta = BADGE_META[a.id] || {
+            icon: "⭐",
+            accent: "text-slate-700",
+            bg: "from-slate-50 via-white to-slate-50",
+          };
+
+          return (
+            <li
+              key={a.id}
+              className={`
+                group relative overflow-hidden
+                rounded-2xl border border-slate-200
+                bg-gradient-to-r ${meta.bg}
+                px-3 py-2 text-sm shadow-sm
+                transition-transform hover:-translate-y-0.5 hover:shadow-md
+              `}
+            >
+              {/* kis „csillogás” overlay */}
+              <div className="pointer-events-none absolute -right-6 -top-6 h-16 w-16 rounded-full bg-white/40 blur-2 opacity-0 group-hover:opacity-70 transition-opacity" />
+
+              <div className="flex items-center gap-3 relative">
+                <div
+                  className={`
+                    flex h-9 w-9 items-center justify-center
+                    rounded-full bg-white shadow
+                    text-lg ${meta.accent}
+                  `}
+                >
+                  {meta.icon}
+                </div>
+
+                <div className="min-w-0">
+                  <div className="truncate font-semibold text-slate-800">
+                    {a.title}
+                  </div>
+                  <div className="text-xs text-gray-600">
+                    {a.description}
+                  </div>
+                </div>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+
+
+export function computeAchievementsFull(
+  playerId: string,
+  matches: Match[],
+  players: Player[]
+): Achievement[] {
+  const out: Achievement[] = [];
+
+  // --- basic stats ---
+  const playerMatches = matches.filter(
+    (m) => m.teamA.includes(playerId) || m.teamB.includes(playerId)
+  );
+
+  let wins = 0;
+  const datesPlayed = new Set<string>();
+
+  playerMatches.forEach((m) => {
+    const inA = m.teamA.includes(playerId);
+    const inB = m.teamB.includes(playerId);
+
+    if (m.winner) {
+      const didWin =
+        (m.winner === "A" && inA) ||
+        (m.winner === "B" && inB);
+      if (didWin) wins++;
+    }
+
+    datesPlayed.add(m.date);
+  });
+
+  // --- win achievements ---
+  if (wins >= 5)
+    out.push({
+      id: "win5",
+      title: "Novice Winner",
+      description: "Win 5 matches.",
+    });
+
+  if (wins >= 10)
+    out.push({
+      id: "win10",
+      title: "Pro Winner",
+      description: "Win 10 matches.",
+    });
+
+  if (wins >= 25)
+    out.push({
+      id: "win25",
+      title: "Champion",
+      description: "Win 25 matches.",
+    });
+
+  // --- Melinda challenge ---
+  const melinda = players.find((p) =>
+    p.name.toLowerCase().includes("melinda")
+  );
+  if (melinda) {
+    const beatMelinda = playerMatches.some((m) => {
+      const melInA = m.teamA.includes(melinda.id);
+      const melInB = m.teamB.includes(melinda.id);
+
+      if (!melInA && !melInB) return false;
+
+      // player & melinda must both be in match
+      const inA = m.teamA.includes(playerId);
+      const inB = m.teamB.includes(playerId);
+
+      if (!inA && !inB) return false;
+
+      // winner?
+      if (!m.winner) return false;
+
+      const playerWon =
+        (m.winner === "A" && inA) ||
+        (m.winner === "B" && inB);
+
+      return playerWon;
+    });
+
+    if (beatMelinda) {
+      out.push({
+        id: "beatMelinda",
+        title: "Beat Melinda!",
+        description: "Won a match against Coach Melinda.",
+      });
+    }
+  }
+
+  // --- Attendance streak ---
+  const streak = computeAttendanceStreak([...datesPlayed]);
+
+  if (streak >= 3)
+    out.push({
+      id: "streak3",
+      title: "Regular",
+      description: "Attend 3 sessions in a row.",
+    });
+
+  if (streak >= 6)
+    out.push({
+      id: "streak6",
+      title: "Dedicated",
+      description: "Attend 6 sessions in a row.",
+    });
+
+  if (streak >= 10)
+    out.push({
+      id: "streak10",
+      title: "Ironman",
+      description: "Attend 10 sessions in a row.",
+    });
+
+  return out;
+}
+
 // Edzésnapok: hétfő (1), szerda (3) – JS Date.getDay()
 const TRAINING_DAYS = [1, 3];
 
@@ -90,6 +398,33 @@ function nextTrainingDate(from: Date = new Date()): Date {
   }
   return d;
 }
+function computeAttendanceStreak(dates: string[]): number {
+  if (dates.length === 0) return 0;
+
+  const sorted = dates.sort();
+  let best = 1;
+  let current = 1;
+
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = new Date(sorted[i - 1]);
+    const curr = new Date(sorted[i]);
+
+    const diff = (curr.getTime() - prev.getTime()) / (1000 * 3600 * 24);
+
+    // ha 2 vagy 5 nap telt el → hétfő→szerda vagy szerda→hétfő
+    if (diff === 2 || diff === 5) {
+      current++;
+    } else {
+      current = 1;
+    }
+
+    best = Math.max(best, current);
+  }
+
+  return best;
+}
+
+
 
 // Build pairs avoiding previous TEAMMATE combos (for the given date) as much as possible
 function makePairsForRound(ids: string[], seenTeammates: Set<string>): Pair[] {
@@ -919,6 +1254,126 @@ function MatchesPlayer({
   );
 }
 
+function computePlayerStats(playerId: string, matches: Match[]) {
+  let wins = 0;
+  let losses = 0;
+  let total = 0;
+  const form: ("W" | "L")[] = [];
+
+  matches.forEach((m) => {
+    const inA = m.teamA.includes(playerId);
+    const inB = m.teamB.includes(playerId);
+    if (!inA && !inB) return;
+    if (!m.winner) return;
+
+    const didWin =
+      (m.winner === "A" && inA) ||
+      (m.winner === "B" && inB);
+
+    total++;
+
+    if (didWin) {
+      wins++;
+      form.push("W");
+    } else {
+      losses++;
+      form.push("L");
+    }
+  });
+
+  const winRate = total > 0 ? Math.round((wins / total) * 100) : 0;
+  const formLast5 = form.slice(-5);
+
+  return { wins, losses, total, winRate, formLast5 };
+}
+
+function PlayerStats({
+  players,
+  matches,
+  meId,
+  setMeId,
+}: {
+  players: Player[];
+  matches: Match[];
+  meId: string;
+  setMeId: (id: string) => void;
+}) {
+  // ha még nincs meId elmentve, válasszuk az első playert
+  useEffect(() => {
+    if (!meId && players.length) {
+      setMeId(players[0].id);
+    }
+  }, [meId, players, setMeId]);
+
+  const me = players.find((p) => p.id === meId);
+  if (!me || !players.length) return null;
+
+  const stats = computePlayerStats(meId, matches);
+
+  return (
+    <div className={card}>
+      <ShuttleBg />
+      <h3 className="mb-2 text-sm font-semibold text-slate-700">
+        My stats
+      </h3>
+
+      {/* Játékosválasztó */}
+      <select
+        className={`${input} text-sm mb-3`}
+        value={meId}
+        onChange={(e) => setMeId(e.target.value)}
+      >
+        {players.map((p) => (
+          <option key={p.id} value={p.id}>
+            {p.name}
+          </option>
+        ))}
+      </select>
+
+      <div className="space-y-2 text-sm">
+        <div className="flex justify-between">
+          <span>Total matches:</span>
+          <b>{stats.total}</b>
+        </div>
+        <div className="flex justify-between">
+          <span>Wins:</span>
+          <b className="text-emerald-700">{stats.wins}</b>
+        </div>
+        <div className="flex justify-between">
+          <span>Losses:</span>
+          <b className="text-rose-700">{stats.losses}</b>
+        </div>
+        <div className="flex justify-between">
+          <span>Win rate:</span>
+          <b>{stats.winRate}%</b>
+        </div>
+      </div>
+
+      <div className="mt-3">
+        <div className="text-xs text-gray-500 mb-1">Last 5:</div>
+        <div className="flex gap-1">
+          {stats.formLast5.length === 0 && (
+            <span className="text-xs text-gray-400">
+              No results yet
+            </span>
+          )}
+          {stats.formLast5.map((f, i) => (
+            <span
+              key={i}
+              className={
+                f === "W"
+                  ? "px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-lg text-xs"
+                  : "px-2 py-0.5 bg-rose-100 text-rose-700 rounded-lg text-xs"
+              }
+            >
+              {f}
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 
 function Standings({
@@ -1115,6 +1570,14 @@ export default function App() {
       alert("Incorrect password.");
     }
   };
+  // "Én ki vagyok?" – kiválasztott játékos a player nézetben
+  const [meId, setMeId] = useState(() => {
+    return localStorage.getItem("meId") || "";
+  });
+
+  useEffect(() => {
+    if (meId) localStorage.setItem("meId", meId);
+  }, [meId]);
 
   // Date (round) – legközelebbi hétfő / szerda
   const [date, setDate] = useState(() => fmt(nextTrainingDate()));
@@ -1329,35 +1792,38 @@ export default function App() {
         />
 
         {/* Date selector */}
-        <div className="space-y-2">
+<div className="space-y-2">
   <DatePicker value={date} onChange={setDate} />
 
-  <div className="flex flex-wrap gap-2 text-xs text-gray-600">
-    <button
-      type="button"
-      className={`${btnSecondary} px-3 py-1`}
-      onClick={() => setDate(fmt(new Date()))}
-    >
-      Today
-    </button>
-    <button
-      type="button"
-      className={`${btnSecondary} px-3 py-1`}
-      onClick={() => setDate(fmt(nextTrainingDate()))}
-    >
-      Next training
-    </button>
-    {lastSessionDate && (
+  {role === "admin" && (
+    <div className="flex flex-wrap gap-2 text-xs text-gray-600">
       <button
         type="button"
         className={`${btnSecondary} px-3 py-1`}
-        onClick={() => setDate(lastSessionDate)}
+        onClick={() => setDate(fmt(new Date()))}
       >
-        Last session
+        Today
       </button>
-    )}
-  </div>
+      <button
+        type="button"
+        className={`${btnSecondary} px-3 py-1`}
+        onClick={() => setDate(fmt(nextTrainingDate()))}
+      >
+        Next training
+      </button>
+      {lastSessionDate && (
+        <button
+          type="button"
+          className={`${btnSecondary} px-3 py-1`}
+          onClick={() => setDate(lastSessionDate)}
+        >
+          Last session
+        </button>
+      )}
+    </div>
+  )}
 </div>
+
 
 
         {role === "admin" ? (
@@ -1423,13 +1889,10 @@ export default function App() {
               />
             </div>
           </section>
-        ) : (
+                ) : (
           <section className="grid gap-4 sm:gap-6 md:grid-cols-3">
             <div className="space-y-4 md:col-span-2">
-              <MatchesPlayer
-                grouped={grouped}
-                nameOf={nameOf}
-              />
+              <MatchesPlayer grouped={grouped} nameOf={nameOf} />
             </div>
             <div className="space-y-4">
               {/* Dátum-navigáció kártya */}
@@ -1464,6 +1927,19 @@ export default function App() {
                   Training days: Monday & Wednesday
                 </p>
               </div>
+
+              <PlayerStats
+                players={players}
+                matches={league.matches}
+                meId={meId}
+                setMeId={setMeId}
+              />
+
+              <PlayerAchievements
+                players={players}
+                matches={league.matches}
+                meId={meId}
+              />
 
               <Standings rows={standings} />
 
