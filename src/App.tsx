@@ -101,7 +101,7 @@ function PlayerAchievements({
   const ach = computeAchievementsFull(meId, matches, players);
 
   // badge meta: ikon + színek per achievement id
-  const BADGE_META: Record<
+   const BADGE_META: Record<
     string,
     { icon: string; accent: string; bg: string }
   > = {
@@ -139,6 +139,12 @@ function PlayerAchievements({
       icon: "🏆",
       accent: "text-indigo-700",
       bg: "from-indigo-50 via-white to-amber-50",
+    },
+    // 🆕 Min. 5 meccs
+    min5matches: {
+      icon: "📅",
+      accent: "text-sky-700",
+      bg: "from-sky-50 via-white to-emerald-50",
     },
   };
 
@@ -179,7 +185,14 @@ function PlayerAchievements({
       title: "Ironman",
       description: "Attend 10 sessions in a row.",
     },
+    // 🆕 Min. 5 meccs
+    {
+      id: "min5matches",
+      title: "Seasoned Player",
+      description: "Play at least 5 matches.",
+    },
   ];
+
 
   const earnedIds = new Set(ach.map((a) => a.id));
 
@@ -476,6 +489,16 @@ if (melinda) {
     });
   }
 }
+
+  // --- Min. 5 meccs badge ---
+  const matchesPlayed = playerMatches.length;
+  if (matchesPlayed >= 5) {
+    out.push({
+      id: "min5matches",
+      title: "Seasoned Player",
+      description: "Play at least 5 matches.",
+    });
+  }
 
 
   // --- Attendance streak ---
@@ -1523,12 +1546,13 @@ function Standings({
     name: string;
     wins: number;
     losses: number;
+    matches: number;
+    winRate: number;
     basePoints: number;
     bonusPoints: number;
     totalPoints: number;
   }[];
 }) {
-
   return (
     <div className={card}>
       <ShuttleBg />
@@ -1544,6 +1568,8 @@ function Standings({
                 <th className="py-2 pr-2">Player</th>
                 <th className="py-2 pr-2">Wins</th>
                 <th className="py-2 pr-2">Losses</th>
+                <th className="py-2 pr-2">Win%</th>
+                <th className="py-2 pr-2">Matches</th>
                 <th className="py-2 pr-2">Points</th>
               </tr>
             </thead>
@@ -1551,7 +1577,9 @@ function Standings({
               {rows.map((row, idx) => (
                 <tr
                   key={row.id}
-                  className={idx % 2 === 0 ? "border-t bg-slate-50/60" : "border-t"}
+                  className={
+                    idx % 2 === 0 ? "border-t bg-slate-50/60" : "border-t"
+                  }
                 >
                   <td className="py-2 pr-2 align-middle">{idx + 1}</td>
                   <td className="py-2 pr-2 align-middle font-medium">
@@ -1559,17 +1587,21 @@ function Standings({
                   </td>
                   <td className="py-2 pr-2 align-middle">{row.wins}</td>
                   <td className="py-2 pr-2 align-middle">{row.losses}</td>
-                <td className="py-2 pr-2 align-middle font-semibold">
-  {row.totalPoints}
-  {row.bonusPoints > 0 && (
-    <span
-      className="ml-1 text-xs text-emerald-600 font-medium"
-      title={`Includes ${row.bonusPoints} bonus point(s) from achievements`}
-    >
-      +{row.bonusPoints}⭐
-    </span>
-  )}
-</td>
+                  <td className="py-2 pr-2 align-middle">
+                    {row.matches > 0 ? Math.round(row.winRate * 100) + "%" : "-"}
+                  </td>
+                  <td className="py-2 pr-2 align-middle">{row.matches}</td>
+                  <td className="py-2 pr-2 align-middle font-semibold">
+                    {row.totalPoints}
+                    {row.bonusPoints > 0 && (
+                      <span
+                        className="ml-1 text-xs text-emerald-600 font-medium"
+                        title={`Includes ${row.bonusPoints} bonus point(s) from achievements`}
+                      >
+                        +{row.bonusPoints}⭐
+                      </span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -1579,6 +1611,7 @@ function Standings({
     </div>
   );
 }
+
 
 function AdminDateJump({
   grouped,
@@ -1759,7 +1792,10 @@ export default function App() {
   const freeIds = useMemo(() => players.map((p) => p.id), [players]);
 
   // Standings (aggregate all dates)
-    const standings = useMemo(() => {
+      // Standings (aggregate all dates) – win% + minimum meccsszám logika
+  const standings = useMemo(() => {
+    const MIN_MATCHES = 5; // <<< ha akarod, itt tudod állítani a küszöböt
+
     const map = new Map<
       string,
       {
@@ -1767,6 +1803,8 @@ export default function App() {
         name: string;
         wins: number;
         losses: number;
+        matches: number;
+        winRate: number;
         basePoints: number;
         bonusPoints: number;
         totalPoints: number;
@@ -1780,6 +1818,8 @@ export default function App() {
         name: p.name,
         wins: 0,
         losses: 0,
+        matches: 0,
+        winRate: 0,
         basePoints: 0,
         bonusPoints: 0,
         totalPoints: 0,
@@ -1797,7 +1837,7 @@ export default function App() {
         const r = map.get(id);
         if (!r) return;
         r.wins++;
-        r.basePoints++;
+        r.basePoints++; // 1 pont / győzelem
       });
 
       lose.forEach((id) => {
@@ -1805,6 +1845,12 @@ export default function App() {
         if (!r) return;
         r.losses++;
       });
+    });
+
+    // Meccsszám + win% számolás
+    map.forEach((r) => {
+      r.matches = r.wins + r.losses;
+      r.winRate = r.matches > 0 ? r.wins / r.matches : 0;
     });
 
     // BONUS pontok: Beat Melinda + Ironman (10 streak)
@@ -1823,12 +1869,28 @@ export default function App() {
       r.totalPoints = r.basePoints + r.bonusPoints;
     });
 
-    return Array.from(map.values()).sort(
-      (a, b) =>
-        b.totalPoints - a.totalPoints ||
-        a.name.localeCompare(b.name)
-    );
+    // Rangsor:
+    // 1) először azok, akik elérték a MIN_MATCHES küszöböt
+    // 2) csoporton belül: winRate desc -> matches desc -> totalPoints desc -> név
+    return Array.from(map.values()).sort((a, b) => {
+      const aQual = a.matches >= MIN_MATCHES;
+      const bQual = b.matches >= MIN_MATCHES;
+
+      if (aQual !== bQual) {
+        // aki elérte a minimumot, előrébb kerül
+        return aQual ? -1 : 1;
+      }
+
+      // mindketten ugyanabban a csoportban vannak (qualified / not qualified)
+      if (b.winRate !== a.winRate) return b.winRate - a.winRate;
+      if (b.matches !== a.matches) return b.matches - a.matches;
+      if (b.totalPoints !== a.totalPoints)
+        return b.totalPoints - a.totalPoints;
+
+      return a.name.localeCompare(b.name);
+    });
   }, [league.matches, players]);
+
 
 
   // Grouped results for Player view + last session date
