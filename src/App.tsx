@@ -1567,7 +1567,7 @@ function Standings({
     streak3: { icon: "🔥", label: "3-session streak" },
     streak6: { icon: "💪", label: "6-session streak" },
     streak10: { icon: "🏆", label: "10-session streak" },
-    min5matches: { icon: "📅", label: "Played 5+ matches" },
+    min5matches: { icon: "🏸", label: "Played 5+ matches" },
   };
 
   return (
