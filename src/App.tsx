@@ -2083,139 +2083,154 @@ export default function App() {
 
 
 
-        {role === "admin" ? (
-          <section className="grid gap-4 sm:gap-6 md:grid-cols-3">
-            <div className="space-y-4 md:col-span-2">
-              <div className={card}>
-                <ShuttleBg />
-                <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <h2 className="text-lg font-semibold">Admin tools</h2>
-                  <div className="flex gap-2">
-                    <button
-                      className={btnSecondary}
-                      onClick={autoDraw}
-                      disabled={freeIds.length < 4}
-                    >
-                      Auto draw pairs
-                    </button>
-                  </div>
-                </div>
-                <p className="text-sm text-gray-600">
-                  Players in league: <b>{players.length}</b>
-                </p>
-              </div>
-
-              {/* Drag&Drop pairing to add multiple matches for the selected date */}
-              <DnDPairs
-                players={players}
-                freeIds={freeIds}
-                seenTeammates={seenTeammatesToday}
-                onCreate={addMatch}
-              />
-
-              {/* Matches list (edit results) */}
-             <MatchesAdmin
-  matches={matchesForDate}
-  nameOf={nameOf}
-  onPick={pickWinner}
-  onClear={clearWinner}
-  onDelete={deleteMatch}
-/>
+       {role === "admin" ? (
+  <>
+    <section className="grid gap-4 sm:gap-6 md:grid-cols-3">
+      <div className="space-y-4 md:col-span-2">
+        {/* Admin tools */}
+        <div className={card}>
+          <ShuttleBg />
+          <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-lg font-semibold">Admin tools</h2>
+            <div className="flex gap-2">
+              <button
+                className={btnSecondary}
+                onClick={autoDraw}
+                disabled={freeIds.length < 4}
+              >
+                Auto draw pairs
+              </button>
             </div>
+          </div>
+          <p className="text-sm text-gray-600">
+            Players in league: <b>{players.length}</b>
+          </p>
+        </div>
 
-            <div className="space-y-4">
+        {/* Drag & drop párosító */}
+        <DnDPairs
+          players={players}
+          freeIds={freeIds}
+          seenTeammates={seenTeammatesToday}
+          onCreate={addMatch}
+        />
 
-              {/* Admin dátum-navigáció */}
-      <AdminDateJump
-        grouped={grouped}
-        date={date}
-        setDate={setDate}
-        lastSessionDate={lastSessionDate}
-      />
-              <Standings rows={standings} />
-              <PlayerEditor
-                players={players}
-                onAdd={addPlayer}
-                onRemove={removePlayer}
-                onUpdateEmoji={updatePlayerEmoji}
-              />
-              <BackupPanel
-                backups={backups}
-                onCreate={createBackup}
-                onRestore={restoreBackup}
-              />
-            </div>
-          </section>
-                ) : (
-          <section className="grid gap-4 sm:gap-6 md:grid-cols-3">
-            <div className="space-y-4 md:col-span-2">
-              <MatchesPlayer grouped={grouped} nameOf={nameOf} />
-            </div>
-            <div className="space-y-4">
-              {/* Dátum-navigáció kártya */}
-              <div className={card}>
-                <ShuttleBg />
-                <h3 className="mb-2 font-semibold">Jump to date</h3>
-                {grouped.length === 0 ? (
-                  <p className="text-sm text-gray-500">No matches yet.</p>
-                ) : (
-                  <ul className="text-sm space-y-1 max-h-52 overflow-y-auto">
-                    {grouped.map((g) => (
-                      <li key={g.date}>
-                        <a
-                          href={`#date-${g.date}`}
-                          className="flex items-center justify-between hover:text-[#4f8ef7]"
-                        >
-                          <span>{g.date}</span>
-                          <span className="flex items-center gap-1 text-xs text-gray-500">
-                            {weekday(g.date)}
-                            {lastSessionDate === g.date && (
-                              <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 border border-emerald-200">
-                                Last
-                              </span>
-                            )}
-                          </span>
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                <p className="mt-2 text-xs text-gray-400">
-                  Training days: Monday & Wednesday
-                </p>
-              </div>
+        {/* Meccsek szerkesztése */}
+        <MatchesAdmin
+          matches={matchesForDate}
+          nameOf={nameOf}
+          onPick={pickWinner}
+          onClear={clearWinner}
+          onDelete={deleteMatch}
+        />
+      </div>
 
-              <PlayerStats
-                players={players}
-                matches={league.matches}
-                meId={meId}
-                setMeId={setMeId}
-              />
+      {/* Oldalsó oszlop (admin) */}
+      <div className="space-y-4">
+        <AdminDateJump
+          grouped={grouped}
+          date={date}
+          setDate={setDate}
+          lastSessionDate={lastSessionDate}
+        />
 
-              <PlayerAchievements
-                players={players}
-                matches={league.matches}
-                meId={meId}
-              />
+        <PlayerEditor
+          players={players}
+          onAdd={addPlayer}
+          onRemove={removePlayer}
+          onUpdateEmoji={updatePlayerEmoji}
+        />
 
-              <Standings rows={standings} />
+        <BackupPanel
+          backups={backups}
+          onCreate={createBackup}
+          onRestore={restoreBackup}
+        />
+      </div>
+    </section>
 
-              <div className={card}>
-                <ShuttleBg />
-                <h3 className="mb-2 font-semibold">How it works</h3>
-                <ul className="list-disc space-y-1 pl-5 text-sm text-gray-700">
-                  <li>
-                    Admin creates pairings at the end of each session date.
-                  </li>
-                  <li>
-                    Winners are recorded per match; standings are individual.
-                  </li>
-                  <li>New players can be added anytime (admin).</li>
-                </ul>
-              </div>
-            </div>
-          </section>
-        )}
+    {/* 🆕 Standings teljes szélességben */}
+    <div className="mt-4 sm:mt-6">
+      <Standings rows={standings} />
+    </div>
+  </>
+) : (
+  <>
+    <section className="grid gap-4 sm:gap-6 md:grid-cols-3">
+      <div className="space-y-4 md:col-span-2">
+        <MatchesPlayer grouped={grouped} nameOf={nameOf} />
+      </div>
+
+      <div className="space-y-4">
+
+        {/* Jump to date */}
+        <div className={card}>
+          <ShuttleBg />
+          <h3 className="mb-2 font-semibold">Jump to date</h3>
+          {grouped.length === 0 ? (
+            <p className="text-sm text-gray-500">No matches yet.</p>
+          ) : (
+            <ul className="text-sm space-y-1 max-h-52 overflow-y-auto">
+              {grouped.map((g) => (
+                <li key={g.date}>
+                  <a
+                    href={`#date-${g.date}`}
+                    className="flex items-center justify-between hover:text-[#4f8ef7]"
+                  >
+                    <span>{g.date}</span>
+                    <span className="flex items-center gap-1 text-xs text-gray-500">
+                      {weekday(g.date)}
+                      {lastSessionDate === g.date && (
+                        <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 border border-emerald-200">
+                          Last
+                        </span>
+                      )}
+                    </span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="mt-2 text-xs text-gray-400">
+            Training days: Monday & Wednesday
+          </p>
+        </div>
+
+        {/* Statisztikák */}
+        <PlayerStats
+          players={players}
+          matches={league.matches}
+          meId={meId}
+          setMeId={setMeId}
+        />
+
+        {/* Achievementek */}
+        <PlayerAchievements
+          players={players}
+          matches={league.matches}
+          meId={meId}
+        />
+
+        {/* Infók */}
+        <div className={card}>
+          <ShuttleBg />
+          <h3 className="mb-2 font-semibold">How it works</h3>
+          <ul className="list-disc space-y-1 pl-5 text-sm text-gray-700">
+            <li>Admin pairs teams each session.</li>
+            <li>Wins are recorded individually.</li>
+            <li>You can check your stats & achievements anytime.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    {/* 🆕 Standings teljes szélességben */}
+    <div className="mt-4 sm:mt-6">
+      <Standings rows={standings} />
+    </div>
+  </>
+)}
+
       </div>
     </div>
   );
