@@ -1414,6 +1414,9 @@ function computePlayerStats(playerId: string, matches: Match[]) {
   return { wins, losses, total, winRate, formLast5 };
 }
 
+// segéd: emoji levágása a névről (pl. "🐢 Anita" → "Anita")
+const baseName = (full: string) => full.replace(/^.+?\s/, "");
+
 function PlayerStats({
   players,
   matches,
@@ -1425,9 +1428,12 @@ function PlayerStats({
   meId: string;
   setMeId: (id: string) => void;
 }) {
-  // ABC szerinti sorrend
+  // ABC szerinti sorrend (emoji nélküli név alapján)
   const sortedPlayers = useMemo(
-    () => [...players].sort((a, b) => a.name.localeCompare(b.name)),
+    () =>
+      [...players].sort((a, b) =>
+        baseName(a.name).localeCompare(baseName(b.name), "hu")
+      ),
     [players]
   );
 
