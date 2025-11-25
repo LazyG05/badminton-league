@@ -265,35 +265,44 @@ export function computeAchievementsFull(
 
   // --- Melinda challenge ---
   const melinda = players.find((p) =>
-    p.name.toLowerCase().includes("melinda")
-  );
+  p.name.toLowerCase().includes("melinda")
+);
 
-  if (melinda) {
-    const beatMelinda = playerMatches.some((m) => {
-      const melInA = m.teamA.includes(melinda.id);
-      const melInB = m.teamB.includes(melinda.id);
-      if (!melInA && !melInB) return false;
+if (melinda) {
+  const beatMelinda = playerMatches.some((m) => {
+    const melInA = m.teamA.includes(melinda.id);
+    const melInB = m.teamB.includes(melinda.id);
+    const playerInA = m.teamA.includes(playerId);
+    const playerInB = m.teamB.includes(playerId);
 
-      const inA = m.teamA.includes(playerId);
-      const inB = m.teamB.includes(playerId);
-      if (!inA && !inB) return false;
-      if (!m.winner) return false;
+    // mindkettőnek benn kell lennie a meccsben
+    if (!(melInA || melInB)) return false;
+    if (!(playerInA || playerInB)) return false;
+    if (!m.winner) return false;
 
-      const playerWon =
-        (m.winner === "A" && inA) ||
-        (m.winner === "B" && inB);
+    // fontos: ELLENFÉL legyen, ne CSAPATTÁRS
+    const onOppositeTeams =
+      (melInA && playerInB) || (melInB && playerInA);
 
-      return playerWon;
+    if (!onOppositeTeams) return false;
+
+    // a játékos csapata nyert?
+    const playerWon =
+      (m.winner === "A" && playerInA) ||
+      (m.winner === "B" && playerInB);
+
+    return playerWon;
+  });
+
+  if (beatMelinda) {
+    out.push({
+      id: "beatMelinda",
+      title: "Beat Melinda!",
+      description: "Won a match against Coach Melinda.",
     });
-
-    if (beatMelinda) {
-      out.push({
-        id: "beatMelinda",
-        title: "Beat Melinda!",
-        description: "Won a match against Coach Melinda.",
-      });
-    }
   }
+}
+
 
   // --- Attendance streak ---
   const streak = computeAttendanceStreak([...datesPlayed]);
