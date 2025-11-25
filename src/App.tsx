@@ -400,7 +400,7 @@ if (melinda) {
 
 
   // --- Attendance streak ---
-  const streak = computeAttendanceStreak([...datesPlayed]);
+  const streak = computeAttendanceStreak(playerId, matches);
 
   if (streak >= 3)
     out.push({
@@ -438,31 +438,39 @@ function nextTrainingDate(from: Date = new Date()): Date {
   }
   return d;
 }
-function computeAttendanceStreak(dates: string[]): number {
-  if (dates.length === 0) return 0;
+// Egymást követő liganapok, amelyeken a játékos játszott.
+// Itt "session" = bármely dátum, amikor volt bármilyen meccs a ligában.
+function computeAttendanceStreak(playerId: string, matches: Match[]): number {
+  if (matches.length === 0) return 0;
 
-  const sorted = dates.sort();
-  let best = 1;
-  let current = 1;
+  // Összes liganap (bármelyik meccs dátuma), sorbarendezve
+  const allDates = Array.from(new Set(matches.map((m) => m.date))).sort();
 
-  for (let i = 1; i < sorted.length; i++) {
-    const prev = new Date(sorted[i - 1]);
-    const curr = new Date(sorted[i]);
-
-    const diff = (curr.getTime() - prev.getTime()) / (1000 * 3600 * 24);
-
-    // ha 2 vagy 5 nap telt el → hétfő→szerda vagy szerda→hétfő
-    if (diff === 2 || diff === 5) {
-      current++;
-    } else {
-      current = 1;
+  // Olyan napok, amikor a player játszott
+  const playedDates = new Set<string>();
+  matches.forEach((m) => {
+    if (m.teamA.includes(playerId) || m.teamB.includes(playerId)) {
+      playedDates.add(m.date);
     }
+  });
 
-    best = Math.max(best, current);
+  let best = 0;
+  let current = 0;
+
+  // Végigmegyünk az összes liganapon időrendben,
+  // és nézzük, hogy a player ott volt-e meccsen.
+  for (const d of allDates) {
+    if (playedDates.has(d)) {
+      current++;
+      if (current > best) best = current;
+    } else {
+      current = 0;
+    }
   }
 
   return best;
 }
+
 
 
 
