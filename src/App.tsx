@@ -1551,6 +1551,7 @@ function Standings({
     basePoints: number;
     bonusPoints: number;
     totalPoints: number;
+    qualified: boolean;
   }[];
 }) {
   return (
@@ -1561,16 +1562,16 @@ function Standings({
         <p className="text-sm text-gray-500">No players yet.</p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[700px] text-sm">
             <thead>
               <tr className="text-left text-gray-500">
-                <th className="py-2 pr-2">#</th>
-                <th className="py-2 pr-2">Player</th>
-                <th className="py-2 pr-2">Wins</th>
-                <th className="py-2 pr-2">Losses</th>
-                <th className="py-2 pr-2">Win%</th>
-                <th className="py-2 pr-2">Matches</th>
-                <th className="py-2 pr-2">Points</th>
+                <th className="py-2 px-2">#</th>
+                <th className="py-2 px-2">Player</th>
+                <th className="py-2 px-2">Wins</th>
+                <th className="py-2 px-2">Losses</th>
+                <th className="py-2 px-2">Win%</th>
+                <th className="py-2 px-2">Matches</th>
+                <th className="py-2 px-2">Points</th>
               </tr>
             </thead>
             <tbody>
@@ -1581,17 +1582,31 @@ function Standings({
                     idx % 2 === 0 ? "border-t bg-slate-50/60" : "border-t"
                   }
                 >
-                  <td className="py-2 pr-2 align-middle">{idx + 1}</td>
-                  <td className="py-2 pr-2 align-middle font-medium">
-                    {row.name}
+                  <td className="py-2 px-2 align-middle">{idx + 1}</td>
+                  <td className="py-2 px-2 align-middle font-medium">
+                    <span>{row.name}</span>
+                    {!row.qualified && (
+                      <span
+                        className="
+                          ml-1 inline-flex items-center
+                          rounded-full bg-amber-50 px-1.5 py-0.5
+                          text-[10px] font-semibold text-amber-700 border border-amber-200
+                        "
+                        title="Less than 5 matches – provisional ranking"
+                      >
+                        ❕
+                      </span>
+                    )}
                   </td>
-                  <td className="py-2 pr-2 align-middle">{row.wins}</td>
-                  <td className="py-2 pr-2 align-middle">{row.losses}</td>
-                  <td className="py-2 pr-2 align-middle">
-                    {row.matches > 0 ? Math.round(row.winRate * 100) + "%" : "-"}
+                  <td className="py-2 px-2 align-middle">{row.wins}</td>
+                  <td className="py-2 px-2 align-middle">{row.losses}</td>
+                  <td className="py-2 px-2 align-middle">
+                    {row.matches > 0
+                      ? Math.round(row.winRate * 100) + "%"
+                      : "-"}
                   </td>
-                  <td className="py-2 pr-2 align-middle">{row.matches}</td>
-                  <td className="py-2 pr-2 align-middle font-semibold">
+                  <td className="py-2 px-2 align-middle">{row.matches}</td>
+                  <td className="py-2 px-2 align-middle font-semibold">
                     {row.totalPoints}
                     {row.bonusPoints > 0 && (
                       <span
@@ -1608,9 +1623,13 @@ function Standings({
           </table>
         </div>
       )}
+      <p className="mt-2 text-[11px] text-gray-400">
+        ❕ = less than 5 matches played (ranking still provisional).
+      </p>
     </div>
   );
 }
+
 
 
 function AdminDateJump({
@@ -1791,10 +1810,9 @@ export default function App() {
   // everyone can appear in multiple matches on a date
   const freeIds = useMemo(() => players.map((p) => p.id), [players]);
 
-  // Standings (aggregate all dates)
-      // Standings (aggregate all dates) – win% + minimum meccsszám logika
-  const standings = useMemo(() => {
-    const MIN_MATCHES = 5; // <<< ha akarod, itt tudod állítani a küszöböt
+  // Standings (aggregate all dates) – win% + minimum meccsszám logika
+    const standings = useMemo(() => {
+    const MIN_MATCHES = 5; // ha később változtatod, ezt elég itt
 
     const map = new Map<
       string,
@@ -1808,6 +1826,7 @@ export default function App() {
         basePoints: number;
         bonusPoints: number;
         totalPoints: number;
+        qualified: boolean; // 🆕 megvan-e a min. meccsszám
       }
     >();
 
@@ -1823,6 +1842,7 @@ export default function App() {
         basePoints: 0,
         bonusPoints: 0,
         totalPoints: 0,
+        qualified: false,
       })
     );
 
@@ -1837,7 +1857,7 @@ export default function App() {
         const r = map.get(id);
         if (!r) return;
         r.wins++;
-        r.basePoints++; // 1 pont / győzelem
+        r.basePoints++;
       });
 
       lose.forEach((id) => {
@@ -1847,10 +1867,11 @@ export default function App() {
       });
     });
 
-    // Meccsszám + win% számolás
+    // Meccsszám + win% + qualified
     map.forEach((r) => {
       r.matches = r.wins + r.losses;
       r.winRate = r.matches > 0 ? r.wins / r.matches : 0;
+      r.qualified = r.matches >= MIN_MATCHES;
     });
 
     // BONUS pontok: Beat Melinda + Ironman (10 streak)
@@ -1869,27 +1890,19 @@ export default function App() {
       r.totalPoints = r.basePoints + r.bonusPoints;
     });
 
-    // Rangsor:
-    // 1) először azok, akik elérték a MIN_MATCHES küszöböt
-    // 2) csoporton belül: winRate desc -> matches desc -> totalPoints desc -> név
+    // Rangsor – qualified elöl, aztán win%, matches, totalPoints, név
     return Array.from(map.values()).sort((a, b) => {
-      const aQual = a.matches >= MIN_MATCHES;
-      const bQual = b.matches >= MIN_MATCHES;
-
-      if (aQual !== bQual) {
-        // aki elérte a minimumot, előrébb kerül
-        return aQual ? -1 : 1;
+      if (a.qualified !== b.qualified) {
+        return a.qualified ? -1 : 1;
       }
-
-      // mindketten ugyanabban a csoportban vannak (qualified / not qualified)
       if (b.winRate !== a.winRate) return b.winRate - a.winRate;
       if (b.matches !== a.matches) return b.matches - a.matches;
       if (b.totalPoints !== a.totalPoints)
         return b.totalPoints - a.totalPoints;
-
       return a.name.localeCompare(b.name);
     });
   }, [league.matches, players]);
+
 
 
 
