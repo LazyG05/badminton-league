@@ -2280,15 +2280,6 @@ export default function App() {
         />
 
         {/* Infók */}
-        <div className={card}>
-          <ShuttleBg />
-          <h3 className="mb-2 font-semibold">How it works</h3>
-          <ul className="list-disc space-y-1 pl-5 text-sm text-gray-700">
-            <li>Admin pairs teams each session.</li>
-            <li>Wins are recorded individually.</li>
-            <li>You can check your stats & achievements anytime.</li>
-          </ul>
-        </div>
       </div>
     </section>
 
