@@ -86,69 +86,6 @@ export type Achievement = {
   description: string;
 };
 
-export function computeAchievements(
-  playerId: string,
-  matches: Match[],
-  nameOf: (id: string) => string
-): Achievement[] {
-  const out: Achievement[] = [];
-
-  // --- Basic stats ---
-  let wins = 0;
-  const winDates = new Set<string>(); // for attendance
-   
-  matches.forEach((m) => {
-    const inA = m.teamA.includes(playerId);
-    const inB = m.teamB.includes(playerId);
-    if (!inA && !inB) return;
-    if (!m.winner) return;
-
-    const didWin =
-      (m.winner === "A" && inA) ||
-      (m.winner === "B" && inB);
-
-    if (didWin) {
-      wins++;
-      winDates.add(m.date);
-    }
-  });
-
-  // --- Win Achievements ----
-  if (wins >= 5)
-    out.push({
-      id: "win5",
-      title: "5 Wins!",
-      description: "You reached 5 victories.",
-    });
-
-  if (wins >= 10)
-    out.push({
-      id: "win10",
-      title: "10 Wins!",
-      description: "A strong performance so far!",
-    });
-
-  if (wins >= 25)
-    out.push({
-      id: "win25",
-      title: "25 Wins!",
-      description: "You're becoming a league legend!",
-    });
-
-
-  // --- Melinda Challenge ---
-  const melinda = Object.entries(nameOf)
-    // nameOf is a function, so we search players instead:
-    // We'll detect Melinda below in PlayerStats where we have "players".
-    // This part will be replaced there.
-    ;
-
-
-  // (Melinda detection will come later — this stays empty here)
-  
-  return out;
-}
-
 function PlayerAchievements({
   players,
   matches,
@@ -273,7 +210,6 @@ function PlayerAchievements({
 }
 
 
-
 export function computeAchievementsFull(
   playerId: string,
   matches: Match[],
@@ -281,7 +217,7 @@ export function computeAchievementsFull(
 ): Achievement[] {
   const out: Achievement[] = [];
 
-  // --- basic stats ---
+  // --- basic stats: csak az adott játékos meccsei ---
   const playerMatches = matches.filter(
     (m) => m.teamA.includes(playerId) || m.teamB.includes(playerId)
   );
@@ -292,6 +228,8 @@ export function computeAchievementsFull(
   playerMatches.forEach((m) => {
     const inA = m.teamA.includes(playerId);
     const inB = m.teamB.includes(playerId);
+
+    if (!inA && !inB) return;
 
     if (m.winner) {
       const didWin =
@@ -326,39 +264,27 @@ export function computeAchievementsFull(
     });
 
   // --- Melinda challenge ---
-const melinda = players.find((p) =>
-  p.name.toLowerCase().includes("melinda")
-);
+  const melinda = players.find((p) =>
+    p.name.toLowerCase().includes("melinda")
+  );
 
-if (melinda) {
-  const beatMelinda = matches.some((m) => {
-    const melInA = m.teamA.includes(melinda.id);
-    const melInB = m.teamB.includes(melinda.id);
+  if (melinda) {
+    const beatMelinda = playerMatches.some((m) => {
+      const melInA = m.teamA.includes(melinda.id);
+      const melInB = m.teamB.includes(melinda.id);
+      if (!melInA && !melInB) return false;
 
-    if (!melInA && !melInB) return false;
+      const inA = m.teamA.includes(playerId);
+      const inB = m.teamB.includes(playerId);
+      if (!inA && !inB) return false;
+      if (!m.winner) return false;
 
-    const inA = m.teamA.includes(playerId);
-    const inB = m.teamB.includes(playerId);
+      const playerWon =
+        (m.winner === "A" && inA) ||
+        (m.winner === "B" && inB);
 
-    if (!inA && !inB) return false;
-    if (!m.winner) return false;
-
-    const playerWon =
-      (m.winner === "A" && inA) ||
-      (m.winner === "B" && inB);
-
-    return playerWon;
-  });
-
-  if (beatMelinda) {
-    out.push({
-      id: "beatMelinda",
-      title: "Beat Melinda!",
-      description: "Won a match against Coach Melinda.",
+      return playerWon;
     });
-  }
-}
-
 
     if (beatMelinda) {
       out.push({
@@ -395,6 +321,8 @@ if (melinda) {
 
   return out;
 }
+
+
 
 // Edzésnapok: hétfő (1), szerda (3) – JS Date.getDay()
 const TRAINING_DAYS = [1, 3];
