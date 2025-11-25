@@ -142,7 +142,7 @@ function PlayerAchievements({
     },
     // 🆕 Min. 5 meccs
     min5matches: {
-      icon: "📅",
+      icon: "🏸",
       accent: "text-sky-700",
       bg: "from-sky-50 via-white to-emerald-50",
     },
