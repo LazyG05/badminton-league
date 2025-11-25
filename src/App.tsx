@@ -183,125 +183,204 @@ function PlayerAchievements({
 
   const earnedIds = new Set(ach.map((a) => a.id));
 
+  // 🔔 Badge reward animációhoz: mit szereztünk meg most?
+  const [justUnlocked, setJustUnlocked] = useState<Achievement | null>(null);
+  const knownIdsRef = useRef<string[]>([]);
+  const firstRender = useRef(true);
+
+  useEffect(() => {
+    const currentIds = ach.map((a) => a.id);
+
+    // első rendernél ne dobjuk fel az összeset egyszerre
+    if (firstRender.current) {
+      firstRender.current = false;
+      knownIdsRef.current = currentIds;
+      return;
+    }
+
+    const prev = knownIdsRef.current;
+    const newOnes = currentIds.filter((id) => !prev.includes(id));
+
+    knownIdsRef.current = currentIds;
+
+    if (newOnes.length === 0) return;
+
+    const latestId = newOnes[newOnes.length - 1];
+    const unlocked = ach.find((a) => a.id === latestId) || null;
+    if (!unlocked) return;
+
+    setJustUnlocked(unlocked);
+    const timer = window.setTimeout(() => setJustUnlocked(null), 4000);
+    return () => window.clearTimeout(timer);
+  }, [ach]);
+
   return (
-    <div className={card}>
-      <ShuttleBg />
-      <h3 className="mb-1 text-sm font-semibold text-slate-700">
-        Achievements
-      </h3>
-      <p className="mb-3 text-xs text-gray-500">
-        Badges earned by{" "}
-        <span className="font-medium text-slate-800">{me.name}</span>
-      </p>
-
-      {/* Megszerzett badge-ek */}
-      {ach.length === 0 ? (
-        <p className="text-sm text-gray-500 mb-3">
-          No achievements yet. Keep playing! 🏸
+    <>
+      <div className={card}>
+        <ShuttleBg />
+        <h3 className="mb-1 text-sm font-semibold text-slate-700">
+          Achievements
+        </h3>
+        <p className="mb-3 text-xs text-gray-500">
+          Badges earned by{" "}
+          <span className="font-medium text-slate-800">{me.name}</span>
         </p>
-      ) : (
-        <ul className="space-y-2 mb-4">
-          {ach.map((a) => {
-            const meta = BADGE_META[a.id] || {
-              icon: "⭐",
-              accent: "text-slate-700",
-              bg: "from-slate-50 via-white to-slate-50",
-            };
 
-            return (
-              <li
-                key={a.id}
-                className={`
-                  group relative overflow-hidden
-                  rounded-2xl border border-slate-200
-                  bg-gradient-to-r ${meta.bg}
-                  px-3 py-2 text-sm shadow-sm
-                  transition-transform hover:-translate-y-0.5 hover:shadow-md
-                `}
-              >
-                {/* kis „csillogás” overlay */}
-                <div className="pointer-events-none absolute -right-6 -top-6 h-16 w-16 rounded-full bg-white/40 blur-2 opacity-0 group-hover:opacity-70 transition-opacity" />
+        {/* Megszerzett badge-ek */}
+        {ach.length === 0 ? (
+          <p className="text-sm text-gray-500 mb-3">
+            No achievements yet. Keep playing! 🏸
+          </p>
+        ) : (
+          <ul className="space-y-2 mb-4">
+            {ach.map((a) => {
+              const meta = BADGE_META[a.id] || {
+                icon: "⭐",
+                accent: "text-slate-700",
+                bg: "from-slate-50 via-white to-slate-50",
+              };
 
-                <div className="flex items-center gap-3 relative">
+              return (
+                <li
+                  key={a.id}
+                  className={`
+                    group relative overflow-hidden
+                    rounded-2xl border border-slate-200
+                    bg-gradient-to-r ${meta.bg}
+                    px-3 py-2 text-sm shadow-sm
+                    transition-transform hover:-translate-y-0.5 hover:shadow-md
+                  `}
+                >
+                  {/* kis „csillogás” overlay */}
+                  <div className="pointer-events-none absolute -right-6 -top-6 h-16 w-16 rounded-full bg-white/40 blur-2 opacity-0 group-hover:opacity-70 transition-opacity" />
+
+                  <div className="flex items-center gap-3 relative">
+                    <div
+                      className={`
+                        flex h-9 w-9 items-center justify-center
+                        rounded-full bg-white shadow
+                        text-lg ${meta.accent}
+                      `}
+                    >
+                      {meta.icon}
+                    </div>
+
+                    <div className="min-w-0">
+                      <div className="truncate font-semibold text-slate-800">
+                        {a.title}
+                      </div>
+                      <div className="text-xs text-gray-600">
+                        {a.description}
+                      </div>
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+        {/* Összes badge bemutatása */}
+        <div className="mt-1">
+          <h4 className="mb-1 text-xs font-semibold text-slate-600 uppercase tracking-wide">
+            All badges
+          </h4>
+          <ul className="space-y-1">
+            {ALL_BADGES.map((b) => {
+              const meta = BADGE_META[b.id] || {
+                icon: "⭐",
+                accent: "text-slate-700",
+                bg: "from-slate-50 via-white to-slate-50",
+              };
+              const earned = earnedIds.has(b.id);
+
+              return (
+                <li
+                  key={b.id}
+                  className={`
+                    flex items-center gap-2 rounded-xl border px-2 py-1
+                    text-xs
+                    ${
+                      earned
+                        ? "border-emerald-200 bg-emerald-50/60 text-slate-800"
+                        : "border-slate-200 bg-slate-50 text-slate-500"
+                    }
+                  `}
+                >
+                  <span
+                    className={`
+                      flex h-6 w-6 items-center justify-center rounded-full bg-white text-base
+                      ${earned ? meta.accent : "text-slate-400"}
+                    `}
+                  >
+                    {meta.icon}
+                  </span>
+                  <div className="min-w-0">
+                    <div className="truncate font-medium">
+                      {b.title}
+                      {earned && (
+                        <span className="ml-1 text-[10px] text-emerald-700">
+                          (earned)
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[10px] truncate">
+                      {b.description}
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      </div>
+
+      {/* 🔔 Badge reward toast animáció */}
+      {justUnlocked && (
+        <div className="fixed bottom-4 right-4 z-50">
+          <div className="relative overflow-hidden rounded-2xl border border-amber-200 bg-white px-4 py-3 shadow-lg">
+            <div className="pointer-events-none absolute -right-10 -top-10 h-24 w-24 rounded-full bg-gradient-to-tr from-yellow-300/40 via-pink-300/40 to-amber-200/40 blur-xl opacity-70" />
+
+            {(() => {
+              const meta =
+                BADGE_META[justUnlocked.id] || {
+                  icon: "⭐",
+                  accent: "text-amber-700",
+                  bg: "",
+                };
+
+              return (
+                <div className="relative flex items-center gap-3">
                   <div
                     className={`
-                      flex h-9 w-9 items-center justify-center
-                      rounded-full bg-white shadow
-                      text-lg ${meta.accent}
+                      flex h-10 w-10 items-center justify-center rounded-full 
+                      bg-amber-50 shadow-inner text-2xl
+                      ${meta.accent} animate-bounce
                     `}
                   >
                     {meta.icon}
                   </div>
-
                   <div className="min-w-0">
-                    <div className="truncate font-semibold text-slate-800">
-                      {a.title}
+                    <div className="text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+                      New badge unlocked!
                     </div>
-                    <div className="text-xs text-gray-600">
-                      {a.description}
+                    <div className="text-sm font-semibold text-slate-900">
+                      {justUnlocked.title}
+                    </div>
+                    <div className="text-xs text-slate-600">
+                      {justUnlocked.description}
                     </div>
                   </div>
                 </div>
-              </li>
-            );
-          })}
-        </ul>
+              );
+            })()}
+          </div>
+        </div>
       )}
-
-      {/* Összes badge bemutatása */}
-      <div className="mt-1">
-        <h4 className="mb-1 text-xs font-semibold text-slate-600 uppercase tracking-wide">
-          All badges
-        </h4>
-        <ul className="space-y-1">
-          {ALL_BADGES.map((b) => {
-            const meta = BADGE_META[b.id] || {
-              icon: "⭐",
-              accent: "text-slate-700",
-              bg: "from-slate-50 via-white to-slate-50",
-            };
-            const earned = earnedIds.has(b.id);
-
-            return (
-              <li
-                key={b.id}
-                className={`
-                  flex items-center gap-2 rounded-xl border px-2 py-1
-                  text-xs
-                  ${
-                    earned
-                      ? "border-emerald-200 bg-emerald-50/60 text-slate-800"
-                      : "border-slate-200 bg-slate-50 text-slate-500"
-                  }
-                `}
-              >
-                <span
-                  className={`
-                    flex h-6 w-6 items-center justify-center rounded-full bg-white text-base
-                    ${earned ? meta.accent : "text-slate-400"}
-                  `}
-                >
-                  {meta.icon}
-                </span>
-                <div className="min-w-0">
-                  <div className="truncate font-medium">
-                    {b.title}
-                    {earned && (
-                      <span className="ml-1 text-[10px] text-emerald-700">
-                        (earned)
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-[10px] truncate">{b.description}</div>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
-    </div>
+    </>
   );
 }
+
 
 
 
