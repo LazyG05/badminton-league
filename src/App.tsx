@@ -1062,9 +1062,11 @@ function SelectPairs({
     !!teamB2 &&
     seenTeammates.has(key(teamB1, teamB2));
 
-  const availablePlayers = players.filter((p) =>
-    freeIds.includes(p.id)
-  );
+ const availablePlayers = players
+  .filter((p) => freeIds.includes(p.id))
+  .sort((a, b) => a.name.localeCompare(b.name));
+
+
 
   const renderSelect = (
     label: string,
