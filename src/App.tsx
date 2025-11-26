@@ -937,20 +937,25 @@ function PlayerEditor({
         ) : (
           <>
             <select
-              className={`${input} mb-3`}
-              value={selectedPlayerId ?? ""}
-              onChange={(e) => {
-                setSelectedPlayerId(e.target.value || null);
-                setEditingEmoji(false);
-              }}
-              disabled={!!disabled}
-            >
-              {players.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+  className={`${input} mb-3`}
+  value={selectedPlayerId ?? ""}
+  onChange={(e) => {
+    setSelectedPlayerId(e.target.value || null);
+    setEditingEmoji(false);
+  }}
+  disabled={!!disabled}
+>
+  {[...players]
+    .sort((a, b) =>
+      getBaseName(a.name).localeCompare(getBaseName(b.name), "hu")
+    )
+    .map((p) => (
+      <option key={p.id} value={p.id}>
+        {p.name}
+      </option>
+    ))}
+</select>
+
 
             {selectedPlayer && (
               <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 text-sm">
