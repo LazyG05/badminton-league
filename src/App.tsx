@@ -1721,11 +1721,12 @@ function Standings({
   </p>
 <p>
   📊 <b>Ranking rules:</b> Players with at least 5 matches are ranked first.
-  Scoring uses a football-style system: <b>3 points for a win</b> and
-  <b>1 point for a loss</b> – so <b>showing up and playing is always rewarded</b>.
-  Bonus points are added on top of this. If total points are equal,
-  higher Win% comes first, then more matches played.
+  Scoring: <b>3 points for a win</b> and <b>1 point for a loss</b>, so
+  <b>showing up and playing is always rewarded</b>. Bonus points are added
+  on top of this. If players have the same total points, higher Win%
+  comes first, then the number of matches played.
 </p>
+
 
   <p>
     ⭐ <b>Bonus points:</b> +1 point for achievements such as beating Melinda,
