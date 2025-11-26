@@ -1016,7 +1016,9 @@ function PlayerEditor({
 }
 
 
-function DnDPairs({
+
+
+function SelectPairs({
   players,
   freeIds,
   seenTeammates,
@@ -1029,152 +1031,173 @@ function DnDPairs({
   onCreate: (a: Pair, b: Pair) => void;
   disabled?: boolean;
 }) {
-  const [pool, setPool] = useState<string[]>(freeIds);
-  const [teamA, setTeamA] = useState<string[]>([]);
-  const [teamB, setTeamB] = useState<string[]>([]);
-  useEffect(() => {
-    setPool(freeIds);
-    setTeamA([]);
-    setTeamB([]);
-  }, [freeIds.join(",")]);
+  const [teamA1, setTeamA1] = useState<string>("");
+  const [teamA2, setTeamA2] = useState<string>("");
+  const [teamB1, setTeamB1] = useState<string>("");
+  const [teamB2, setTeamB2] = useState<string>("");
 
-  const onDragStart = (pid: string) => (e: React.DragEvent) => {
-    e.dataTransfer.setData("text/plain", pid);
-  };
-  const allow = (e: React.DragEvent) => e.preventDefault();
-  const drop = (where: "POOL" | "A" | "B") => (e: React.DragEvent) => {
-    e.preventDefault();
-    const pid = e.dataTransfer.getData("text/plain");
-    if (!pid) return;
-    setTeamA((t) => t.filter((x) => x !== pid));
-    setTeamB((t) => t.filter((x) => x !== pid));
-    setPool((t) => t.filter((x) => x !== pid));
-    if (where === "A") setTeamA((t) => (t.length < 2 ? [...t, pid] : t));
-    else if (where === "B") setTeamB((t) => (t.length < 2 ? [...t, pid] : t));
-    else setPool((t) => [...t, pid]);
+  const reset = () => {
+    setTeamA1("");
+    setTeamA2("");
+    setTeamB1("");
+    setTeamB2("");
   };
 
-  const warnA = teamA.length === 2 && seenTeammates.has(key(teamA[0], teamA[1]));
-  const warnB = teamB.length === 2 && seenTeammates.has(key(teamB[0], teamB[1]));
-  const canCreate = teamA.length === 2 && teamB.length === 2 && !disabled;
+  const selectedIds = [teamA1, teamA2, teamB1, teamB2].filter(Boolean);
+  const hasDuplicate =
+    new Set(selectedIds).size !== selectedIds.length;
+
+  const canCreate =
+    !disabled &&
+    selectedIds.length === 4 &&
+    !hasDuplicate;
+
+  const warnA =
+    !!teamA1 &&
+    !!teamA2 &&
+    seenTeammates.has(key(teamA1, teamA2));
+
+  const warnB =
+    !!teamB1 &&
+    !!teamB2 &&
+    seenTeammates.has(key(teamB1, teamB2));
+
+  const availablePlayers = players.filter((p) =>
+    freeIds.includes(p.id)
+  );
+
+  const renderSelect = (
+    label: string,
+    value: string,
+    onChange: (v: string) => void,
+    exclude: string[]
+  ) => {
+    return (
+      <div className="space-y-1">
+        <div className="text-xs text-gray-600">{label}</div>
+        <select
+          className={input}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          disabled={!!disabled}
+        >
+          <option value="">– select player –</option>
+          {availablePlayers
+            .filter((p) => !exclude.includes(p.id))
+            .map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+        </select>
+      </div>
+    );
+  };
 
   return (
     <div className={card}>
       <ShuttleBg />
       <h3 className="mb-2 font-semibold">
-        Pairing (Drag & Drop) – players available: {pool.length} (players can
-        appear in multiple matches today)
+        Pairing (dropdown) – players can appear in multiple matches
       </h3>
-      <div className="grid gap-3 md:grid-cols-3">
+
+      <div className="grid gap-4 md:grid-cols-2">
+        {/* TEAM A */}
         <div
-          className="rounded-xl border border-slate-200 p-3"
-          onDrop={drop("POOL")}
-          onDragOver={allow}
-        >
-          <div className="mb-2 text-sm font-medium text-gray-600">
-            Available
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {pool.map((pid) => (
-              <span
-                key={pid}
-                draggable={!disabled}
-                onDragStart={onDragStart(pid)}
-                className="cursor-move select-none rounded-lg bg-[#e0f2fe] px-3 py-1 text-sm"
-              >
-                {players.find((p) => p.id === pid)?.name}
-              </span>
-            ))}
-          </div>
-        </div>
-        <div
-          className={`rounded-xl border p-3 ${
-            warnA ? "border-amber-400" : "border-slate-200"
+          className={`rounded-xl border p-3 space-y-2 ${
+            warnA ? "border-amber-400 bg-amber-50/40" : "border-slate-200 bg-white"
           }`}
-          onDrop={drop("A")}
-          onDragOver={allow}
         >
-          <div className="mb-2 text-sm font-medium">
+          <div className="text-sm font-medium">
             Team A{" "}
             {warnA && (
-              <span className="ml-2 text-amber-600 text-xs">
+              <span className="ml-2 text-xs text-amber-600">
                 (pair already used today)
               </span>
             )}
           </div>
-          <div className="flex flex-wrap gap-2 min-h-[2.25rem]">
-            {teamA.map((pid) => (
-              <span
-                key={pid}
-                draggable={!disabled}
-                onDragStart={onDragStart(pid)}
-                className="cursor-move select-none rounded-lg bg-[#fee2e2] px-3 py-1 text-sm"
-              >
-                {players.find((p) => p.id === pid)?.name}
-              </span>
-            ))}
-          </div>
+          {renderSelect(
+            "Team A – Player 1",
+            teamA1,
+            setTeamA1,
+            [teamA2, teamB1, teamB2].filter(Boolean) as string[]
+          )}
+          {renderSelect(
+            "Team A – Player 2",
+            teamA2,
+            setTeamA2,
+            [teamA1, teamB1, teamB2].filter(Boolean) as string[]
+          )}
         </div>
+
+        {/* TEAM B */}
         <div
-          className={`rounded-xl border p-3 ${
-            warnB ? "border-amber-400" : "border-slate-200"
+          className={`rounded-xl border p-3 space-y-2 ${
+            warnB ? "border-amber-400 bg-amber-50/40" : "border-slate-200 bg-white"
           }`}
-          onDrop={drop("B")}
-          onDragOver={allow}
         >
-          <div className="mb-2 text-sm font-medium">
+          <div className="text-sm font-medium">
             Team B{" "}
             {warnB && (
-              <span className="ml-2 text-amber-600 text-xs">
+              <span className="ml-2 text-xs text-amber-600">
                 (pair already used today)
               </span>
             )}
           </div>
-          <div className="flex flex-wrap gap-2 min-h-[2.25rem]">
-            {teamB.map((pid) => (
-              <span
-                key={pid}
-                draggable={!disabled}
-                onDragStart={onDragStart(pid)}
-                className="cursor-move select-none rounded-lg bg-[#dcfce7] px-3 py-1 text-sm"
-              >
-                {players.find((p) => p.id === pid)?.name}
-              </span>
-            ))}
-          </div>
+          {renderSelect(
+            "Team B – Player 1",
+            teamB1,
+            setTeamB1,
+            [teamB2, teamA1, teamA2].filter(Boolean) as string[]
+          )}
+          {renderSelect(
+            "Team B – Player 2",
+            teamB2,
+            setTeamB2,
+            [teamB1, teamA1, teamA2].filter(Boolean) as string[]
+          )}
         </div>
       </div>
-      <div className="mt-3 flex flex-wrap gap-2">
+
+      {/* GOMBOK + INFO */}
+      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
         <button
           className={btnPrimary}
           disabled={!canCreate}
           onClick={() => {
-            onCreate([teamA[0], teamA[1]], [teamB[0], teamB[1]]);
-            setTeamA([]);
-            setTeamB([]);
+            onCreate(
+              [teamA1, teamA2] as Pair,
+              [teamB1, teamB2] as Pair
+            );
+            reset();
           }}
         >
           Add match
         </button>
+
         <button
           className={btnSecondary}
-          onClick={() => {
-            setPool(freeIds);
-            setTeamA([]);
-            setTeamB([]);
-          }}
-          disabled={!!disabled}
+          type="button"
+          onClick={reset}
+          disabled={!!disabled && selectedIds.length === 0}
         >
           Reset
         </button>
-        <span className="text-xs text-gray-500">
-          Tip: 8 players → 2 matches, 12 → 3, etc. Add multiple matches in the
-          same date.
+
+        {hasDuplicate && (
+          <span className="text-rose-600">
+            The same player cannot be in two positions in one match.
+          </span>
+        )}
+
+        <span className="text-gray-500">
+          Tip: Players can appear in multiple matches on the same date.
         </span>
       </div>
     </div>
   );
 }
+
 
 function MatchesAdmin({
   matches,
@@ -2176,12 +2199,12 @@ export default function App() {
         </div>
 
         {/* Drag & drop párosító */}
-        <DnDPairs
-          players={players}
-          freeIds={freeIds}
-          seenTeammates={seenTeammatesToday}
-          onCreate={addMatch}
-        />
+        <SelectPairs
+  players={players}
+  freeIds={freeIds}
+  seenTeammates={seenTeammatesToday}
+  onCreate={addMatch}
+/>
 
         {/* Meccsek szerkesztése */}
         <MatchesAdmin
