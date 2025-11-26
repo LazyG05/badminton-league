@@ -1719,15 +1719,10 @@ function Standings({
   <p>
     ❕ = Less than 5 matches played – provisional ranking.
   </p>
-<p>
-  📊 <b>Ranking rules:</b> Players with at least 5 matches are ranked first.
-  Scoring: <b>3 points for a win</b> and <b>1 point for a loss</b>, so
-  <b>showing up and playing is always rewarded</b>. Bonus points are added
-  on top of this. If players have the same total points, higher Win%
-  comes first, then the number of matches played.
-</p>
-
-
+  <p>
+    📊 <b>Ranking rules:</b> first we rank players with at least 5 matches,
+    then by win rate (Win%). If equal, more matches count higher.
+  </p>
   <p>
     ⭐ <b>Bonus points:</b> +1 point for achievements such as beating Melinda,
     or reaching the Ironman 10-session streak.
@@ -1961,20 +1956,17 @@ export default function App() {
       const win = m.winner === "A" ? m.teamA : m.teamB;
       const lose = m.winner === "A" ? m.teamB : m.teamA;
 
-     win.forEach((id) => {
+      win.forEach((id) => {
         const r = map.get(id);
         if (!r) return;
         r.wins++;
-        // focis rendszer: győzelem = 3 pont
-        r.basePoints += 3;
+        r.basePoints++;
       });
 
       lose.forEach((id) => {
         const r = map.get(id);
         if (!r) return;
         r.losses++;
-        // focis rendszer: vereség = 1 pont (mert játszott)
-        r.basePoints += 1;
       });
     });
 
@@ -2001,32 +1993,17 @@ export default function App() {
       r.totalPoints = r.basePoints + r.bonusPoints;
     });
 
-      // Rangsor – qualified elöl, aztán totalPoints, win%, matches, név
+    // Rangsor – qualified elöl, aztán win%, matches, totalPoints, név
     return Array.from(map.values()).sort((a, b) => {
-      // 1) először: megvan-e a minimum meccsszám
       if (a.qualified !== b.qualified) {
         return a.qualified ? -1 : 1;
       }
-
-      // 2) fő szempont: összpontszám (basePoints + bonusPoints)
-      if (b.totalPoints !== a.totalPoints) {
+      if (b.winRate !== a.winRate) return b.winRate - a.winRate;
+      if (b.matches !== a.matches) return b.matches - a.matches;
+      if (b.totalPoints !== a.totalPoints)
         return b.totalPoints - a.totalPoints;
-      }
-
-      // 3) ha ugyanannyi pontjuk van: jobb win% előrébb
-      if (b.winRate !== a.winRate) {
-        return b.winRate - a.winRate;
-      }
-
-      // 4) ha még mindig egyenlő: több meccs előrébb
-      if (b.matches !== a.matches) {
-        return b.matches - a.matches;
-      }
-
-      // 5) végső döntés: név szerint
       return a.name.localeCompare(b.name);
     });
-
   }, [league.matches, players]);
 
 
