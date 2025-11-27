@@ -1496,11 +1496,13 @@ function PlayerStats({
   );
 
   // ha még nincs meId elmentve, válasszuk az első (ABC szerinti) playert
-  useEffect(() => {
-    if (!meId && sortedPlayers.length) {
-      setMeId(sortedPlayers[0].id);
-    }
-  }, [meId, sortedPlayers, setMeId]);
+useEffect(() => {
+  const exists = sortedPlayers.some((p) => p.id === meId);
+
+  if ((!meId || !exists) && sortedPlayers.length) {
+    setMeId(sortedPlayers[0].id);
+  }
+}, [meId, sortedPlayers, setMeId]);
 
   const me = sortedPlayers.find((p) => p.id === meId);
   if (!me || !sortedPlayers.length) return null;
