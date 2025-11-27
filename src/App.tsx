@@ -719,23 +719,33 @@ function useLeague() {
 
   const write = useCallback(
     (patch: Partial<LeagueDoc>) => {
-      setData((prev) => ({ ...prev, ...patch }));
-      if (suppress.current) return;
+      // Use functional update to avoid reading stale `data` from closure.
       if (tRef.current) window.clearTimeout(tRef.current);
-      tRef.current = window.setTimeout(async () => {
-        const ref = doc(db, "leagues", "default");
-        const current = data;
-        const payload = {
-          ...current,
-          ...patch,
-          updatedAt: serverTimestamp(),
-        } as LeagueDoc;
-        try {
-          await setDoc(ref, payload, { merge: true });
-        } catch {}
-      }, 120);
+
+      setData((prev) => {
+        const next = { ...prev, ...patch };
+
+        // If we're suppressing (incoming remote update), update local state but
+        // don't push to Firestore.
+        if (suppress.current) return next;
+
+        tRef.current = window.setTimeout(async () => {
+          const ref = doc(db, "leagues", "default");
+          const payload = {
+            ...next,
+            updatedAt: serverTimestamp(),
+          } as LeagueDoc;
+          try {
+            await setDoc(ref, payload, { merge: true });
+          } catch (err) {
+            console.error("Failed to sync league:", err);
+          }
+        }, 120);
+
+        return next;
+      });
     },
-    [data]
+    []
   );
 
   return [data, write] as const;
@@ -1579,6 +1589,7 @@ function Standings({
   rows,
   players,
   matches,
+  achievementsById,
 }: {
   rows: {
     id: string;
@@ -1594,6 +1605,7 @@ function Standings({
   }[];
   players: Player[];
   matches: Match[];
+  achievementsById?: Map<string, Achievement[]>;
 }) {
   // ugyanaz a badge-ikon mapping, mint Achievementsnél, csak egyszerűsítve
   const BADGE_META: Record<string, { icon: string; label: string }> = {
@@ -1629,7 +1641,7 @@ function Standings({
             </thead>
             <tbody>
               {rows.map((row, idx) => {
-                const ach = computeAchievementsFull(row.id, matches, players);
+                const ach = achievementsById?.get(row.id) ?? computeAchievementsFull(row.id, matches, players);
 
                 return (
                   <tr
@@ -2049,6 +2061,15 @@ export default function App() {
     ? grouped[grouped.length - 1].date
     : null;
 
+  // Memoize achievements for all players so we don't recompute per table row
+  const achievementsById = useMemo(() => {
+    const m = new Map<string, Achievement[]>();
+    players.forEach((p) => {
+      m.set(p.id, computeAchievementsFull(p.id, league.matches, players));
+    });
+    return m;
+  }, [players, league.matches]);
+
   // Actions
   const addPlayer = (fullName: string) => {
     const t = fullName.trim();
@@ -2278,8 +2299,8 @@ export default function App() {
     </section>
 
     {/* 🆕 Standings teljes szélességben */}
-    <div className="mt-4 sm:mt-6">
-      <Standings rows={standings} players={players} matches={league.matches} />
+      <div className="mt-4 sm:mt-6">
+      <Standings rows={standings} players={players} matches={league.matches} achievementsById={achievementsById} />
     </div>
   </>
 ) : (
@@ -2345,7 +2366,7 @@ export default function App() {
 
     {/* 🆕 Standings teljes szélességben */}
     <div className="mt-4 sm:mt-6">
-      <Standings rows={standings} players={players} matches={league.matches} />
+      <Standings rows={standings} players={players} matches={league.matches} achievementsById={achievementsById} />
     </div>
   </>
 )}
