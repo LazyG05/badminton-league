@@ -2117,13 +2117,8 @@ export default function App() {
 
 // ... (korábbi kód: clearWinner)
 
-  // 🆕 ÚJ: Kiegyensúlyozott "High-Low" sorsolás
+  // 🆕 ÚJ: Kiegyensúlyozott "High-Low" sorsolás (MÓDOSÍTVA a MIN. 5 meccs feltételre)
   const autoDraw = () => {
-    if (freeIds.length < 4) {
-      alert("Not enough free players today (min. 4 needed).");
-      return;
-    }
-
     // 1. Segédfüggvény: Pontszám számítása egy játékosra
     const getScore = (pid: string) => {
       let pts = 0;
@@ -2151,11 +2146,21 @@ export default function App() {
       return { pts, matchCount };
     };
 
-    // 2. Játékosok előkészítése és rendezése pontszám alapján (High elöl)
+    // 2. Játékosok előkészítése, SZŰRÉSE és rendezése
     let sortedIds = freeIds.map(id => {
        const { pts, matchCount } = getScore(id);
        return { id, pts, matchCount };
-    }).sort((a, b) => b.pts - a.pts);
+    })
+    // 🎯 SZŰRÉS: CSAK azokat vesszük figyelembe, akiknek van legalább 5 meccsük
+    .filter(p => p.matchCount >= 5)
+    // Rendezzük pontszám alapján (High elöl)
+    .sort((a, b) => b.pts - a.pts);
+
+    // Külön ellenőrzés a kvalifikált játékosokra
+    if (sortedIds.length < 4) {
+      alert("A kiegyensúlyozott sorsoláshoz minimum 4 **kvalifikált** játékos (min. 5 lejátszott meccs) szükséges!");
+      return;
+    }
 
     let workingPool = [...sortedIds];
     const teams: Pair[] = [];
@@ -2200,8 +2205,7 @@ export default function App() {
     if (newMatches.length > 0) {
       write({ matches: [...league.matches, ...newMatches] });
     } else if (freeIds.length >= 4) {
-      // Ez akkor fordul elő, ha páratlan számú pár maradt, ami nem tud meccset alkotni
-      alert("Could not form balanced matches. Please check the number of players.");
+      alert("Could not form balanced matches. Please check the number of qualified players.");
     }
   };
 
