@@ -18,6 +18,7 @@ import { getAuth, signInAnonymously } from "firebase/auth";
  * - Date navigation in Player view + "Last session" badge
  * - Training days: Monday & Wednesday; default date = closest such day
  * - Firestore realtime sync (single league doc: "leagues/default")
+ * * 🆕 JELENLÉTI LISTA & HELYSZÍNI SORSOLÁS
  * =============================================================
  */
 
@@ -567,9 +568,7 @@ function computeAttendanceStreak(playerId: string, matches: Match[]): number {
 }
 
 
-
-
-
+// ... (EMOJIS, UI tokens - unchanged)
 
 // ========================= Emoji list =========================
 const EMOJIS = [
@@ -799,6 +798,100 @@ function DatePicker({
     </div>
   );
 }
+
+// 🆕 Új Jelenléti Lista Komponens
+function AttendanceList({
+  players,
+  date,
+  presentIds,
+  setPresentIds,
+}: {
+  players: Player[];
+  date: string;
+  presentIds: string[];
+  setPresentIds: (ids: string[]) => void;
+}) {
+  const isPresent = (id: string) => presentIds.includes(id);
+
+  const togglePresence = (id: string) => {
+    if (isPresent(id)) {
+      setPresentIds(presentIds.filter((pId) => pId !== id));
+    } else {
+      setPresentIds([...presentIds, id]);
+    }
+  };
+
+  const baseName = (full: string) =>
+    full.replace(/^.+?\s/, ""); // slicing off emoji + space
+
+  const sortedPlayers = useMemo(
+    () =>
+      [...players].sort((a, b) =>
+        baseName(a.name).localeCompare(baseName(b.name), "hu")
+      ),
+    [players]
+  );
+  
+  const presentCount = presentIds.length;
+
+  return (
+    <div className={card}>
+      <ShuttleBg />
+      <h3 className="mb-2 font-semibold">
+        Jelenlét {date} ({presentCount}/{players.length})
+      </h3>
+      
+      {players.length === 0 ? (
+        <p className="text-sm text-gray-500">No players yet. Add them first.</p>
+      ) : (
+        <>
+          <div className="flex gap-2 mb-3 text-xs">
+              <button
+                className={`${btnSecondary} px-3 py-1`}
+                onClick={() => setPresentIds(players.map(p => p.id))}
+              >
+                Select All
+              </button>
+              <button
+                className={`${btnSecondary} px-3 py-1`}
+                onClick={() => setPresentIds([])}
+              >
+                Clear All
+              </button>
+          </div>
+          <ul className="space-y-1 max-h-52 overflow-y-auto pr-1">
+            {sortedPlayers.map((p) => {
+              const checked = isPresent(p.id);
+              return (
+                <li
+                  key={p.id}
+                  className={`flex items-center justify-between rounded-lg px-2 py-1 text-sm border cursor-pointer transition ${
+                    checked
+                      ? "bg-emerald-50 border-emerald-300 text-slate-800"
+                      : "bg-white border-slate-200 hover:bg-slate-50 text-slate-700"
+                  }`}
+                  onClick={() => togglePresence(p.id)}
+                >
+                  <label className="flex items-center gap-2 cursor-pointer w-full">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => togglePresence(p.id)}
+                      className="form-checkbox h-4 w-4 text-emerald-600 rounded"
+                      readOnly // Readonly, since click handles the change
+                    />
+                    <span>{p.name}</span>
+                  </label>
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      )}
+    </div>
+  );
+}
+// 🆕 Jelenléti Lista Komponens VÉGE
 
 function PlayerEditor({
   players,
@@ -1855,6 +1948,15 @@ export default function App() {
   // Date (round) – legközelebbi hétfő / szerda
   const [date, setDate] = useState(() => fmt(nextTrainingDate()));
 
+  // 🆕 Jelenlét a sorsoláshoz (Admin nézet)
+  const [presentPlayerIds, setPresentPlayerIds] = useState<string[]>([]);
+  
+  // 🆕 Reset attendance when date changes
+  const setDateAndResetAttendance = useCallback((newDate: string) => {
+    setDate(newDate);
+    setPresentPlayerIds([]);
+  }, []);
+
   // ========================= Data derivation =========================
   const [league, write] = useLeague();
   
@@ -1925,14 +2027,14 @@ export default function App() {
           const r = map.get(id);
           if (r) {
             r.wins++;
-            r.basePoints += 3; // Win = +3 points (MÓDOSÍTVA)
+            r.basePoints += 3; // Win = +3 points
           }
         });
         loserTeam?.forEach((id) => {
           const r = map.get(id);
           if (r) {
             r.losses++;
-            r.basePoints += 1; // Loss = +1 point (MÓDOSÍTVA)
+            r.basePoints += 1; // Loss = +1 point
           }
         });
       }
@@ -2072,10 +2174,20 @@ export default function App() {
   };
 
   // ... (previous code: clearWinner)
-  // 🆕 NEW: Balanced "High-Low" draw for 3 ROUNDS
+  // 🆕 NEW: Balanced "High-Low" draw for 3 ROUNDS (using present players)
   const autoDraw = () => {
     if (!isAdmin) return;
-    const allPlayerIds = players.map((p) => p.id);
+    
+    // 🆕 Jelenlévő játékosok használata
+    const poolIds = presentPlayerIds.length > 0 ? presentPlayerIds : players.map((p) => p.id);
+    const poolPlayers = players.filter((p) => poolIds.includes(p.id));
+    const allPlayerIds = poolPlayers.map(p => p.id);
+
+    // 🆕 Check for minimum players
+    if (poolPlayers.length < 4) {
+      alert("Need at least 4 players to draw matches. (Check the attendance list.)");
+      return;
+    }
 
     // 1. Helper function: Calculate score for a player
     const getScore = (pid: string) => {
@@ -2088,14 +2200,14 @@ export default function App() {
           if (!inA && !inB) return;
           matchCount++;
           const isWin = (m.winner === "A" && inA) || (m.winner === "B" && inB);
-          // MÓDOSÍTVA: Auto-draw score is still just 1 point for win, 0 for loss for fair pairing
+          // Auto-draw score is still just 1 point for win, 0 for loss for fair pairing
           if (isWin) pts += 1; // Used only for pairing
         }
       });
       return { id: pid, score: pts, matches: matchCount };
     };
 
-    // 2. Rank players based on points
+    // 2. Rank players based on points (only those present)
     const sortedIds = allPlayerIds
       .map(getScore)
       .sort((a, b) => {
@@ -2104,12 +2216,6 @@ export default function App() {
         // More matches is better
         return b.matches - a.matches;
       });
-
-    // If there are fewer than 4 players, stop.
-    if (sortedIds.length < 4) {
-        alert("Need at least 4 players to draw matches.");
-        return;
-    }
 
     const allMatches: Match[] = [];
     // Clone the list of teammates already seen today to track pairings over the 3 rounds
@@ -2159,9 +2265,6 @@ export default function App() {
           teamB: teams[i + 1],
         });
       }
-
-      // 5. If there's an odd player left over, skip them this round (they play later).
-      // If there's an odd team left over, skip it this round (it plays later).
       
       allMatches.push(...roundMatches);
     }
@@ -2220,20 +2323,20 @@ export default function App() {
 
         {/* Date selector */}
         <div className="space-y-2">
-          <DatePicker value={date} onChange={setDate} />
+          <DatePicker value={date} onChange={setDateAndResetAttendance} />
           {role === "admin" && (
             <div className="flex flex-wrap gap-2 text-xs text-gray-600">
               <button
                 type="button"
                 className={`${btnSecondary} px-3 py-1`}
-                onClick={() => setDate(fmt(new Date()))}
+                onClick={() => setDateAndResetAttendance(fmt(new Date()))}
               >
                 Today
               </button>
               <button
                 type="button"
                 className={`${btnSecondary} px-3 py-1`}
-                onClick={() => setDate(fmt(nextTrainingDate()))}
+                onClick={() => setDateAndResetAttendance(fmt(nextTrainingDate()))}
               >
                 Next training
               </button>
@@ -2241,7 +2344,7 @@ export default function App() {
                 <button
                   type="button"
                   className={`${btnSecondary} px-3 py-1`}
-                  onClick={() => setDate(lastSessionDate)}
+                  onClick={() => setDateAndResetAttendance(lastSessionDate)}
                 >
                   Last session
                 </button>
@@ -2280,21 +2383,34 @@ export default function App() {
                 />
               </div>
 
-              {/* Jobb oldali sáv: Sorsolás, Dátumugrás, Backup, Infó */}
+              {/* Jobb oldali sáv: Jelenlét, Sorsolás, Dátumugrás, Backup, Infó */}
               <div className="space-y-4">
+                {/* 🆕 Jelenléti Lista */}
+                <AttendanceList 
+                  players={players} 
+                  date={date} 
+                  presentIds={presentPlayerIds} 
+                  setPresentIds={setPresentPlayerIds} 
+                />
+
                 <div className={card}>
                   <ShuttleBg />
-                  <h3 className="mb-2 font-semibold">Match Draw</h3>
+                  <h3 className="mb-2 font-semibold">Match Draw (based on attendance)</h3>
                   <button
                     className={`${btnPrimary} w-full`}
                     onClick={autoDraw}
-                    disabled={players.length < 4}
+                    disabled={players.length < 4 || presentPlayerIds.length < 4}
                   >
                     Auto-draw 3 Rounds (High-Low)
                   </button>
-                  {players.length < 4 && (
+                  {presentPlayerIds.length > 0 && presentPlayerIds.length < 4 && (
                     <p className="mt-2 text-xs text-rose-500">
-                      Minimum 4 players required for auto-draw.
+                      Minimum 4 **present** players required for auto-draw.
+                    </p>
+                  )}
+                  {presentPlayerIds.length === 0 && players.length >= 4 && (
+                     <p className="mt-2 text-xs text-gray-400">
+                      **Warning:** Currently using **ALL** players for draw (since no one is marked as present).
                     </p>
                   )}
                   <p className="mt-2 text-xs text-gray-400">
@@ -2305,7 +2421,7 @@ export default function App() {
                 <AdminDateJump
                   grouped={grouped}
                   date={date}
-                  setDate={setDate}
+                  setDate={setDateAndResetAttendance}
                   lastSessionDate={lastSessionDate}
                 />
                 <BackupPanel onCreate={createBackup} onRestore={restoreBackup} backups={backups} />
