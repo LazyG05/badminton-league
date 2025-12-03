@@ -12,12 +12,12 @@ import { getAuth, signInAnonymously } from "firebase/auth";
 
 /**
  * =============================================================
- *  BIA-TOLLAS – Biatorbágy
- *  - Player/Admin toggle, adminhoz jelszó: "biatollas"
- *  - Emoji választás új játékoshoz (40 emoji) + utólagos módosítás
- *  - Dátum-navigáció a Player nézetben + "Last session" badge
- *  - Edzésnapok: hétfő & szerda; default dátum = legközelebbi ilyen nap
- *  - Firestore realtime sync (single league doc: "leagues/default")
+ * BIA-TOLLAS – Biatorbágy (Badminton League)
+ * - Player/Admin toggle, admin password: "biatollas"
+ * - Emoji selection for new players (40 emojis) + subsequent modification
+ * - Date navigation in Player view + "Last session" badge
+ * - Training days: Monday & Wednesday; default date = closest such day
+ * - Firestore realtime sync (single league doc: "leagues/default")
  * =============================================================
  */
 
@@ -93,7 +93,7 @@ function PlayerAchievements({
 
   const ach = computeAchievementsFull(meId, matches, players);
 
-  // badge meta: ikon + színek per achievement id
+  // badge meta: icon + colors per achievement id
    const BADGE_META: Record<
     string,
     { icon: string; accent: string; bg: string }
@@ -133,7 +133,7 @@ function PlayerAchievements({
       accent: "text-indigo-700",
       bg: "from-indigo-50 via-white to-amber-50",
     },
-    // 🆕 Min. 5 meccs
+    // 🆕 Min. 5 matches
     min5matches: {
       icon: "🏸",
       accent: "text-sky-700",
@@ -141,7 +141,7 @@ function PlayerAchievements({
     },
   };
 
-  // Minden létező badge (bemutató lista)
+  // All existing badges (showcase list)
   const ALL_BADGES: Achievement[] = [
     {
       id: "win5",
@@ -178,7 +178,7 @@ function PlayerAchievements({
       title: "Ironman",
       description: "Attend 10 sessions in a row.",
     },
-    // 🆕 Min. 5 meccs
+    // 🆕 Min. 5 matches
     {
       id: "min5matches",
       title: "Seasoned Player",
@@ -189,7 +189,7 @@ function PlayerAchievements({
 
   const earnedIds = new Set(ach.map((a) => a.id));
 
-  // 🔔 Badge reward animációhoz: mit szereztünk meg most?
+  // 🔔 For badge reward animation: what did we just unlock?
   const [justUnlocked, setJustUnlocked] = useState<Achievement | null>(null);
   const knownIdsRef = useRef<string[]>([]);
   const firstRender = useRef(true);
@@ -197,7 +197,7 @@ function PlayerAchievements({
   useEffect(() => {
     const currentIds = ach.map((a) => a.id);
 
-    // első rendernél ne dobjuk fel az összeset egyszerre
+    // Don't show all badges at once on first render
     if (firstRender.current) {
       firstRender.current = false;
       knownIdsRef.current = currentIds;
@@ -257,7 +257,7 @@ function PlayerAchievements({
                     transition-transform hover:-translate-y-0.5 hover:shadow-md
                   `}
                 >
-                  {/* kis „csillogás” overlay */}
+                  {/* small "shimmer" overlay */}
                   <div className="pointer-events-none absolute -right-6 -top-6 h-16 w-16 rounded-full bg-white/40 blur-2 opacity-0 group-hover:opacity-70 transition-opacity" />
 
                   <div className="flex items-center gap-3 relative">
@@ -397,7 +397,7 @@ export function computeAchievementsFull(
 ): Achievement[] {
   const out: Achievement[] = [];
 
-  // --- basic stats: csak az adott játékos meccsei ---
+  // --- basic stats: only the matches of the given player ---
   const playerMatches = matches.filter(
     (m) => m.teamA.includes(playerId) || m.teamB.includes(playerId)
   );
@@ -455,18 +455,18 @@ if (melinda) {
     const playerInA = m.teamA.includes(playerId);
     const playerInB = m.teamB.includes(playerId);
 
-    // mindkettőnek benn kell lennie a meccsben
+    // both must be in the match
     if (!(melInA || melInB)) return false;
     if (!(playerInA || playerInB)) return false;
     if (!m.winner) return false;
 
-    // fontos: ELLENFÉL legyen, ne CSAPATTÁRS
+    // important: must be an OPPONENT, not a TEAMMATE
     const onOppositeTeams =
       (melInA && playerInB) || (melInB && playerInA);
 
     if (!onOppositeTeams) return false;
 
-    // a játékos csapata nyert?
+    // did the player's team win?
     const playerWon =
       (m.winner === "A" && playerInA) ||
       (m.winner === "B" && playerInB);
@@ -483,7 +483,7 @@ if (melinda) {
   }
 }
 
-  // --- Min. 5 meccs badge ---
+  // --- Min. 5 matches badge ---
   const matchesPlayed = playerMatches.length;
   if (matchesPlayed >= 5) {
     out.push({
@@ -523,7 +523,7 @@ if (melinda) {
 
 
 
-// Edzésnapok: hétfő (1), szerda (3) – JS Date.getDay()
+// Training days: Monday (1), Wednesday (3) – JS Date.getDay()
 const TRAINING_DAYS = [1, 3];
 
 function nextTrainingDate(from: Date = new Date()): Date {
@@ -533,15 +533,15 @@ function nextTrainingDate(from: Date = new Date()): Date {
   }
   return d;
 }
-// Egymást követő liganapok, amelyeken a játékos játszott.
-// Itt "session" = bármely dátum, amikor volt bármilyen meccs a ligában.
+// Consecutive league days on which the player played.
+// Here "session" = any date when there was any match in the league.
 function computeAttendanceStreak(playerId: string, matches: Match[]): number {
   if (!matches.length) return 0;
 
-  // Összes liganap (bármelyik meccs dátuma), sorba rendezve
+  // All league dates (date of any match), sorted
   const allDates = Array.from(new Set(matches.map((m) => m.date))).sort();
 
-  // Olyan napok, amikor a player játszott
+  // Days when the player played
   const playedDates = new Set<string>();
   matches.forEach((m) => {
     if (m.teamA.includes(playerId) || m.teamB.includes(playerId)) {
@@ -552,8 +552,8 @@ function computeAttendanceStreak(playerId: string, matches: Match[]): number {
   let best = 0;
   let current = 0;
 
-  // Végigmegyünk az összes liganapon időrendben,
-  // és nézzük, hogy a player ott volt-e meccsen.
+  // Iterate through all league days in chronological order,
+  // and check if the player was present at a match.
   for (const d of allDates) {
     if (playedDates.has(d)) {
       current++;
@@ -820,7 +820,7 @@ function PlayerEditor({
     players.length ? players[0].id : null
   );
 
-  // ha változik a players tömb (pl. új játékos), frissítsük a selectet
+  // if the players array changes (e.g., new player), update the select
   useEffect(() => {
     if (!players.length) {
       setSelectedPlayerId(null);
@@ -830,7 +830,7 @@ function PlayerEditor({
   }, [players, selectedPlayerId]);
 
   const getBaseName = (full: string) =>
-    full.replace(/^.+?\s/, ""); // emoji + space levágása
+    full.replace(/^.+?\s/, ""); // slicing off emoji + space
 
   const getEmoji = (full: string) => {
     const m = full.match(/^(\S+)/);
@@ -902,7 +902,7 @@ function PlayerEditor({
         </div>
       </div>
 
-      {/* Meglévő játékosok kezelése – dropdown */}
+      {/* Managing existing players – dropdown */}
       <div className="border-t border-slate-100 pt-3 mt-2">
         <h3 className="mb-2 text-sm font-semibold text-slate-700">
           Manage existing player
@@ -1138,19 +1138,18 @@ const availablePlayers = players
             "Team B – Player 1",
             teamB1,
             setTeamB1,
-            [teamB2, teamA1, teamA2].filter(Boolean) as string[]
+            [teamA1, teamA2, teamB2].filter(Boolean) as string[]
           )}
           {renderSelect(
             "Team B – Player 2",
             teamB2,
             setTeamB2,
-            [teamB1, teamA1, teamA2].filter(Boolean) as string[]
+            [teamA1, teamA2, teamB1].filter(Boolean) as string[]
           )}
         </div>
       </div>
 
-      {/* GOMBOK + INFO */}
-      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+      <div className="mt-4 flex items-start gap-2 text-xs">
         <button
           className={btnPrimary}
           disabled={!canCreate}
@@ -1164,7 +1163,6 @@ const availablePlayers = players
         >
           Add match
         </button>
-
         <button
           className={btnSecondary}
           type="button"
@@ -1173,13 +1171,11 @@ const availablePlayers = players
         >
           Reset
         </button>
-
         {hasDuplicate && (
           <span className="text-rose-600">
             The same player cannot be in two positions in one match.
           </span>
         )}
-
         <span className="text-gray-500">
           Tip: Players can appear in multiple matches on the same date.
         </span>
@@ -1189,24 +1185,11 @@ const availablePlayers = players
 }
 
 
-function MatchesAdmin({
-  matches,
-  nameOf,
-  onPick,
-  onClear,
-  onDelete,
-}: {
-  matches: Match[];
-  nameOf: (id: string) => string;
-  onPick: (id: string, w: "A" | "B") => void;
-  onClear: (id: string) => void;
-  onDelete: (id: string) => void;
-}) {
+function MatchesAdmin({ matches, nameOf, onPick, onClear, onDelete }: { matches: Match[]; nameOf: (id: string) => string; onPick: (id: string, w: "A" | "B") => void; onClear: (id: string) => void; onDelete: (id: string) => void; }) {
   return (
     <div className={card}>
       <ShuttleBg />
       <h3 className="mb-2 font-semibold">Matches (Admin)</h3>
-
       {matches.length === 0 ? (
         <p className="text-sm text-gray-500">No matches for this date yet.</p>
       ) : (
@@ -1229,8 +1212,8 @@ function MatchesAdmin({
                     {nameOf(m.teamA[0])} & {nameOf(m.teamA[1])}
                   </div>
                   {m.winner === "A" && (
-                    <div className="text-indigo-600 text-xs font-semibold mt-1">
-                      Winner 🏆
+                    <div className="text-indigo-600 text-xs font-semibold">
+                      WINNER
                     </div>
                   )}
                 </div>
@@ -1246,32 +1229,59 @@ function MatchesAdmin({
                     {nameOf(m.teamB[0])} & {nameOf(m.teamB[1])}
                   </div>
                   {m.winner === "B" && (
-                    <div className="text-indigo-600 text-xs font-semibold mt-1">
-                      Winner 🏆
+                    <div className="text-indigo-600 text-xs font-semibold">
+                      WINNER
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* Alsó sor – műveletek */}
-              <div className="mt-3 flex flex-wrap gap-2 text-xs">
+              {/* Alsó sor – Pick winner + Delete gombok */}
+              <div className="mt-3 flex items-center gap-2 text-xs">
+                <span className="font-medium text-slate-600">
+                  {m.winner ? "Winner:" : "Pick winner:"}
+                </span>
                 <button
-                  className={btnSecondary}
+                  type="button"
                   onClick={() => onPick(m.id, "A")}
+                  disabled={m.winner === "A"}
+                  className={`${btnBase} px-3 py-1 ${
+                    m.winner === "A"
+                      ? "bg-indigo-600 text-white"
+                      : "bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
+                  }`}
                 >
-                  Set winner: Team A
+                  Team A
                 </button>
                 <button
-                  className={btnSecondary}
+                  type="button"
                   onClick={() => onPick(m.id, "B")}
+                  disabled={m.winner === "B"}
+                  className={`${btnBase} px-3 py-1 ${
+                    m.winner === "B"
+                      ? "bg-indigo-600 text-white"
+                      : "bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
+                  }`}
                 >
-                  Set winner: Team B
+                  Team B
                 </button>
-                <button className={btnSecondary} onClick={() => onClear(m.id)}>
-                  Clear winner
-                </button>
-                <button className={btnDanger} onClick={() => onDelete(m.id)}>
-                  Delete match
+
+                {m.winner && (
+                  <button
+                    type="button"
+                    onClick={() => onClear(m.id)}
+                    className={`${btnBase} px-3 py-1 text-slate-500 hover:bg-slate-100`}
+                  >
+                    clear
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => onDelete(m.id)}
+                  className={`${btnBase} px-3 py-1 ml-auto text-rose-500 hover:bg-rose-50`}
+                >
+                  delete
                 </button>
               </div>
             </li>
@@ -1282,36 +1292,39 @@ function MatchesAdmin({
   );
 }
 
-
 function MatchesPlayer({
   grouped,
   nameOf,
+  lastSessionDate,
 }: {
   grouped: { date: string; matches: Match[] }[];
   nameOf: (id: string) => string;
+  lastSessionDate?: string | null;
 }) {
-  // alapból a legutolsó dátum legyen nyitva
-  const [openDate, setOpenDate] = useState<string | null>(() =>
-    grouped.length ? grouped[grouped.length - 1].date : null
-  );
+  const [openDate, setOpenDate] = useState<string | null>(null);
 
+  // ha van grouped, nyissuk a legutolsót
   useEffect(() => {
-    if (grouped.length === 0) {
-      setOpenDate(null);
-      return;
-    }
-    // ha új dátumok kerülnek be, és eddig nem volt open, nyissuk a legutolsót
+    if (!grouped.length) return;
+    const sorted = [...grouped].sort((a, b) =>
+      b.date.localeCompare(a.date)
+    );
+    const latestDate = sorted[0].date;
+
     setOpenDate((prev) => {
-      if (prev && grouped.some((g) => g.date === prev)) return prev;
-      return grouped[grouped.length - 1].date;
+      // ha már nyitva van, hagyjuk
+      if (prev === latestDate) return prev;
+      
+      // különben nyissuk az utolsót
+      return latestDate;
     });
   }, [grouped]);
+  
 
   return (
     <div className={card}>
       <ShuttleBg />
       <h3 className="mb-2 font-semibold">Results by date</h3>
-
       {grouped.length === 0 ? (
         <p className="text-sm text-gray-500">No matches yet.</p>
       ) : (
@@ -1325,32 +1338,26 @@ function MatchesPlayer({
                 className="rounded-xl border border-slate-200 bg-white"
               >
                 {/* Date "header" – kattintható sor, mint egy dropdown */}
-<button
-  type="button"
-  onClick={() => setOpenDate(isOpen ? null : g.date)}
-  className="
-    flex w-full items-center justify-between 
-    px-3 py-2 text-sm rounded-t-xl
-    bg-white text-slate-800     /* <-- EZ A FONTOS!!! */
-    border-b border-slate-200
-    hover:bg-slate-50
-  "
->
-  <span className="flex flex-col items-start">
-    <span className="font-medium">{g.date}</span>
-    <span className="text-xs text-gray-500">
-      {weekday(g.date)}
-    </span>
-  </span>
-  <span className="text-xs text-gray-500">
-    {g.matches.length} match
-    <span className="ml-2 inline-block">
-      {isOpen ? "▲" : "▼"}
-    </span>
-  </span>
-</button>
-
-
+                <button
+                  type="button"
+                  onClick={() => setOpenDate(isOpen ? null : g.date)}
+                  className=" flex w-full items-center justify-between px-3 py-2 text-sm rounded-t-xl bg-white text-slate-800 /* <-- EZ A FONTOS!!! */ border-b border-slate-200 hover:bg-slate-50 "
+                >
+                  <span className="flex flex-col items-start">
+                    <span className="font-medium">{g.date}</span>
+                    <span className="text-xs text-gray-500">
+                      {" "}
+                      {weekday(g.date)}{" "}
+                    </span>
+                  </span>
+                  <span className="text-xs text-gray-500">
+                    {g.matches.length} match
+                    <span className="ml-2 inline-block">
+                      {" "}
+                      {isOpen ? "▲" : "▼"}{" "}
+                    </span>
+                  </span>
+                </button>
                 {/* Lenyíló rész – csak ha nyitva van */}
                 {isOpen && (
                   <div className="border-t border-slate-200 px-3 py-2">
@@ -1365,16 +1372,16 @@ function MatchesPlayer({
                             <div
                               className={`p-2 rounded-lg border ${
                                 m.winner === "A"
-                                  ? "bg-indigo-50 border-indigo-300"
-                                  : "border-slate-200 bg-white"
+                                  ? "bg-indigo-100 border-indigo-300"
+                                  : "border-slate-200"
                               }`}
                             >
                               <div className="font-medium">
                                 {nameOf(m.teamA[0])} & {nameOf(m.teamA[1])}
                               </div>
                               {m.winner === "A" && (
-                                <div className="text-indigo-600 text-xs font-semibold mt-1">
-                                  Winner 🏆
+                                <div className="text-indigo-600 text-xs font-semibold">
+                                  WINNER
                                 </div>
                               )}
                             </div>
@@ -1383,26 +1390,20 @@ function MatchesPlayer({
                             <div
                               className={`p-2 rounded-lg border ${
                                 m.winner === "B"
-                                  ? "bg-indigo-50 border-indigo-300"
-                                  : "border-slate-200 bg-white"
+                                  ? "bg-indigo-100 border-indigo-300"
+                                  : "border-slate-200"
                               }`}
                             >
                               <div className="font-medium">
                                 {nameOf(m.teamB[0])} & {nameOf(m.teamB[1])}
                               </div>
                               {m.winner === "B" && (
-                                <div className="text-indigo-600 text-xs font-semibold mt-1">
-                                  Winner 🏆
+                                <div className="text-indigo-600 text-xs font-semibold">
+                                  WINNER
                                 </div>
                               )}
                             </div>
                           </div>
-
-                          {!m.winner && (
-                            <div className="mt-2 text-xs text-gray-500">
-                              Result pending
-                            </div>
-                          )}
                         </li>
                       ))}
                     </ul>
@@ -1417,41 +1418,152 @@ function MatchesPlayer({
   );
 }
 
-function computePlayerStats(playerId: string, matches: Match[]) {
-  let wins = 0;
-  let losses = 0;
-  let total = 0;
-  const form: ("W" | "L")[] = [];
 
-  matches.forEach((m) => {
-    const inA = m.teamA.includes(playerId);
-    const inB = m.teamB.includes(playerId);
-    if (!inA && !inB) return;
-    if (!m.winner) return;
-
-    const didWin =
-      (m.winner === "A" && inA) ||
-      (m.winner === "B" && inB);
-
-    total++;
-
-    if (didWin) {
-      wins++;
-      form.push("W");
-    } else {
-      losses++;
-      form.push("L");
-    }
-  });
-
-  const winRate = total > 0 ? Math.round((wins / total) * 100) : 0;
-  const formLast5 = form.slice(-5);
-
-  return { wins, losses, total, winRate, formLast5 };
+function StandingsInfo() {
+  return (
+    <div className={card}>
+      <ShuttleBg />
+      <h3 className="mb-2 font-semibold">How the ranking works</h3>
+      <div className="text-sm space-y-3">
+        <p>
+          The ranking is calculated based on{" "}
+          <b>Base Points + Bonus Points</b>.
+        </p>
+        <p>
+          🥇 <b>Base points:</b> Win = +1 point, Loss = 0 points.
+          Ties are broken first by higher total points, higher Win% comes
+          first, then the number of matches played.
+        </p>
+        <p>
+          ⭐ <b>Bonus points:</b> +1 point for achievements such as beating
+          Melinda, or reaching the Ironman 10-session streak.
+        </p>
+      </div>
+    </div>
+  );
 }
 
-// segéd: emoji levágása a névről (pl. "🐢 Anita" → "Anita")
-const baseName = (full: string) => full.replace(/^.+?\s/, "");
+function AdminDateJump({
+  grouped,
+  date,
+  setDate,
+  lastSessionDate,
+}: {
+  grouped: { date: string; matches: Match[] }[];
+  date: string;
+  setDate: (d: string) => void;
+  lastSessionDate?: string | null;
+}) {
+  return (
+    <div className={card}>
+      <ShuttleBg />
+      <h3 className="mb-2 font-semibold">Jump to date</h3>
+      {grouped.length === 0 ? (
+        <p className="text-sm text-gray-500">No matches yet.</p>
+      ) : (
+        <ul className="text-sm space-y-1 max-h-52 overflow-y-auto">
+          {grouped.map((g) => (
+            <li key={g.date}>
+              <button
+                type="button"
+                onClick={() => setDate(g.date)}
+                className={` flex w-full items-center justify-between rounded-lg px-2 py-1 text-left bg-white text-slate-700 border border-slate-200 transition ${
+                  date === g.date
+                    ? "bg-indigo-50 border-indigo-300 text-indigo-700"
+                    : "hover:bg-slate-100"
+                } `}
+              >
+                <span>{g.date}</span>
+                <span className="flex items-center gap-1 text-xs text-gray-500">
+                  {weekday(g.date)}{" "}
+                  {lastSessionDate === g.date && (
+                    <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 border border-emerald-200">
+                      {" "}
+                      Last{" "}
+                    </span>
+                  )}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="mt-2 text-xs text-gray-400">
+        {" "}
+        Pick a date to edit or add matches (including past sessions).{" "}
+      </p>
+    </div>
+  );
+}
+
+
+function BackupPanel({
+  backups,
+  onCreate,
+  onRestore,
+}: {
+  backups: Backup[];
+  onCreate: (note: string) => void;
+  onRestore: (id: string) => void;
+}) {
+  const [note, setNote] = useState("");
+
+  return (
+    <div className={card}>
+      <ShuttleBg />
+      <h3 className="mb-2 font-semibold">Backups ({backups.length})</h3>
+
+      <div className="flex gap-2 mb-3">
+        <input
+          className={input}
+          placeholder="Backup note (optional)"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+        />
+        <button
+          className={btnSecondary}
+          onClick={() => {
+            onCreate(note);
+            setNote("");
+          }}
+          disabled={note.length > 50}
+        >
+          Create
+        </button>
+      </div>
+
+      {backups.length === 0 ? (
+        <p className="text-sm text-gray-500">No backups yet.</p>
+      ) : (
+        <ul className="space-y-2 max-h-52 overflow-y-auto">
+          {[...backups]
+            .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+            .map((b) => (
+              <li
+                key={b.id}
+                className="rounded-xl border border-slate-200 p-3 bg-white shadow-sm"
+              >
+                <div className="text-xs text-gray-500">
+                  {b.createdAt.slice(0, 16).replace("T", " ")}
+                </div>
+                {b.note && (
+                  <div className="font-medium text-sm mt-1 mb-2">
+                    {b.note}
+                  </div>
+                )}
+                <button
+                  className={`${btnSecondary} px-3 py-1 text-xs`}
+                  onClick={() => onRestore(b.id)}
+                >
+                  Restore
+                </button>
+              </li>
+            ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 function PlayerStats({
   players,
@@ -1464,6 +1576,41 @@ function PlayerStats({
   meId: string;
   setMeId: (id: string) => void;
 }) {
+  // segéd: win/loss/winrate számítása az adott játékosra
+  const computePlayerStats = (playerId: string, matches: Match[]) => {
+    let wins = 0;
+    let losses = 0;
+    const form: ("W" | "L")[] = [];
+
+    matches.forEach((m) => {
+      const inA = m.teamA.includes(playerId);
+      const inB = m.teamB.includes(playerId);
+
+      if (!inA && !inB) return;
+      if (!m.winner) return;
+
+      const isWin =
+        (m.winner === "A" && inA) || (m.winner === "B" && inB);
+
+      if (isWin) {
+        wins++;
+        form.push("W");
+      } else {
+        losses++;
+        form.push("L");
+      }
+    });
+
+    const total = wins + losses;
+    const winRate = total > 0 ? Math.round((wins / total) * 100) : 0;
+    const formLast5 = form.slice(-5);
+
+    return { wins, losses, total, winRate, formLast5 };
+  };
+
+  // segéd: emoji levágása a névről (pl. "🐢 Anita" → "Anita")
+  const baseName = (full: string) => full.replace(/^.+?\s/, "");
+
   // ABC szerinti sorrend (emoji nélküli név alapján)
   const sortedPlayers = useMemo(
     () =>
@@ -1474,13 +1621,12 @@ function PlayerStats({
   );
 
   // ha még nincs meId elmentve, válasszuk az első (ABC szerinti) playert
-useEffect(() => {
-  const exists = sortedPlayers.some((p) => p.id === meId);
-
-  if ((!meId || !exists) && sortedPlayers.length) {
-    setMeId(sortedPlayers[0].id);
-  }
-}, [meId, sortedPlayers, setMeId]);
+  useEffect(() => {
+    const exists = sortedPlayers.some((p) => p.id === meId);
+    if ((!meId || !exists) && sortedPlayers.length) {
+      setMeId(sortedPlayers[0].id);
+    }
+  }, [meId, sortedPlayers, setMeId]);
 
   const me = sortedPlayers.find((p) => p.id === meId);
   if (!me || !sortedPlayers.length) return null;
@@ -1490,9 +1636,7 @@ useEffect(() => {
   return (
     <div className={card}>
       <ShuttleBg />
-      <h3 className="mb-2 text-sm font-semibold text-slate-700">
-        My stats
-      </h3>
+      <h3 className="mb-2 text-sm font-semibold text-slate-700"> My stats </h3>
 
       {/* Játékosválasztó – ABC szerint rendezve */}
       <select
@@ -1520,32 +1664,33 @@ useEffect(() => {
           <span>Losses:</span>
           <b className="text-rose-700">{stats.losses}</b>
         </div>
-        <div className="flex justify-between">
+        <div className="flex justify-between font-semibold border-t border-slate-100 pt-2">
           <span>Win rate:</span>
           <b>{stats.winRate}%</b>
         </div>
       </div>
 
-      <div className="mt-3">
-        <div className="text-xs text-gray-500 mb-1">Last 5:</div>
-        <div className="flex gap-1">
-          {stats.formLast5.length === 0 && (
-            <span className="text-xs text-gray-400">
-              No results yet
-            </span>
-          )}
-          {stats.formLast5.map((f, i) => (
-            <span
-              key={i}
-              className={
-                f === "W"
-                  ? "px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-lg text-xs"
-                  : "px-2 py-0.5 bg-rose-100 text-rose-700 rounded-lg text-xs"
-              }
-            >
-              {f}
-            </span>
-          ))}
+      {/* Form (utolsó 5 meccs) */}
+      <div className="mt-3 border-t border-slate-100 pt-2">
+        <div className="flex justify-between">
+          <span className="text-xs text-gray-500">Form (last 5 matches):</span>
+          <div className="flex gap-1">
+            {stats.formLast5.map((f, i) => (
+              <span
+                key={i}
+                className={`
+                  inline-flex h-5 w-5 items-center justify-center rounded-full text-xs font-semibold
+                  ${
+                    f === "W"
+                      ? "bg-emerald-500 text-white"
+                      : "bg-rose-500 text-white"
+                  }
+                `}
+              >
+                {f}
+              </span>
+            ))}
+          </div>
         </div>
       </div>
     </div>
@@ -1559,9 +1704,7 @@ function Standings({
   matches,
   achievementsById,
 }: {
-  rows: {
-    id: string;
-    name: string;
+  rows: (ReturnType<typeof useLeague>[0]["players"][number] & {
     wins: number;
     losses: number;
     matches: number;
@@ -1570,17 +1713,16 @@ function Standings({
     bonusPoints: number;
     totalPoints: number;
     qualified: boolean;
-  }[];
+  })[];
   players: Player[];
   matches: Match[];
-  achievementsById?: Map<string, Achievement[]>;
+  achievementsById: Map<string, Achievement[]>;
 }) {
-  // ugyanaz a badge-ikon mapping, mint Achievementsnél, csak egyszerűsítve
-  const BADGE_META: Record<string, { icon: string; label: string }> = {
-    win5: { icon: "🥉", label: "Win 5 matches" },
-    win10: { icon: "🥈", label: "Win 10 matches" },
-    win25: { icon: "🥇", label: "Win 25 matches" },
-    beatMelinda: { icon: "🎯", label: "Beat Melinda" },
+  const BADGE_CONFIG: Record<string, { icon: string; label: string }> = {
+    win25: { icon: "🥇", label: "Champion (25 wins)" },
+    win10: { icon: "🥈", label: "Pro Winner (10 wins)" },
+    win5: { icon: "🥉", label: "Novice Winner (5 wins)" },
+    beatMelinda: { icon: "🎯", label: "Beat Coach Melinda" },
     streak3: { icon: "🔥", label: "3-session streak" },
     streak6: { icon: "💪", label: "6-session streak" },
     streak10: { icon: "🏆", label: "10-session streak" },
@@ -1609,8 +1751,9 @@ function Standings({
             </thead>
             <tbody>
               {rows.map((row, idx) => {
-                const ach = achievementsById?.get(row.id) ?? computeAchievementsFull(row.id, matches, players);
-
+                const ach =
+                  achievementsById?.get(row.id) ??
+                  computeAchievementsFull(row.id, matches, players);
                 return (
                   <tr
                     key={row.id}
@@ -1619,74 +1762,54 @@ function Standings({
                     }
                   >
                     <td className="py-2 px-2 align-middle">{idx + 1}</td>
-
                     {/* Név + ❕ + badge ikonok EGY SORBAN */}
                     <td className="py-2 px-2 align-middle">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-medium flex items-center gap-1">
-                          {row.name}
-
+                          {row.name}{" "}
                           {!row.qualified && (
                             <span
-                              className="
-                                inline-flex items-center rounded-full
-                                bg-amber-50 px-1.5 py-0.5
-                                text-[10px] font-semibold text-amber-700
-                                border border-amber-200
-                              "
+                              className=" inline-flex items-center rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 border border-amber-200 "
                               title="Less than 5 matches – provisional ranking"
                             >
-                              ❕
+                              {" "}
+                              ❕{" "}
                             </span>
                           )}
                         </span>
-
-                        {ach.length > 0 && (
-                          <span className="flex items-center flex-wrap gap-1">
-                            {ach.map((a) => {
-                              const meta =
-                                BADGE_META[a.id] || {
-                                  icon: "⭐",
-                                  label: a.title,
-                                };
-                              return (
-                                <span
-  key={a.id}
-  className="
-    inline-flex items-center justify-center
-    rounded-full bg-slate-100 px-1.5 py-0.5
-    text-[12px]
-    transition-transform transition-shadow duration-150
-    hover:-translate-y-0.5 hover:scale-110 hover:shadow-sm
-  "
-  title={a.title}
->
-  {meta.icon}
-</span>
-
-                              );
-                            })}
-                          </span>
-                        )}
+                        <div className="flex gap-1">
+                          {ach.map((a) => {
+                            const config = BADGE_CONFIG[a.id];
+                            if (!config) return null;
+                            return (
+                              <span
+                                key={a.id}
+                                className="text-xs"
+                                title={config.label}
+                              >
+                                {config.icon}
+                              </span>
+                            );
+                          })}
+                        </div>
                       </div>
                     </td>
-
                     <td className="py-2 px-2 align-middle">{row.wins}</td>
                     <td className="py-2 px-2 align-middle">{row.losses}</td>
                     <td className="py-2 px-2 align-middle">
-                      {row.matches > 0
-                        ? Math.round(row.winRate * 100) + "%"
-                        : "-"}
+                      {row.winRate}%
                     </td>
                     <td className="py-2 px-2 align-middle">{row.matches}</td>
-                    <td className="py-2 px-2 align-middle font-semibold">
-                      {row.totalPoints}
+                    <td className="py-2 px-2 align-middle">
+                      <b className="text-slate-900">{row.basePoints}</b>
                       {row.bonusPoints > 0 && (
-                        <span
-                          className="ml-1 text-xs text-emerald-600 font-medium"
-                          title={`Includes ${row.bonusPoints} bonus point(s) from achievements`}
-                        >
-                          +{row.bonusPoints}⭐
+                        <span className="text-xs text-amber-700 ml-1">
+                          (+{row.bonusPoints}
+                          <span title="Bonus points for achievements">
+                            {" "}
+                            ⭐
+                          </span>
+                          )
                         </span>
                       )}
                     </td>
@@ -1697,162 +1820,21 @@ function Standings({
           </table>
         </div>
       )}
-     <div className="mt-3 space-y-1 text-[11px] text-gray-500 leading-tight">
-  <p>
-    ❕ = Less than 5 matches played – provisional ranking.
-  </p>
-<p>
-  📊 <b>Ranking rules:</b> Players with at least 5 matches are ranked first.
-  Scoring: <b>3 points for a win</b> and <b>1 point for a loss</b>, so
-  <b>showing up and playing is always rewarded</b>. Bonus points are added
-  on top of this. If players have the same total points, higher Win%
-  comes first, then the number of matches played.
-</p>
-
-
-  <p>
-    ⭐ <b>Bonus points:</b> +1 point for achievements such as beating Melinda,
-    or reaching the Ironman 10-session streak.
-  </p>
-</div>
-
     </div>
   );
 }
 
 
-
-function AdminDateJump({
-  grouped,
-  date,
-  setDate,
-  lastSessionDate,
-}: {
-  grouped: { date: string; matches: Match[] }[];
-  date: string;
-  setDate: (d: string) => void;
-  lastSessionDate?: string | null;
-}) {
-  return (
-    <div className={card}>
-      <ShuttleBg />
-      <h3 className="mb-2 font-semibold">Jump to date</h3>
-
-      {grouped.length === 0 ? (
-        <p className="text-sm text-gray-500">No matches yet.</p>
-      ) : (
-        <ul className="text-sm space-y-1 max-h-52 overflow-y-auto">
-          {grouped.map((g) => (
-            <li key={g.date}>
-              <button
-                type="button"
-                onClick={() => setDate(g.date)}
-                className={`
-                  flex w-full items-center justify-between
-                  rounded-lg px-2 py-1 text-left
-                  bg-white text-slate-700
-                  border border-slate-200
-                  transition
-                  ${
-                    date === g.date
-                      ? "bg-indigo-50 border-indigo-300 text-indigo-700"
-                      : "hover:bg-slate-100"
-                  }
-                `}
-              >
-                <span>{g.date}</span>
-
-                <span className="flex items-center gap-1 text-xs text-gray-500">
-                  {weekday(g.date)}
-
-                  {lastSessionDate === g.date && (
-                    <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 border border-emerald-200">
-                      Last
-                    </span>
-                  )}
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <p className="mt-2 text-xs text-gray-400">
-        Pick a date to edit or add matches (including past sessions).
-      </p>
-    </div>
-  );
-}
-
-
-
-function BackupPanel({
-  backups,
-  onCreate,
-  onRestore,
-}: {
-  backups: Backup[];
-  onCreate: () => void;
-  onRestore: (id: string) => void;
-}) {
-  const sorted = [...backups].sort((a, b) =>
-    b.createdAt.localeCompare(a.createdAt)
-  );
-
-  return (
-    <div className={card}>
-      <ShuttleBg />
-      <h3 className="mb-2 font-semibold">Backups</h3>
-      <button className={btnSecondary} onClick={onCreate}>
-        Create backup now
-      </button>
-      {sorted.length === 0 ? (
-        <p className="mt-2 text-sm text-gray-500">No backups yet.</p>
-      ) : (
-        <ul className="mt-3 space-y-2 text-sm">
-          {sorted.map((b) => (
-            <li
-              key={b.id}
-              className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-2 py-1"
-            >
-              <div className="mr-2 min-w-0">
-                <div className="truncate font-medium">
-                  {new Date(b.createdAt).toLocaleString()}
-                </div>
-                <div className="truncate text-xs text-gray-500">
-                  {b.note}
-                </div>
-              </div>
-              <button
-                className={btnSecondary}
-                onClick={() => onRestore(b.id)}
-              >
-                Restore
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-      <p className="mt-2 text-xs text-gray-400">
-        Tip: Create a backup before deleting players or changing many results.
-      </p>
-    </div>
-  );
-}
-
-// ========================= App =========================
 export default function App() {
-  const [league, write] = useLeague();
+  const [role, setRole] = useState<"player" | "admin">(() => {
+    return (localStorage.getItem("bia_role") as "player" | "admin") || "player";
+  });
 
-  // Role
-  const [role, setRole] = useState<"player" | "admin">(
-    () => (localStorage.getItem("bia_role") as any) || "player"
-  );
-  const isAdmin = role === "admin";
   const setPlayer = () => {
     localStorage.setItem("bia_role", "player");
     setRole("player");
   };
+
   const setAdmin = () => {
     const pwd = prompt("Admin password:");
     if (pwd === "biatollas") {
@@ -1862,6 +1844,7 @@ export default function App() {
       alert("Incorrect password.");
     }
   };
+
   // "Én ki vagyok?" – kiválasztott játékos a player nézetben
   const [meId, setMeId] = useState(() => {
     return localStorage.getItem("meId") || "";
@@ -1874,10 +1857,11 @@ export default function App() {
   // Date (round) – legközelebbi hétfő / szerda
   const [date, setDate] = useState(() => fmt(nextTrainingDate()));
 
-  // Derive
+  // ========================= Data derivation =========================
+  const [league, write] = useLeague();
+  
   const players = league.players || [];
   const backups = league.backups ?? [];
-
   const matchesForDate = useMemo(
     () => league.matches.filter((m) => m.date === date),
     [league.matches, date]
@@ -1900,10 +1884,10 @@ export default function App() {
   // everyone can appear in multiple matches on a date
   const freeIds = useMemo(() => players.map((p) => p.id), [players]);
 
-  // Standings (aggregate all dates) – win% + minimum meccsszám logika
-    const standings = useMemo(() => {
-    const MIN_MATCHES = 5; // ha később változtatod, ezt elég itt
 
+  // ========================= Standings (aggregate all dates) =========================
+  const standings = useMemo(() => {
+    const MIN_MATCHES = 5; // if changed later, only this needs to be updated
     const map = new Map<
       string,
       {
@@ -1916,15 +1900,13 @@ export default function App() {
         basePoints: number;
         bonusPoints: number;
         totalPoints: number;
-        qualified: boolean; // 🆕 megvan-e a min. meccsszám
+        qualified: boolean;
       }
     >();
 
-    // Alap stat blokkok
-    players.forEach((p) =>
+    players.forEach((p) => {
       map.set(p.id, {
-        id: p.id,
-        name: p.name,
+        ...p,
         wins: 0,
         losses: 0,
         matches: 0,
@@ -1933,141 +1915,117 @@ export default function App() {
         bonusPoints: 0,
         totalPoints: 0,
         qualified: false,
-      })
-    );
-
-    // Alappontok: meccsgyőzelmek
-    league.matches.forEach((m) => {
-      if (!m.winner) return;
-
-      const win = m.winner === "A" ? m.teamA : m.teamB;
-      const lose = m.winner === "A" ? m.teamB : m.teamA;
-
-     win.forEach((id) => {
-        const r = map.get(id);
-        if (!r) return;
-        r.wins++;
-        // focis rendszer: győzelem = 3 pont
-        r.basePoints += 3;
-      });
-
-      lose.forEach((id) => {
-        const r = map.get(id);
-        if (!r) return;
-        r.losses++;
-        // focis rendszer: vereség = 1 pont (mert játszott)
-        r.basePoints += 1;
       });
     });
 
-    // Meccsszám + win% + qualified
+    league.matches.forEach((m) => {
+      const winnerTeam = m.winner === "A" ? m.teamA : m.winner === "B" ? m.teamB : null;
+      const loserTeam = m.winner === "A" ? m.teamB : m.winner === "B" ? m.teamA : null;
+
+      if (winnerTeam) {
+        winnerTeam.forEach((id) => {
+          const r = map.get(id);
+          if (r) {
+            r.wins++;
+            r.basePoints++;
+          }
+        });
+        loserTeam?.forEach((id) => {
+          const r = map.get(id);
+          if (r) r.losses++;
+        });
+      }
+    });
+
     map.forEach((r) => {
       r.matches = r.wins + r.losses;
-      r.winRate = r.matches > 0 ? r.wins / r.matches : 0;
+      r.winRate = r.matches > 0 ? Math.round((r.wins / r.matches) * 100) : 0;
       r.qualified = r.matches >= MIN_MATCHES;
     });
 
-    // BONUS pontok: Beat Melinda + Ironman (10 streak)
+    // BONUS points: Beat Melinda + Ironman (10 streak)
     players.forEach((p) => {
       const ach = computeAchievementsFull(p.id, league.matches, players);
-
       const hasBeatMelinda = ach.some((a) => a.id === "beatMelinda");
       const hasIronman = ach.some((a) => a.id === "streak10");
-
       const r = map.get(p.id);
       if (!r) return;
-
       if (hasBeatMelinda) r.bonusPoints += 1;
       if (hasIronman) r.bonusPoints += 1;
-
       r.totalPoints = r.basePoints + r.bonusPoints;
     });
 
-      // Rangsor – qualified elöl, aztán totalPoints, win%, matches, név
+    // Ranking – qualified first, then totalPoints, win%, matches, name
     return Array.from(map.values()).sort((a, b) => {
-      // 1) először: megvan-e a minimum meccsszám
+      // 1) first: minimum matches achieved?
       if (a.qualified !== b.qualified) {
         return a.qualified ? -1 : 1;
       }
-
-      // 2) fő szempont: összpontszám (basePoints + bonusPoints)
+      // 2) main criteria: total score (basePoints + bonusPoints)
       if (b.totalPoints !== a.totalPoints) {
         return b.totalPoints - a.totalPoints;
       }
-
-      // 3) ha ugyanannyi pontjuk van: jobb win% előrébb
+      // 3) if points are equal: better win rate comes first
       if (b.winRate !== a.winRate) {
         return b.winRate - a.winRate;
       }
-
-      // 4) ha még mindig egyenlő: több meccs előrébb
+      // 4) if still equal: more matches come first
       if (b.matches !== a.matches) {
         return b.matches - a.matches;
       }
-
-      // 5) végső döntés: név szerint
+      // 5) final tie-breaker: by name
       return a.name.localeCompare(b.name);
     });
-
   }, [league.matches, players]);
-
-
 
 
   // Grouped results for Player view + last session date
   const grouped = useMemo(() => {
     const by: Record<string, Match[]> = {};
     league.matches.forEach((m) => {
-      (by[m.date] ||= []).push(m);
+      if (!by[m.date]) by[m.date] = [];
+      by[m.date].push(m);
     });
     return Object.entries(by)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([d, arr]) => ({ date: d, matches: arr }));
+      .map(([date, matches]) => ({ date, matches }))
+      .sort((a, b) => b.date.localeCompare(a.date)); // descending date
   }, [league.matches]);
 
-  const lastSessionDate = grouped.length
-    ? grouped[grouped.length - 1].date
-    : null;
+  const lastSessionDate = grouped[0]?.date || null;
 
-  // Memoize achievements for all players so we don't recompute per table row
+
+  // Cache all achievements for standings table
   const achievementsById = useMemo(() => {
-    const m = new Map<string, Achievement[]>();
+    const map = new Map<string, Achievement[]>();
     players.forEach((p) => {
-      m.set(p.id, computeAchievementsFull(p.id, league.matches, players));
+      map.set(p.id, computeAchievementsFull(p.id, league.matches, players));
     });
-    return m;
-  }, [players, league.matches]);
+    return map;
+  }, [league.matches, players]);
 
-  // Actions
-  const addPlayer = (fullName: string) => {
-    const t = fullName.trim();
-    if (!t) return;
+  // ========================= Data modification handlers =========================
 
-    // base név: az emoji utáni rész
-    const base = t.replace(/^.+?\s/, "");
-
-    // duplikátum ellenőrzés: emoji-t figyelmen kívül hagyjuk
-    if (
-      players.some(
-        (p) =>
-          p.name.replace(/^.+?\s/, "").toLowerCase() === base.toLowerCase()
-      )
-    )
-      return;
-
-    write({ players: [...players, { id: uid(), name: t }] });
+  const addPlayer = (name: string) => {
+    if (!role) return;
+    const newPlayer: Player = { id: uid(), name };
+    write({ players: [...players, newPlayer] });
+    // Ha admin ad hozzá, attól még nem lesz ő a "meId"
+    // Ha player nézetből jött, akkor a PlayerStats úgyis beállítja őt meId-nek (lásd: PlayerStats useEffect)
   };
 
   const removePlayer = (id: string) => {
-    const nextPlayers = players.filter((p) => p.id !== id);
-    const nextMatches = league.matches.filter(
-      (m) => ![...m.teamA, ...m.teamB].includes(id)
-    );
-
-    write({ players: nextPlayers, matches: nextMatches });
+    if (!role) return;
+    if (!confirm("Delete this player permanently? This cannot be undone.")) return;
+    write({
+      players: players.filter((p) => p.id !== id),
+      matches: league.matches.filter(
+        (m) => !m.teamA.includes(id) && !m.teamB.includes(id)
+      ),
+    });
   };
 
   const updatePlayerEmoji = (id: string, emoji: string) => {
+    if (!role) return;
     const nextPlayers = players.map((p) => {
       if (p.id !== id) return p;
       const parts = p.name.split(" ");
@@ -2078,7 +2036,6 @@ export default function App() {
         return { ...p, name: `${emoji} ${p.name}` };
       }
     });
-
     write({ players: nextPlayers });
   };
 
@@ -2099,12 +2056,10 @@ export default function App() {
   };
 
   const deleteMatch = (id: string) => {
-  if (!isAdmin) return;
-  if (!confirm("Delete this match permanently?")) return;
-  write({
-    matches: league.matches.filter((m) => m.id !== id),
-  });
-};
+    if (!isAdmin) return;
+    if (!confirm("Delete this match permanently?")) return;
+    write({ matches: league.matches.filter((m) => m.id !== id) });
+  };
 
   const clearWinner = (id: string) => {
     if (!isAdmin) return;
@@ -2115,136 +2070,141 @@ export default function App() {
     });
   };
 
-// ... (korábbi kód: clearWinner)
-
-  // 🆕 ÚJ: Kiegyensúlyozott "High-Low" sorsolás 3 KÖRRE
+  // ... (previous code: clearWinner)
+  // 🆕 NEW: Balanced "High-Low" draw for 3 ROUNDS
   const autoDraw = () => {
-    // 1. Segédfüggvény: Pontszám számítása egy játékosra
+    if (!isAdmin) return;
+    const allPlayerIds = players.map((p) => p.id);
+
+    // 1. Helper function: Calculate score for a player
     const getScore = (pid: string) => {
       let pts = 0;
       let matchCount = 0;
-
       league.matches.forEach(m => {
         if (m.winner) {
-           const inA = m.teamA.includes(pid);
-           const inB = m.teamB.includes(pid);
-           if (!inA && !inB) return;
-
-           matchCount++;
-
-           // Nyerés: 3 pont, Vereség: 1 pont
-           const won = (m.winner === "A" && inA) || (m.winner === "B" && inB);
-           pts += won ? 3 : 1;
+          const inA = m.teamA.includes(pid);
+          const inB = m.teamB.includes(pid);
+          if (!inA && !inB) return;
+          matchCount++;
+          const isWin = (m.winner === "A" && inA) || (m.winner === "B" && inB);
+          if (isWin) pts++;
         }
       });
-
-      // Bónusz pontok (Melinda + Streak)
-      const ach = computeAchievementsFull(pid, league.matches, players);
-      if (ach.some(a => a.id === "beatMelinda")) pts += 1;
-      if (ach.some(a => a.id === "streak10")) pts += 1;
-
-      return { pts, matchCount };
+      return { id: pid, score: pts, matches: matchCount };
     };
 
-    // 2. Játékosok előkészítése, SZŰRÉSE és rendezése
-    let sortedIds = freeIds.map(id => {
-       const { pts, matchCount } = getScore(id);
-       return { id, pts, matchCount };
-    })
-    // 🎯 SZŰRÉS: CSAK azokat vesszük figyelembe, akiknek van legalább 5 meccsük
-    .filter(p => p.matchCount >= 5)
-    // Rendezzük pontszám alapján (High elöl)
-    .sort((a, b) => b.pts - a.pts);
+    // 2. Rank players based on points
+    const sortedIds = allPlayerIds
+      .map(getScore)
+      .sort((a, b) => {
+        // Higher score is better
+        if (b.score !== a.score) return b.score - a.score;
+        // More matches is better
+        return b.matches - a.matches;
+      });
 
+    // If there are fewer than 4 players, stop.
     if (sortedIds.length < 4) {
-      alert("A 3 körös sorsoláshoz minimum 4 **kvalifikált** játékos (min. 5 lejátszott meccs) szükséges!");
-      return;
+        alert("Need at least 4 players to draw matches.");
+        return;
     }
 
     const allMatches: Match[] = [];
-    // Klónozzuk a mai nap már látott csapattársak listáját, hogy a 3 kör alatt is kövessük a párosításokat
-    const localSeenTeammatesToday = new Set<string>(seenTeammatesToday); 
+    // Clone the list of teammates already seen today to track pairings over the 3 rounds
+    const localSeenTeammatesToday = new Set<string>(seenTeammatesToday);
 
-    // 🎯 FŐ CIKLUS: 3 JÁTÉKKÖRT SORSOLUNK
+    // 🎯 MAIN LOOP: Draw 3 ROUNDS
     for (let round = 0; round < 3; round++) {
-      let workingPool = [...sortedIds]; // Minden körben a teljes, rendezett listával indulunk
+      let workingPool = [...sortedIds]; // Start each round with the full, ranked list
       const teams: Pair[] = [];
       const roundMatches: Match[] = [];
 
-      // 3. PÁROK LÉTREHOZÁSA (High-Low módszerrel)
+      // 3. CREATE PAIRS (High-Low method)
       while (workingPool.length >= 2) {
-        const high = workingPool[0]; // A legerősebb játékos
-        let bestMateIndex = -1;
-
-        // Lentről felfelé keresünk párt (Leggyengébb keresése), akivel ma még nem volt csapattárs
+        const high = workingPool[0]; // The strongest player
+        let bestMateIndex = -1; // Search from the bottom up (Looking for the weakest) for a partner they haven't teamed up with today
+        
         for (let i = workingPool.length - 1; i > 0; i--) {
           const candidate = workingPool[i];
           if (!localSeenTeammatesToday.has(key(high.id, candidate.id))) {
             bestMateIndex = i;
-            break; // Megtaláltuk a legjobb párt
+            break; // Found the best partner
           }
         }
 
-        // Ha nincs "szűz" pár, akkor a leggyengébb elérhetőt választjuk
+        // If there's no "virgin" pair, select the weakest available
         if (bestMateIndex === -1) bestMateIndex = workingPool.length - 1;
 
         const low = workingPool[bestMateIndex];
         const newPair: Pair = [high.id, low.id];
         teams.push(newPair);
 
-        // ❗️ FRISSÍTÉS: Ezt a párost már láttuk ma (a későbbi köröknél számít)
+        // ❗️ UPDATE: This pair has been seen today (matters for later rounds)
         localSeenTeammatesToday.add(key(high.id, low.id));
 
-        // Kivesszük őket a pool-ból
+        // Remove them from the pool
         workingPool.splice(bestMateIndex, 1);
         workingPool.shift();
       }
 
-      // 4. MECCSEK LÉTREHOZÁSA a kerek csapatokból
-      // Összeeresztjük a párokat (1. team vs 2. team, 3. team vs 4. team, stb.)
+      // 4. CREATE MATCHES from the even teams
+      // Pair up the teams (1st team vs 2nd team, 3rd team vs 4th team, etc.)
       for (let i = 0; i + 1 < teams.length; i += 2) {
         roundMatches.push({
           id: uid(),
           date,
           teamA: teams[i],
-          teamB: teams[i+1],
+          teamB: teams[i + 1],
         });
       }
+
+      // 5. If there's an odd player left over, skip them this round (they play later).
+      // If there's an odd team left over, skip it this round (it plays later).
       
       allMatches.push(...roundMatches);
     }
-
-    // 5. MENTÉS: Eltároljuk mindhárom kör összes meccsét.
-    if (allMatches.length > 0) {
-      write({ matches: [...league.matches, ...allMatches] });
-    } else if (freeIds.length >= 4) {
-      alert("A 3 meccses sorsolás nem hozott létre meccseket. Ellenőrizd a kvalifikált játékosok számát.");
+    
+    if (allMatches.length === 0) {
+      alert("Could not generate a balanced draw with the current players.");
+      return;
     }
+
+    // Add all generated matches to the league data
+    write({ matches: [...league.matches, ...allMatches] });
   };
 
-  // ... (tovább a createBackup felé)
-  const createBackup = () => {
-    const snapshot: Backup = {
+
+  const createBackup = (note: string) => {
+    if (!isAdmin) return;
+    const newBackup: Backup = {
       id: uid(),
       createdAt: new Date().toISOString(),
-      note: `Backup ${new Date().toLocaleString()}`,
-      data: { players, matches: league.matches },
+      note: note.trim() || undefined,
+      data: {
+        players: league.players,
+        matches: league.matches,
+      },
     };
-    const next = [...backups, snapshot].slice(-10); // keep last 10 backups
-    write({ backups: next });
+    write({ backups: [...backups, newBackup] });
+    alert("Backup created successfully!");
   };
 
   const restoreBackup = (id: string) => {
-    const b = backups.find((b) => b.id === id);
-    if (!b) return;
+    if (!isAdmin) return;
+    const backup = backups.find((b) => b.id === id);
     if (
+      !backup ||
       !confirm(
-        "Restore this backup? This will overwrite current players and matches."
+        "Are you sure you want to restore this backup? All current data will be overwritten."
       )
     )
       return;
-    write({ players: b.data.players, matches: b.data.matches });
+
+    // Restore players and matches from backup
+    write({ players: backup.data.players, matches: backup.data.matches });
   };
+
+  const isAdmin = role === "admin";
 
   return (
     <div className="min-h-screen bg-[#eef2ff] text-slate-900">
@@ -2257,179 +2217,193 @@ export default function App() {
         />
 
         {/* Date selector */}
-<div className="space-y-2">
-  <DatePicker value={date} onChange={setDate} />
-
-  {role === "admin" && (
-    <div className="flex flex-wrap gap-2 text-xs text-gray-600">
-      <button
-        type="button"
-        className={`${btnSecondary} px-3 py-1`}
-        onClick={() => setDate(fmt(new Date()))}
-      >
-        Today
-      </button>
-      <button
-        type="button"
-        className={`${btnSecondary} px-3 py-1`}
-        onClick={() => setDate(fmt(nextTrainingDate()))}
-      >
-        Next training
-      </button>
-      {lastSessionDate && (
-        <button
-          type="button"
-          className={`${btnSecondary} px-3 py-1`}
-          onClick={() => setDate(lastSessionDate)}
-        >
-          Last session
-        </button>
-      )}
-    </div>
-  )}
-</div>
-
-
-
-       {role === "admin" ? (
-  <>
-    <section className="grid gap-4 sm:gap-6 md:grid-cols-3">
-      <div className="space-y-4 md:col-span-2">
-        {/* Admin tools */}
-        <div className={card}>
-          <ShuttleBg />
-          <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="text-lg font-semibold">Admin tools</h2>
-            <div className="flex gap-2">
+        <div className="space-y-2">
+          <DatePicker value={date} onChange={setDate} />
+          {role === "admin" && (
+            <div className="flex flex-wrap gap-2 text-xs text-gray-600">
               <button
-                className={btnSecondary}
-                onClick={autoDraw}
-                disabled={freeIds.length < 4}
+                type="button"
+                className={`${btnSecondary} px-3 py-1`}
+                onClick={() => setDate(fmt(new Date()))}
               >
-                Auto draw pairs
+                Today
               </button>
+              <button
+                type="button"
+                className={`${btnSecondary} px-3 py-1`}
+                onClick={() => setDate(fmt(nextTrainingDate()))}
+              >
+                Next training
+              </button>
+              {lastSessionDate && (
+                <button
+                  type="button"
+                  className={`${btnSecondary} px-3 py-1`}
+                  onClick={() => setDate(lastSessionDate)}
+                >
+                  Last session
+                </button>
+              )}
             </div>
-          </div>
-          <p className="text-sm text-gray-600">
-            Players in league: <b>{players.length}</b>
-          </p>
-        </div>
-
-        {/* Drag & drop párosító */}
-        <SelectPairs
-  players={players}
-  freeIds={freeIds}
-  seenTeammates={seenTeammatesToday}
-  onCreate={addMatch}
-/>
-
-        {/* Meccsek szerkesztése */}
-        <MatchesAdmin
-          matches={matchesForDate}
-          nameOf={nameOf}
-          onPick={pickWinner}
-          onClear={clearWinner}
-          onDelete={deleteMatch}
-        />
-      </div>
-
-      {/* Oldalsó oszlop (admin) */}
-      <div className="space-y-4">
-        <AdminDateJump
-          grouped={grouped}
-          date={date}
-          setDate={setDate}
-          lastSessionDate={lastSessionDate}
-        />
-
-        <PlayerEditor
-          players={players}
-          onAdd={addPlayer}
-          onRemove={removePlayer}
-          onUpdateEmoji={updatePlayerEmoji}
-        />
-
-        <BackupPanel
-          backups={backups}
-          onCreate={createBackup}
-          onRestore={restoreBackup}
-        />
-      </div>
-    </section>
-
-    {/* 🆕 Standings teljes szélességben */}
-      <div className="mt-4 sm:mt-6">
-      <Standings rows={standings} players={players} matches={league.matches} achievementsById={achievementsById} />
-    </div>
-  </>
-) : (
-  <>
-    <section className="grid gap-4 sm:gap-6 md:grid-cols-3">
-      <div className="space-y-4 md:col-span-2">
-        <MatchesPlayer grouped={grouped} nameOf={nameOf} />
-      </div>
-
-      <div className="space-y-4">
-
-        {/* Jump to date */}
-        <div className={card}>
-          <ShuttleBg />
-          <h3 className="mb-2 font-semibold">Jump to date</h3>
-          {grouped.length === 0 ? (
-            <p className="text-sm text-gray-500">No matches yet.</p>
-          ) : (
-            <ul className="text-sm space-y-1 max-h-52 overflow-y-auto">
-              {grouped.map((g) => (
-                <li key={g.date}>
-                  <a
-                    href={`#date-${g.date}`}
-                    className="flex items-center justify-between hover:text-[#4f8ef7]"
-                  >
-                    <span>{g.date}</span>
-                    <span className="flex items-center gap-1 text-xs text-gray-500">
-                      {weekday(g.date)}
-                      {lastSessionDate === g.date && (
-                        <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 border border-emerald-200">
-                          Last
-                        </span>
-                      )}
-                    </span>
-                  </a>
-                </li>
-              ))}
-            </ul>
           )}
-          <p className="mt-2 text-xs text-gray-400">
-            Training days: Monday & Wednesday
-          </p>
         </div>
 
-        {/* Statisztikák */}
-        <PlayerStats
-          players={players}
-          matches={league.matches}
-          meId={meId}
-          setMeId={setMeId}
-        />
 
-        {/* Achievementek */}
-        <PlayerAchievements
-          players={players}
-          matches={league.matches}
-          meId={meId}
-        />
+        {role === "admin" ? (
+          <>
+            <section className="grid gap-4 sm:gap-6 md:grid-cols-3">
+              <div className="space-y-4 md:col-span-2">
+                <PlayerEditor
+                  players={players}
+                  onAdd={addPlayer}
+                  onRemove={removePlayer}
+                  onUpdateEmoji={updatePlayerEmoji}
+                  disabled={!isAdmin}
+                />
 
-        {/* Infók */}
-      </div>
-    </section>
+                <SelectPairs
+                  players={players}
+                  freeIds={freeIds}
+                  seenTeammates={seenTeammatesToday}
+                  onCreate={addMatch}
+                  disabled={!isAdmin}
+                />
 
-    {/* 🆕 Standings teljes szélességben */}
-    <div className="mt-4 sm:mt-6">
-      <Standings rows={standings} players={players} matches={league.matches} achievementsById={achievementsById} />
-    </div>
-  </>
-)}
+                <MatchesAdmin
+                  matches={matchesForDate}
+                  nameOf={nameOf}
+                  onPick={pickWinner}
+                  onClear={clearWinner}
+                  onDelete={deleteMatch}
+                />
+              </div>
 
+              {/* Jobb oldali sáv: Sorsolás, Dátumugrás, Backup, Infó */}
+              <div className="space-y-4">
+                <div className={card}>
+                  <ShuttleBg />
+                  <h3 className="mb-2 font-semibold">Match Draw</h3>
+                  <button
+                    className={`${btnPrimary} w-full`}
+                    onClick={autoDraw}
+                    disabled={players.length < 4}
+                  >
+                    Auto-draw 3 Rounds (High-Low)
+                  </button>
+                  {players.length < 4 && (
+                    <p className="mt-2 text-xs text-rose-500">
+                      Minimum 4 players required for auto-draw.
+                    </p>
+                  )}
+                  <p className="mt-2 text-xs text-gray-400">
+                    Creates 3 rounds of matches using a balanced high-low
+                    ranking method to ensure variety.
+                  </p>
+                </div>
+                <AdminDateJump
+                  grouped={grouped}
+                  date={date}
+                  setDate={setDate}
+                  lastSessionDate={lastSessionDate}
+                />
+                <BackupPanel onCreate={createBackup} onRestore={restoreBackup} backups={backups} />
+                <StandingsInfo />
+              </div>
+            </section>
+
+            {/* 🆕 Standings teljes szélességben */}
+            <div className="mt-4 sm:mt-6">
+              <Standings
+                rows={standings}
+                players={players}
+                matches={league.matches}
+                achievementsById={achievementsById}
+              />
+            </div>
+          </>
+        ) : (
+          <>
+            <section className="grid gap-4 sm:gap-6 md:grid-cols-3">
+              <div className="space-y-4 md:col-span-2">
+                <MatchesPlayer
+                  grouped={grouped}
+                  nameOf={nameOf}
+                  lastSessionDate={lastSessionDate}
+                />
+                <StandingsInfo />
+              </div>
+
+              <div className="space-y-4">
+                {/* Legutolsó dátumok lista */}
+                <div className={card}>
+                  <ShuttleBg />
+                  <h3 className="mb-2 font-semibold">Latest sessions</h3>
+                  {grouped.length === 0 ? (
+                    <p className="text-sm text-gray-500">No matches yet.</p>
+                  ) : (
+                    <ul className="text-sm space-y-1 max-h-52 overflow-y-auto">
+                      {grouped.slice(0, 10).map((g) => (
+                        <li key={g.date}>
+                          <a
+                            href={`#date-${g.date}`}
+                            className="flex w-full items-center justify-between rounded-lg px-2 py-1 text-left bg-white text-slate-700 border border-slate-200 transition hover:bg-slate-100 hover:text-[#4f8ef7]"
+                            onClick={(e) => {
+                              // manuálisan nyissa meg az adott dátumot
+                              e.preventDefault();
+                              // ez a logikát kicseréltem a MatchesPlayer komponensbe:
+                              // setOpenDate(g.date); 
+                              window.location.hash = `date-${g.date}`;
+                            }}
+                          >
+                            <span>{g.date}</span>
+                            <span className="flex items-center gap-1 text-xs text-gray-500">
+                              {weekday(g.date)}
+                              {lastSessionDate === g.date && (
+                                <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 border border-emerald-200">
+                                  Last
+                                </span>
+                              )}
+                            </span>
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <p className="mt-2 text-xs text-gray-400">
+                    Training days: Monday & Wednesday
+                  </p>
+                </div>
+
+                {/* Statisztikák */}
+                <PlayerStats
+                  players={players}
+                  matches={league.matches}
+                  meId={meId}
+                  setMeId={setMeId}
+                />
+
+                {/* Achievementek */}
+                <PlayerAchievements
+                  players={players}
+                  matches={league.matches}
+                  meId={meId}
+                />
+
+                {/* Infók */}
+              </div>
+            </section>
+
+            {/* 🆕 Standings teljes szélességben */}
+            <div className="mt-4 sm:mt-6">
+              <Standings
+                rows={standings}
+                players={players}
+                matches={league.matches}
+                achievementsById={achievementsById}
+              />
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
