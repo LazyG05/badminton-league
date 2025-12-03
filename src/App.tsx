@@ -576,32 +576,7 @@ function computeAttendanceStreak(playerId: string, matches: Match[]): number {
 
 
 
-// Build pairs avoiding previous TEAMMATE combos (for the given date) as much as possible
-function makePairsForRound(ids: string[], seenTeammates: Set<string>): Pair[] {
-  const list = shuffle(ids);
-  function backtrack(rem: string[], cur: Pair[]): Pair[] {
-    if (rem.length < 2) return cur;
-    const [first, ...rest] = rem;
-    let best = cur;
-    const bestPossible = cur.length + Math.floor(rem.length / 2);
-    for (let i = 0; i < rest.length; i++) {
-      const cand = rest[i];
-      if (seenTeammates.has(key(first, cand))) continue;
-      const next = backtrack(
-        rest.filter((_, idx) => idx !== i),
-        [...cur, [first, cand]] as Pair[]
-      );
-      if (next.length > best.length) {
-        best = next;
-        if (best.length === bestPossible) return best;
-      }
-    }
-    const skip = backtrack(rest, cur);
-    if (skip.length > best.length) best = skip;
-    return best;
-  }
-  return backtrack(list, []);
-}
+
 
 // ========================= Emoji list =========================
 const EMOJIS = [
@@ -2156,20 +2131,19 @@ export default function App() {
       return;
     }
 
-    // 1. Segédfüggvény: Pontszám számítása egy játékosra (ugyanaz a logika, mint a tabellánál)
+    // 1. Segédfüggvény: Pontszám számítása egy játékosra
     const getScore = (pid: string) => {
       let pts = 0;
       let matchCount = 0;
-      
-      // Végignézzük az összes eddigi meccset (nem csak a mait!)
+
       league.matches.forEach(m => {
         if (m.winner) {
            const inA = m.teamA.includes(pid);
            const inB = m.teamB.includes(pid);
            if (!inA && !inB) return;
-           
+
            matchCount++;
-           
+
            // Nyerés: 3 pont, Vereség: 1 pont
            const won = (m.winner === "A" && inA) || (m.winner === "B" && inB);
            pts += won ? 3 : 1;
@@ -2184,117 +2158,43 @@ export default function App() {
       return { pts, matchCount };
     };
 
-    // 2. Jelenlévők listája + pontszámok
-    let pool = freeIds.map(id => {
-      const { pts, matchCount } = getScore(id);
-      return { id, pts, matchCount };
-    });
-
-    // 3. RENDEZÉS: Pontszám szerint csökkenő (legjobb elöl)
-    // Ha valakinek < 5 meccse van, őt a lista végére soroljuk (ha ez a kérés), 
-    // DE a "High-Low" logikához jobb, ha a pontszám dönt. 
-    // A kevesebb meccs automatikusan kevesebb pontot jelent, így ők lesznek a "Low" párjai a profiknak.
-    pool.sort((a, b) => {
-      if (b.pts !== a.pts) return b.pts - a.pts; // Több pont előre
-      return b.matchCount - a.matchCount;        // Több meccs előre (rutin)
-    });
-
-    const newMatches: Match[] = [];
-
-    // 4. PÁROSÍTÁS (High-Low)
-    // Amíg van legalább 2 ember
-    while (pool.length >= 2) {
-      // Vesszük a legerősebbet (lista eleje)
-      const high = pool[0]; 
-      
-      let pairIdx = -1;
-
-      // Keressük neki a leggyengébb párt (lista vége felől indulva),
-      // akivel MA még nem volt csapattárs.
-      for (let i = pool.length - 1; i > 0; i--) {
-        const low = pool[i];
-        const pairKey = key(high.id, low.id);
-        
-        if (!seenTeammatesToday.has(pairKey)) {
-          pairIdx = i;
-          break; // Megvan a pár!
-        }
-      }
-
-      // Ha mindenki volt már mindenkivel (nagyon ritka), akkor kénytelen a legutolsóval lenni
-      if (pairIdx === -1) {
-        pairIdx = pool.length - 1;
-      }
-
-      // Pár összeállítása
-      const low = pool[pairIdx];
-      
-      // Ideiglenesen tároljuk a párt, hogy a következő körben 
-      // (a while loopon belül) megtaláljuk az ellenfeleket.
-      // Eltávolítjuk őket a pool-ból.
-      // Fontos: a splice sorrendje számít (előbb a hátsót vesszük ki, hogy ne csússzon az index)
-      pool.splice(pairIdx, 1); // low kivétele
-      pool.shift();            // high kivétele (0. index)
-
-      // Most van egy párunk: [high.id, low.id]. 
-      // De nekünk 4 ember kell egy meccshez.
-      // Ezért összegyűjtjük a párokat egy átmeneti tömbbe, vagy rögtön meccset csinálunk, 
-      // ha már van várakozó pár?
-      
-      // MEGOLDÁS: A `pairs` tömbbe gyűjtjük őket, és a végén csinálunk meccseket.
-    }
-    
-    // ÚJRAKEZDÉS A LOGIKÁVAL, mert a fenti ciklus párokat gyárt, de a `newMatches`-hez 2 pár kell.
-    // Írjuk át kicsit egyszerűbbre a flow-t:
-    
-    // ---------------------------------------------------------
-    // A TISZTA LOGIKA
-    // ---------------------------------------------------------
-    
-    // 1. lépés: Csináljunk PÁROKAT (Team) High-Low módszerrel
-    const teams: Pair[] = [];
-    
-    // Frissítsük a pool-t a rendezett ID-kra
+    // 2. Játékosok előkészítése és rendezése pontszám alapján (High elöl)
     let sortedIds = freeIds.map(id => {
        const { pts, matchCount } = getScore(id);
        return { id, pts, matchCount };
     }).sort((a, b) => b.pts - a.pts);
 
-    // Másolat a manipuláláshoz
     let workingPool = [...sortedIds];
+    const teams: Pair[] = [];
+    const newMatches: Match[] = [];
 
+    // 3. PÁROK LÉTREHOZÁSA (High-Low módszerrel)
     while (workingPool.length >= 2) {
-      const high = workingPool[0];
+      const high = workingPool[0]; // A legerősebb játékos
       let bestMateIndex = -1;
 
-      // Lentről felfelé keresünk párt
+      // Lentről felfelé keresünk párt (Leggyengébb keresése), akivel ma még nem volt csapattárs
       for (let i = workingPool.length - 1; i > 0; i--) {
         const candidate = workingPool[i];
         if (!seenTeammatesToday.has(key(high.id, candidate.id))) {
           bestMateIndex = i;
-          break;
+          break; // Megtaláltuk a legjobb párt
         }
       }
 
-      // Ha nincs "szűz" pár, akkor a leggyengébbet választjuk
+      // Ha nincs "szűz" pár, akkor a leggyengébb elérhetőt választjuk
       if (bestMateIndex === -1) bestMateIndex = workingPool.length - 1;
 
       const low = workingPool[bestMateIndex];
       teams.push([high.id, low.id]);
 
-      // Kivesszük őket
+      // Kivesszük őket a pool-ból (előbb a hátsót, utána az elsőt)
       workingPool.splice(bestMateIndex, 1);
       workingPool.shift();
     }
 
-    // 2. lépés: A kész csapatokat összepárosítjuk meccsekké (Match)
-    // Itt is lehetne logika (pl. legerősebb csapat a második legerősebb ellen),
-    // de itt maradhat a sorrend vagy egy egyszerű shuffle.
-    // Hogy izgalmas legyen: Legerősebb team vs Második legerősebb team.
-    
-    // Mivel a `teams` tömbbe a legerősebb játékosok kerültek be először (mint csapatkapitányok),
-    // ezért a teams[0] a legerősebb team, teams[1] a második, stb.
-    
+    // 4. MECCSEK LÉTREHOZÁSA
+    // Összeeresztjük a párokat (1. team vs 2. team, 3. team vs 4. team, stb.)
     for (let i = 0; i + 1 < teams.length; i += 2) {
       newMatches.push({
         id: uid(),
@@ -2306,8 +2206,9 @@ export default function App() {
 
     if (newMatches.length > 0) {
       write({ matches: [...league.matches, ...newMatches] });
-    } else {
-      alert("Could not form balanced matches. (Maybe odd number of players?)");
+    } else if (freeIds.length >= 4) {
+      // Ez akkor fordul elő, ha páratlan számú pár maradt, ami nem tud meccset alkotni
+      alert("Could not form balanced matches. Please check the number of players.");
     }
   };
 
