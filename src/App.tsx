@@ -1428,7 +1428,7 @@ function StandingsInfo() {
           <b>Base Points + Bonus Points</b>.
         </p>
         <p>
-          🥇 <b>Base points:</b> Win = +1 point, Loss = 0 points.
+          🥇 <b>Base points:</b> Win = +3 points, Loss = +1 point.
           Ties are broken first by higher total points, higher Win% comes
           first, then the number of matches played.
         </p>
@@ -1925,12 +1925,15 @@ export default function App() {
           const r = map.get(id);
           if (r) {
             r.wins++;
-            r.basePoints++;
+            r.basePoints += 3; // Win = +3 points (MÓDOSÍTVA)
           }
         });
         loserTeam?.forEach((id) => {
           const r = map.get(id);
-          if (r) r.losses++;
+          if (r) {
+            r.losses++;
+            r.basePoints += 1; // Loss = +1 point (MÓDOSÍTVA)
+          }
         });
       }
     });
@@ -2085,7 +2088,8 @@ export default function App() {
           if (!inA && !inB) return;
           matchCount++;
           const isWin = (m.winner === "A" && inA) || (m.winner === "B" && inB);
-          if (isWin) pts++;
+          // MÓDOSÍTVA: Auto-draw score is still just 1 point for win, 0 for loss for fair pairing
+          if (isWin) pts += 1; // Used only for pairing
         }
       });
       return { id: pid, score: pts, matches: matchCount };
