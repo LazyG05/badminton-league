@@ -18,6 +18,7 @@ import { getAuth, signInAnonymously } from "firebase/auth";
  * - Date navigation in Player view + "Last session" badge
  * - Training days: Monday & Wednesday; default date = closest such day
  * - Firestore realtime sync (single league doc: "leagues/default")
+ * - Jelenléti lista: Attendance
  * * 🆕 JELENLÉTI LISTA & HELYSZÍNI SORSOLÁS
  * =============================================================
  */
@@ -390,6 +391,7 @@ function PlayerAchievements({
 
 
 
+// ... (achievement computation functions - unchanged)
 
 export function computeAchievementsFull(
   playerId: string,
@@ -521,7 +523,6 @@ if (melinda) {
 
   return out;
 }
-
 
 
 // Training days: Monday (1), Wednesday (3) – JS Date.getDay()
@@ -837,8 +838,9 @@ function AttendanceList({
   return (
     <div className={card}>
       <ShuttleBg />
+      {/* 🛠️ Névátírás: Jelenlét -> Attendance */}
       <h3 className="mb-2 font-semibold">
-        Jelenlét {date} ({presentCount}/{players.length})
+        Attendance {date} ({presentCount}/{players.length})
       </h3>
       
       {players.length === 0 ? (
@@ -1363,7 +1365,8 @@ function MatchesAdmin({ matches, nameOf, onPick, onClear, onDelete }: { matches:
                   <button
                     type="button"
                     onClick={() => onClear(m.id)}
-                    className={`${btnBase} px-3 py-1 text-slate-500 hover:bg-slate-100`}
+                    // 🛠️ FIX: Fekete háttér eltávolítása: hozzáadva a bg-white
+                    className={`${btnBase} px-3 py-1 text-slate-500 hover:bg-slate-100 bg-white`}
                   >
                     clear
                   </button>
@@ -1372,7 +1375,8 @@ function MatchesAdmin({ matches, nameOf, onPick, onClear, onDelete }: { matches:
                 <button
                   type="button"
                   onClick={() => onDelete(m.id)}
-                  className={`${btnBase} px-3 py-1 ml-auto text-rose-500 hover:bg-rose-50`}
+                  // 🛠️ FIX: Fekete háttér eltávolítása: hozzáadva a bg-white
+                  className={`${btnBase} px-3 py-1 ml-auto text-rose-500 hover:bg-rose-50 bg-white`}
                 >
                   delete
                 </button>
