@@ -1295,11 +1295,9 @@ function MatchesAdmin({ matches, nameOf, onPick, onClear, onDelete }: { matches:
 function MatchesPlayer({
   grouped,
   nameOf,
-  lastSessionDate,
 }: {
   grouped: { date: string; matches: Match[] }[];
   nameOf: (id: string) => string;
-  lastSessionDate?: string | null;
 }) {
   const [openDate, setOpenDate] = useState<string | null>(null);
 
@@ -2328,7 +2326,6 @@ export default function App() {
                 <MatchesPlayer
                   grouped={grouped}
                   nameOf={nameOf}
-                  lastSessionDate={lastSessionDate}
                 />
                 <StandingsInfo />
               </div>
