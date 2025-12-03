@@ -2117,7 +2117,7 @@ export default function App() {
 
 // ... (korábbi kód: clearWinner)
 
-  // 🆕 ÚJ: Kiegyensúlyozott "High-Low" sorsolás (MÓDOSÍTVA a MIN. 5 meccs feltételre)
+  // 🆕 ÚJ: Kiegyensúlyozott "High-Low" sorsolás 3 KÖRRE
   const autoDraw = () => {
     // 1. Segédfüggvény: Pontszám számítása egy játékosra
     const getScore = (pid: string) => {
@@ -2156,61 +2156,73 @@ export default function App() {
     // Rendezzük pontszám alapján (High elöl)
     .sort((a, b) => b.pts - a.pts);
 
-    // Külön ellenőrzés a kvalifikált játékosokra
     if (sortedIds.length < 4) {
-      alert("A kiegyensúlyozott sorsoláshoz minimum 4 **kvalifikált** játékos (min. 5 lejátszott meccs) szükséges!");
+      alert("A 3 körös sorsoláshoz minimum 4 **kvalifikált** játékos (min. 5 lejátszott meccs) szükséges!");
       return;
     }
 
-    let workingPool = [...sortedIds];
-    const teams: Pair[] = [];
-    const newMatches: Match[] = [];
+    const allMatches: Match[] = [];
+    // Klónozzuk a mai nap már látott csapattársak listáját, hogy a 3 kör alatt is kövessük a párosításokat
+    const localSeenTeammatesToday = new Set<string>(seenTeammatesToday); 
 
-    // 3. PÁROK LÉTREHOZÁSA (High-Low módszerrel)
-    while (workingPool.length >= 2) {
-      const high = workingPool[0]; // A legerősebb játékos
-      let bestMateIndex = -1;
+    // 🎯 FŐ CIKLUS: 3 JÁTÉKKÖRT SORSOLUNK
+    for (let round = 0; round < 3; round++) {
+      let workingPool = [...sortedIds]; // Minden körben a teljes, rendezett listával indulunk
+      const teams: Pair[] = [];
+      const roundMatches: Match[] = [];
 
-      // Lentről felfelé keresünk párt (Leggyengébb keresése), akivel ma még nem volt csapattárs
-      for (let i = workingPool.length - 1; i > 0; i--) {
-        const candidate = workingPool[i];
-        if (!seenTeammatesToday.has(key(high.id, candidate.id))) {
-          bestMateIndex = i;
-          break; // Megtaláltuk a legjobb párt
+      // 3. PÁROK LÉTREHOZÁSA (High-Low módszerrel)
+      while (workingPool.length >= 2) {
+        const high = workingPool[0]; // A legerősebb játékos
+        let bestMateIndex = -1;
+
+        // Lentről felfelé keresünk párt (Leggyengébb keresése), akivel ma még nem volt csapattárs
+        for (let i = workingPool.length - 1; i > 0; i--) {
+          const candidate = workingPool[i];
+          if (!localSeenTeammatesToday.has(key(high.id, candidate.id))) {
+            bestMateIndex = i;
+            break; // Megtaláltuk a legjobb párt
+          }
         }
+
+        // Ha nincs "szűz" pár, akkor a leggyengébb elérhetőt választjuk
+        if (bestMateIndex === -1) bestMateIndex = workingPool.length - 1;
+
+        const low = workingPool[bestMateIndex];
+        const newPair: Pair = [high.id, low.id];
+        teams.push(newPair);
+
+        // ❗️ FRISSÍTÉS: Ezt a párost már láttuk ma (a későbbi köröknél számít)
+        localSeenTeammatesToday.add(key(high.id, low.id));
+
+        // Kivesszük őket a pool-ból
+        workingPool.splice(bestMateIndex, 1);
+        workingPool.shift();
       }
 
-      // Ha nincs "szűz" pár, akkor a leggyengébb elérhetőt választjuk
-      if (bestMateIndex === -1) bestMateIndex = workingPool.length - 1;
-
-      const low = workingPool[bestMateIndex];
-      teams.push([high.id, low.id]);
-
-      // Kivesszük őket a pool-ból (előbb a hátsót, utána az elsőt)
-      workingPool.splice(bestMateIndex, 1);
-      workingPool.shift();
+      // 4. MECCSEK LÉTREHOZÁSA a kerek csapatokból
+      // Összeeresztjük a párokat (1. team vs 2. team, 3. team vs 4. team, stb.)
+      for (let i = 0; i + 1 < teams.length; i += 2) {
+        roundMatches.push({
+          id: uid(),
+          date,
+          teamA: teams[i],
+          teamB: teams[i+1],
+        });
+      }
+      
+      allMatches.push(...roundMatches);
     }
 
-    // 4. MECCSEK LÉTREHOZÁSA
-    // Összeeresztjük a párokat (1. team vs 2. team, 3. team vs 4. team, stb.)
-    for (let i = 0; i + 1 < teams.length; i += 2) {
-      newMatches.push({
-        id: uid(),
-        date,
-        teamA: teams[i],
-        teamB: teams[i+1],
-      });
-    }
-
-    if (newMatches.length > 0) {
-      write({ matches: [...league.matches, ...newMatches] });
+    // 5. MENTÉS: Eltároljuk mindhárom kör összes meccsét.
+    if (allMatches.length > 0) {
+      write({ matches: [...league.matches, ...allMatches] });
     } else if (freeIds.length >= 4) {
-      alert("Could not form balanced matches. Please check the number of qualified players.");
+      alert("A 3 meccses sorsolás nem hozott létre meccseket. Ellenőrizd a kvalifikált játékosok számát.");
     }
   };
 
   // ... (tovább a createBackup felé)
-
   const createBackup = () => {
     const snapshot: Backup = {
       id: uid(),
