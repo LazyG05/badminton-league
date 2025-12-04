@@ -22,6 +22,7 @@ import { getAuth, signInAnonymously } from "firebase/auth";
  * * 🆕 JELENLÉTI LISTA & HELYSZÍNI SORSOLÁS
  * * 🛠️ PlayerEditor átalakítva: Alapértelmezetten összecsukott
  * * 🆕 Player nézet: Jelenléti lista dátum szerint
+ * * 🛠️ FIX: Kijavítva a Dark Mode fekete háttér problémája az App komponensben.
  * =============================================================
  */
 
@@ -1380,7 +1381,7 @@ function DrawMatches({
     if (disabled) return;
     
     // Csak a jelenlévő játékosok id-i
-    const allPlayerIds = presentPlayers.map(p => p.id); // <- Ezt a lokális változót használjuk
+    const allPlayerIds = presentPlayers.map(p => p.id); 
 
     // Kiszámítja a játékos pontszámát az aznapi lejátszott meccsek alapján.
     // A pontszám a párosításhoz kell, ahol 1 pont jár minden győzelemért, 0 a vereségért.
@@ -2221,7 +2222,7 @@ function Standings({
 
 export default function App() {
   const [league, write] = useLeague();
-  // 🛠️ FIX: Beállítjuk az alapértelmezett értéket: backups = []
+  // 🛠️ FIX: backups már garantáltan nem undefined
   const { players, matches, backups = [] } = league;
 
   const [role, setRole] = useState<"player" | "admin">("player");
@@ -2440,10 +2441,9 @@ export default function App() {
     write({ players: nextPlayers });
   };
 
-  // 🛠️ FIX: 'nameOf' egyszerű függvényre cserélve (useCallback nélkül)
+  // 🛠️ FIX: 'nameOf' egyszerű, nem memoizált függvényre cserélve (elkerüli a linter figyelmeztetést)
   const nameOf = (id: string) => players.find((p) => p.id === id)?.name || "—";
-  // FIX VÉGE
-
+  
   const createMatch = (teamA: Pair, teamB: Pair) => {
     if (!isAdmin) return;
     const newMatch: Match = {
@@ -2494,7 +2494,7 @@ export default function App() {
         matches: league.matches,
       },
     };
-    // 🛠️ FIX: backups már garantáltan egy tömb a destructuring miatt
+    // backups már garantáltan egy tömb a destructuring miatt
     write({ backups: [...backups, newBackup] });
     alert("Backup created successfully!");
   };
@@ -2508,7 +2508,7 @@ export default function App() {
     )
       return;
 
-    // 🛠️ FIX: backups már garantáltan egy tömb a destructuring miatt
+    // backups már garantáltan egy tömb a destructuring miatt
     const backup = backups.find((b) => b.id === id);
     if (!backup) {
       alert("Backup not found!");
@@ -2524,7 +2524,7 @@ export default function App() {
   };
 
   // ========================= Render =========================
-  // const allPlayerIds = players.map(p => p.id); // <- Ezt töröltük (nem használt)
+  
   const playersWhoPlayedToday = new Set<string>();
   matchesForDate.forEach((m) => {
     m.teamA.forEach(id => playersWhoPlayedToday.add(id));
@@ -2535,156 +2535,159 @@ export default function App() {
   const freeIds = presentIds.filter(id => !playersWhoPlayedToday.has(id));
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-      <Header
-        title={league.title}
-        role={role}
-        setPlayer={() => {
-          setRole("player");
-          setAdminPass("");
-        }}
-        setAdmin={() => setRole("admin")}
-      />
+    // 🛠️ FIX: Beállítjuk a fő háttérszínt, hogy felülírja a sötét mód fekete hátterét.
+    <div className="min-h-screen bg-slate-50"> 
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        <Header
+          title={league.title}
+          role={role}
+          setPlayer={() => {
+            setRole("player");
+            setAdminPass("");
+          }}
+          setAdmin={() => setRole("admin")}
+        />
 
-      <div className="space-y-4 sm:space-y-6">
-        {/* ========================= ADMIN VIEW ========================= */}
-        {role === "admin" && (
-          <div className="space-y-4 sm:space-y-6">
-            {!isAdmin && (
-              <div className={card}>
-                <h3 className="mb-2 font-semibold text-rose-500">
-                  Admin Login
-                </h3>
-                <input
-                  className={input}
-                  type="password"
-                  placeholder="Admin Password"
-                  value={adminPass}
-                  onChange={(e) => setAdminPass(e.target.value)}
-                />
-                <p className="mt-2 text-xs text-gray-500">
-                  Hint: biatollas
-                </p>
-              </div>
-            )}
-
-            {isAdmin && (
-              <>
-                <section className="grid gap-4 sm:gap-6 md:grid-cols-3">
-                  <div className="space-y-4 md:col-span-2">
-                    <DatePicker value={date} onChange={setDateAndResetAttendance} />
-                    <AttendanceList 
-                      players={players} 
-                      date={date} 
-                      presentIds={presentIds} 
-                      setPresentIds={setPresentIds} 
-                    />
-                    <DrawMatches
-                      players={players}
-                      presentIds={presentIds}
-                      matchesForDate={matchesForDate}
-                      seenTeammatesToday={seenTeammatesToday}
-                      date={date}
-                      league={league}
-                      write={write}
-                    />
-                  </div>
-
-                  <div className="space-y-4">
-                    <PlayerEditor
-                      players={players}
-                      onAdd={addPlayer}
-                      onRemove={removePlayer}
-                      onUpdateEmoji={updatePlayerEmoji}
-                    />
-                    <AdminDateJump
-                      grouped={grouped}
-                      date={date}
-                      setDate={setDateAndResetAttendance}
-                      lastSessionDate={lastSessionDate}
-                    />
-                    <BackupPanel
-                      onCreate={createBackup}
-                      onRestore={restoreBackup}
-                      backups={backups} // backups a fix után garantáltan nem undefined
-                    />
-                  </div>
-                </section>
-
-                <section className="space-y-4">
-                  <MatchesAdmin
-                    matches={matchesForDate}
-                    nameOf={nameOf}
-                    onPick={pickWinner}
-                    onClear={clearWinner}
-                    onDelete={deleteMatch}
+        <div className="space-y-4 sm:space-y-6">
+          {/* ========================= ADMIN VIEW ========================= */}
+          {role === "admin" && (
+            <div className="space-y-4 sm:space-y-6">
+              {!isAdmin && (
+                <div className={card}>
+                  <h3 className="mb-2 font-semibold text-rose-500">
+                    Admin Login
+                  </h3>
+                  <input
+                    className={input}
+                    type="password"
+                    placeholder="Admin Password"
+                    value={adminPass}
+                    onChange={(e) => setAdminPass(e.target.value)}
                   />
-                  <SelectPairs
-                    players={players}
-                    freeIds={freeIds}
-                    seenTeammates={seenTeammatesToday}
-                    onCreate={createMatch}
-                  />
-                </section>
-
-                {/* Standings */}
-                <div className="mt-4 sm:mt-6">
-                  <Standings
-                    rows={standings}
-                    achievementsById={achievementsById}
-                  />
+                  <p className="mt-2 text-xs text-gray-500">
+                    Hint: biatollas
+                  </p>
                 </div>
-              </>
-            )}
-          </div>
-        )}
+              )}
 
-        {/* ========================= PLAYER VIEW ========================= */}
-        {role === "player" && (
-          <>
-            <section className="grid gap-4 sm:gap-6 md:grid-cols-3">
-              <div className="space-y-4 md:col-span-2">
-                <MatchesPlayer grouped={grouped} nameOf={nameOf} />
-              </div>
+              {isAdmin && (
+                <>
+                  <section className="grid gap-4 sm:gap-6 md:grid-cols-3">
+                    <div className="space-y-4 md:col-span-2">
+                      <DatePicker value={date} onChange={setDateAndResetAttendance} />
+                      <AttendanceList 
+                        players={players} 
+                        date={date} 
+                        presentIds={presentIds} 
+                        setPresentIds={setPresentIds} 
+                      />
+                      <DrawMatches
+                        players={players}
+                        presentIds={presentIds}
+                        matchesForDate={matchesForDate}
+                        seenTeammatesToday={seenTeammatesToday}
+                        date={date}
+                        league={league}
+                        write={write}
+                      />
+                    </div>
 
-              <div className="space-y-4">
-                {/* Dátum ugrás (Player nézet) */}
-                <AdminDateJump
-                  grouped={grouped}
-                  date={date}
-                  setDate={setDate}
-                  lastSessionDate={lastSessionDate}
-                />
+                    <div className="space-y-4">
+                      <PlayerEditor
+                        players={players}
+                        onAdd={addPlayer}
+                        onRemove={removePlayer}
+                        onUpdateEmoji={updatePlayerEmoji}
+                      />
+                      <AdminDateJump
+                        grouped={grouped}
+                        date={date}
+                        setDate={setDateAndResetAttendance}
+                        lastSessionDate={lastSessionDate}
+                      />
+                      <BackupPanel
+                        onCreate={createBackup}
+                        onRestore={restoreBackup}
+                        backups={backups} // backups a fix után garantáltan nem undefined
+                      />
+                    </div>
+                  </section>
 
-                {/* Statisztikák */}
-                <PlayerStats
-                  players={players}
-                  matches={league.matches}
-                  meId={meId}
-                  setMeId={setMeId}
-                />
+                  <section className="space-y-4">
+                    <MatchesAdmin
+                      matches={matchesForDate}
+                      nameOf={nameOf}
+                      onPick={pickWinner}
+                      onClear={clearWinner}
+                      onDelete={deleteMatch}
+                    />
+                    <SelectPairs
+                      players={players}
+                      freeIds={freeIds}
+                      seenTeammates={seenTeammatesToday}
+                      onCreate={createMatch}
+                    />
+                  </section>
 
-                {/* Achievementek */}
-                <PlayerAchievements
-                  players={players}
-                  matches={league.matches}
-                  meId={meId}
-                />
-
-                {/* Infók */}
-                <StandingsInfo />
-              </div>
-            </section>
-
-            {/* 🆕 Standings teljes szélességben */}
-            <div className="mt-4 sm:mt-6">
-              <Standings
-                rows={standings}
-                achievementsById={achievementsById}
-              />
+                  {/* Standings */}
+                  <div className="mt-4 sm:mt-6">
+                    <Standings
+                      rows={standings}
+                      achievementsById={achievementsById}
+                    />
+                  </div>
+                </>
+              )}
             </div>
-          </>
-        )}
+          )}
+
+          {/* ========================= PLAYER VIEW ========================= */}
+          {role === "player" && (
+            <>
+              <section className="grid gap-4 sm:gap-6 md:grid-cols-3">
+                <div className="space-y-4 md:col-span-2">
+                  <MatchesPlayer grouped={grouped} nameOf={nameOf} />
+                </div>
+
+                <div className="space-y-4">
+                  {/* Dátum ugrás (Player nézet) */}
+                  <AdminDateJump
+                    grouped={grouped}
+                    date={date}
+                    setDate={setDate}
+                    lastSessionDate={lastSessionDate}
+                  />
+
+                  {/* Statisztikák */}
+                  <PlayerStats
+                    players={players}
+                    matches={league.matches}
+                    meId={meId}
+                    setMeId={setMeId}
+                  />
+
+                  {/* Achievementek */}
+                  <PlayerAchievements
+                    players={players}
+                    matches={league.matches}
+                    meId={meId}
+                  />
+
+                  {/* Infók */}
+                  <StandingsInfo />
+                </div>
+              </section>
+
+              {/* 🆕 Standings teljes szélességben */}
+              <div className="mt-4 sm:mt-6">
+                <Standings
+                  rows={standings}
+                  achievementsById={achievementsById}
+                />
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
