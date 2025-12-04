@@ -864,33 +864,45 @@ function AttendanceList({
                 Clear All
               </button>
           </div>
-          <ul className="space-y-1 max-h-52 overflow-y-auto pr-1">
-            {sortedPlayers.map((p) => {
-              const checked = isPresent(p.id);
-              return (
-                <li
-                  key={p.id}
-                  className={`flex items-center justify-between rounded-lg px-2 py-1 text-sm border cursor-pointer transition ${
-                    checked
-                      ? "bg-emerald-50 border-emerald-300 text-slate-800"
-                      : "bg-white border-slate-200 hover:bg-slate-50 text-slate-700"
-                  }`}
-                  onClick={() => togglePresence(p.id)}
-                >
-                  <label className="flex items-center gap-2 cursor-pointer w-full">
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() => togglePresence(p.id)}
-                      className="form-checkbox h-4 w-4 text-emerald-600 rounded"
-                      readOnly // Readonly, since click handles the change
-                    />
-                    <span>{p.name}</span>
-                  </label>
-                </li>
-              );
-            })}
-          </ul>
+      <ul className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-52 overflow-y-auto pr-1">
+  {sortedPlayers.map((p) => {
+    const checked = isPresent(p.id);
+    return (
+      <li key={p.id}>
+        <button
+          type="button"
+          onClick={() => togglePresence(p.id)}
+          className={`
+            w-full rounded-xl px-2 py-2 text-xs sm:text-sm border text-left
+            flex items-center justify-between gap-2
+            transition-colors
+            ${
+              checked
+                ? "bg-emerald-50 border-emerald-300 text-slate-900"
+                : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+            }
+          `}
+        >
+          <span className="truncate">{p.name}</span>
+          <span
+            className={`
+              inline-flex h-5 min-w-[2.5rem] items-center justify-center rounded-full
+              text-[10px] sm:text-xs font-semibold
+              ${
+                checked
+                  ? "bg-emerald-100 text-emerald-700"
+                  : "bg-slate-100 text-slate-500"
+              }
+            `}
+          >
+            {checked ? "Here" : "Away"}
+          </span>
+        </button>
+      </li>
+    );
+  })}
+</ul>
+
         </>
       )}
     </div>
