@@ -1427,9 +1427,23 @@ function DrawMatches({
         return b.matches - a.matches;
       });
 
-    const allMatches: Match[] = [];
-    // Clone the list of teammates already seen today to track pairings over the 3 rounds
+        const allMatches: Match[] = [];
     const localSeenTeammatesToday = new Set<string>(seenTeammatesToday);
+
+    // 🆕 Edzők azonosítása név alapján (emoji nélkül)
+    const baseName = (full: string) =>
+      full.replace(/^.+?\s/, ""); // levágjuk az emojit + szóközt
+
+    const isCoach = (id: string) => {
+      const p = players.find((pl) => pl.id === id);
+      if (!p) return false;
+      const name = baseName(p.name);
+      return name === "Robi" || name === "Melinda";
+    };
+
+    const canBeTeammates = (aId: string, bId: string) =>
+      !(isCoach(aId) && isCoach(bId)); // Robi & Melinda nem lehetnek egy csapatban
+
 
 
     // 🎯 MAIN LOOP: Draw 3 ROUNDS
@@ -1438,33 +1452,52 @@ function DrawMatches({
       const teams: Pair[] = [];
       const roundMatches: Match[] = [];
 
-      // 3. CREATE PAIRS (High-Low method)
-      while (workingPool.length >= 2) {
-        const high = workingPool[0]; // The strongest player
+    // 3. CREATE PAIRS (High-Low method)
+    while (workingPool.length >= 2) {
+      const high = workingPool[0]; // The strongest player
 
-        // Try to find the weakest possible player who hasn't been a teammate with 'high' yet
-        let bestMate: typeof high | null = null;
+      // Try to find the weakest possible player who hasn't been a teammate with 'high' yet
+      let bestMate: typeof high | null = null;
+      for (let i = workingPool.length - 1; i >= 1; i--) {
+        const candidate = workingPool[i];
+
+        // csak akkor jó jelölt, ha még nem volt a társa ÉS nem edző–edző páros
+        if (
+          !localSeenTeammatesToday.has(key(high.id, candidate.id)) &&
+          canBeTeammates(high.id, candidate.id)
+        ) {
+          bestMate = candidate;
+          break;
+        }
+      }
+
+      // Ha nem találtunk "friss" társat, keressünk olyat, aki legalább nem edző–edző páros
+      if (!bestMate) {
         for (let i = workingPool.length - 1; i >= 1; i--) {
           const candidate = workingPool[i];
-          if (!localSeenTeammatesToday.has(key(high.id, candidate.id))) {
+          if (canBeTeammates(high.id, candidate.id)) {
             bestMate = candidate;
             break;
           }
         }
-
-        // If no fresh teammate found, pick the weakest (last)
-        if (!bestMate) {
-          bestMate = workingPool[workingPool.length - 1];
-        }
-
-        // Remove the pair from the pool
-        workingPool = workingPool.filter(p => p.id !== high.id && p.id !== bestMate!.id);
-
-        teams.push([high.id, bestMate.id] as Pair);
-
-        // Still mark as seen
-        localSeenTeammatesToday.add(key(high.id, bestMate.id));
       }
+
+      // Ha még így sincs érvényes pár (pl. csak a két edző maradt), akkor itt megállunk
+      if (!bestMate) {
+        break;
+      }
+
+      // Remove the pair from the pool
+      workingPool = workingPool.filter(
+        (p) => p.id !== high.id && p.id !== bestMate!.id
+      );
+
+      teams.push([high.id, bestMate.id] as Pair);
+
+      // Still mark as seen
+      localSeenTeammatesToday.add(key(high.id, bestMate.id));
+    }
+
 
       // 4. CREATE MATCHES (High-Low method)
       // If we have at least 2 teams, pair them up
