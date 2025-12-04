@@ -21,6 +21,7 @@ import { getAuth, signInAnonymously } from "firebase/auth";
  * - Jelenléti lista: Attendance
  * * 🆕 JELENLÉTI LISTA & HELYSZÍNI SORSOLÁS
  * * 🛠️ PlayerEditor átalakítva: Alapértelmezetten összecsukott
+ * * 🆕 Player nézet: Jelenléti lista dátum szerint
  * =============================================================
  */
 
@@ -1000,7 +1001,7 @@ function PlayerEditor({
           {/* Új játékos emoji lista */}
           <div className="mb-4 space-y-2">
             <div>
-              <div className="mb-1 text-xs text-gray-500">
+              <div className="mb-1 text-xs text-slate-500">
                 New player default emoji selection
               </div>
               <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
@@ -1008,10 +1009,10 @@ function PlayerEditor({
                   <button
                     key={e}
                     type="button"
-                    className={`rounded-lg border px-2 py-1 text-sm ${
+                    className={`rounded-lg border px-2 py-1 text-base transition ${
                       selectedEmoji === e
                         ? "bg-[#e0edff] border-[#4f8ef7]"
-                        : "bg-white border-slate-200"
+                        : "bg-white border-slate-200 hover:bg-slate-100"
                     }`}
                     onClick={() => setSelectedEmoji(e)}
                     disabled={!!disabled}
@@ -1022,96 +1023,88 @@ function PlayerEditor({
               </div>
             </div>
           </div>
-          
-          {/* Managing existing players – dropdown */}
-          <div className="border-t border-slate-100 pt-3 mt-2">
-            <h3 className="mb-2 text-sm font-semibold text-slate-700">
-              Manage existing player
-            </h3>
 
-            {players.length === 0 ? (
-              <p className="text-sm text-gray-500">
-                No players yet. Add someone above.
-              </p>
-            ) : (
-              <>
+          {/* Játékos módosítás / Törlés */}
+          <div className="space-y-3">
+            <div className="mb-1 text-xs text-slate-500">
+              Update/Remove existing player
+            </div>
+            
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <div className="flex-1 flex items-center gap-2">
+                {/* Játékos kiválasztása */}
                 <select
-                  className={`${input} mb-3`}
-                  value={selectedPlayerId ?? ""}
-                  onChange={(e) => {
-                    setSelectedPlayerId(e.target.value || null);
-                    setEditingEmoji(false);
-                  }}
-                  disabled={!!disabled}
+                  className={input}
+                  value={selectedPlayerId || ""}
+                  onChange={(e) => setSelectedPlayerId(e.target.value)}
+                  disabled={players.length === 0 || !!disabled}
                 >
-                  {[...players]
-                    .sort((a, b) =>
-                      getBaseName(a.name).localeCompare(getBaseName(b.name), "hu")
-                    )
-                    .map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
+                  <option value="" disabled>
+                    Select player to manage
+                  </option>
+                  {players.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
                 </select>
-
+                
+                {/* Emoji szerkesztése gomb */}
                 {selectedPlayer && (
-                  <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 text-sm">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-lg">
-                          {getEmoji(selectedPlayer.name)}
-                        </span>
-                        <span className="truncate font-medium">
-                          {getBaseName(selectedPlayer.name)}
-                        </span>
-                      </div>
-                      <button
-                        className={btnDanger}
-                        onClick={() => onRemove(selectedPlayer.id)}
-                        disabled={!!disabled}
-                      >
-                        remove
-                      </button>
-                    </div>
-
-                    <div className="mt-3">
-                      <button
-                        type="button"
-                        className={btnSecondary}
-                        onClick={() => setEditingEmoji((v) => !v)}
-                        disabled={!!disabled}
-                      >
-                        {editingEmoji ? "Close emoji picker" : "Change emoji"}
-                      </button>
-
-                      {editingEmoji && (
-                        <div className="mt-2 flex flex-wrap gap-1 max-h-24 overflow-y-auto">
-                          {EMOJIS.map((e) => (
-                            <button
-                              key={e}
-                              type="button"
-                              className={`rounded-lg border px-2 py-1 text-xs ${
-                                e === getEmoji(selectedPlayer.name)
-                                  ? "bg-[#e0edff] border-[#4f8ef7]"
-                                  : "bg-white border-slate-200"
-                              }`}
-                              onClick={() => {
-                                onUpdateEmoji(selectedPlayer.id, e);
-                                // nem muszáj bezárni, de lehet:
-                                // setEditingEmoji(false);
-                              }}
-                              disabled={!!disabled}
-                            >
-                              {e}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  <button
+                    type="button"
+                    className={`${btnSecondary} px-3 py-1 text-sm`}
+                    onClick={() => setEditingEmoji((v) => !v)}
+                    disabled={!!disabled}
+                  >
+                    Change Emoji {getEmoji(selectedPlayer.name)}
+                  </button>
                 )}
-              </>
+              </div>
+              
+              {/* Törlés gomb */}
+              <button
+                className={btnDanger}
+                onClick={() =>
+                  selectedPlayerId && onRemove(selectedPlayerId)
+                }
+                disabled={!selectedPlayer || !!disabled}
+              >
+                Remove
+              </button>
+            </div>
+            
+            {/* Emoji választó (ha szerkesztünk) */}
+            {selectedPlayer && editingEmoji && (
+              <div className="mt-2 space-y-2 rounded-xl border border-slate-200 p-3 bg-slate-50">
+                <div className="mb-1 text-xs font-medium text-slate-600">
+                  Select new emoji for{" "}
+                  <span className="font-semibold">
+                    {getBaseName(selectedPlayer.name)}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
+                  {EMOJIS.map((e) => (
+                    <button
+                      key={e}
+                      type="button"
+                      className={`rounded-lg border px-2 py-1 text-xs ${
+                        e === getEmoji(selectedPlayer.name)
+                          ? "bg-[#e0edff] border-[#4f8ef7]"
+                          : "bg-white border-slate-200"
+                      }`}
+                      onClick={() => {
+                        onUpdateEmoji(selectedPlayer.id, e);
+                        // nem muszáj bezárni, de lehet:
+                        // setEditingEmoji(false);
+                      }}
+                      disabled={!!disabled}
+                    >
+                      {e}
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         </div>
@@ -1119,9 +1112,6 @@ function PlayerEditor({
     </div>
   );
 }
-
-
-
 
 function SelectPairs({
   players,
@@ -1149,58 +1139,41 @@ function SelectPairs({
   };
 
   const selectedIds = [teamA1, teamA2, teamB1, teamB2].filter(Boolean);
-  const hasDuplicate =
-    new Set(selectedIds).size !== selectedIds.length;
+  const hasDuplicate = new Set(selectedIds).size !== selectedIds.length;
+  const canCreate = !disabled && selectedIds.length === 4 && !hasDuplicate;
 
-  const canCreate =
-    !disabled &&
-    selectedIds.length === 4 &&
-    !hasDuplicate;
+  const warnA = !!teamA1 && !!teamA2 && seenTeammates.has(key(teamA1, teamA2));
+  const warnB = !!teamB1 && !!teamB2 && seenTeammates.has(key(teamB1, teamB2));
 
-  const warnA =
-    !!teamA1 &&
-    !!teamA2 &&
-    seenTeammates.has(key(teamA1, teamA2));
-
-  const warnB =
-    !!teamB1 &&
-    !!teamB2 &&
-    seenTeammates.has(key(teamB1, teamB2));
-
-const availablePlayers = players
-  .filter((p) => freeIds.includes(p.id))
-  .sort((a, b) =>
-    a.name.replace(/^.+?\s/, "").localeCompare(
-      b.name.replace(/^.+?\s/, ""),
-      "hu"
-    )
-  );
-
-
+  const availablePlayers = players
+    .filter((p) => freeIds.includes(p.id))
+    .sort((a, b) => a.name.localeCompare(b.name, "hu"));
 
   const renderSelect = (
     label: string,
     value: string,
-    onChange: (v: string) => void,
-    exclude: string[]
+    onChange: (val: string) => void,
+    excludeIds: string[]
   ) => {
+    const options = availablePlayers.filter((p) => !excludeIds.includes(p.id));
+
     return (
-      <div className="space-y-1">
-        <div className="text-xs text-gray-600">{label}</div>
+      <div className="flex-1">
+        <label className="mb-1 block text-xs text-gray-500">{label}</label>
         <select
           className={input}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           disabled={!!disabled}
         >
-          <option value="">– select player –</option>
-          {availablePlayers
-            .filter((p) => !exclude.includes(p.id))
-            .map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
+          <option value="" disabled>
+            Select player
+          </option>
+          {options.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
         </select>
       </div>
     );
@@ -1210,64 +1183,58 @@ const availablePlayers = players
     <div className={card}>
       <ShuttleBg />
       <h3 className="mb-2 font-semibold">
-        Pairing (dropdown) – players can appear in multiple matches
+        Create new match (4 players needed)
       </h3>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        {/* TEAM A */}
+      <div className="space-y-3">
+        {/* Team A */}
         <div
-          className={`rounded-xl border p-3 space-y-2 ${
-            warnA ? "border-amber-400 bg-amber-50/40" : "border-slate-200 bg-white"
+          className={`rounded-xl border p-3 ${
+            warnA ? "border-amber-300 bg-amber-50" : "border-slate-200 bg-white"
           }`}
         >
-          <div className="text-sm font-medium">
-            Team A{" "}
-            {warnA && (
-              <span className="ml-2 text-xs text-amber-600">
-                (pair already used today)
-              </span>
+          <h4 className="mb-2 font-medium">
+            Team A {warnA && "⚠️ (seen together today)"}
+          </h4>
+          <div className="flex gap-2">
+            {renderSelect(
+              "Team A – Player 1",
+              teamA1,
+              setTeamA1,
+              [teamA2, teamB1, teamB2].filter(Boolean) as string[]
+            )}
+            {renderSelect(
+              "Team A – Player 2",
+              teamA2,
+              setTeamA2,
+              [teamA1, teamB1, teamB2].filter(Boolean) as string[]
             )}
           </div>
-          {renderSelect(
-            "Team A – Player 1",
-            teamA1,
-            setTeamA1,
-            [teamA2, teamB1, teamB2].filter(Boolean) as string[]
-          )}
-          {renderSelect(
-            "Team A – Player 2",
-            teamA2,
-            setTeamA2,
-            [teamA1, teamB1, teamB2].filter(Boolean) as string[]
-          )}
         </div>
 
-        {/* TEAM B */}
+        {/* Team B */}
         <div
-          className={`rounded-xl border p-3 space-y-2 ${
-            warnB ? "border-amber-400 bg-amber-50/40" : "border-slate-200 bg-white"
+          className={`rounded-xl border p-3 ${
+            warnB ? "border-amber-300 bg-amber-50" : "border-slate-200 bg-white"
           }`}
         >
-          <div className="text-sm font-medium">
-            Team B{" "}
-            {warnB && (
-              <span className="ml-2 text-xs text-amber-600">
-                (pair already used today)
-              </span>
+          <h4 className="mb-2 font-medium">
+            Team B {warnB && "⚠️ (seen together today)"}
+          </h4>
+          <div className="flex gap-2">
+            {renderSelect(
+              "Team B – Player 1",
+              teamB1,
+              setTeamB1,
+              [teamA1, teamA2, teamB2].filter(Boolean) as string[]
+            )}
+            {renderSelect(
+              "Team B – Player 2",
+              teamB2,
+              setTeamB2,
+              [teamA1, teamA2, teamB1].filter(Boolean) as string[]
             )}
           </div>
-          {renderSelect(
-            "Team B – Player 1",
-            teamB1,
-            setTeamB1,
-            [teamA1, teamA2, teamB2].filter(Boolean) as string[]
-          )}
-          {renderSelect(
-            "Team B – Player 2",
-            teamB2,
-            setTeamB2,
-            [teamA1, teamA2, teamB1].filter(Boolean) as string[]
-          )}
         </div>
       </div>
 
@@ -1306,8 +1273,19 @@ const availablePlayers = players
   );
 }
 
-
-function MatchesAdmin({ matches, nameOf, onPick, onClear, onDelete }: { matches: Match[]; nameOf: (id: string) => string; onPick: (id: string, w: "A" | "B") => void; onClear: (id: string) => void; onDelete: (id: string) => void; }) {
+function MatchesAdmin({
+  matches,
+  nameOf,
+  onPick,
+  onClear,
+  onDelete,
+}: {
+  matches: Match[];
+  nameOf: (id: string) => string;
+  onPick: (id: string, w: "A" | "B") => void;
+  onClear: (id: string) => void;
+  onDelete: (id: string) => void;
+}) {
   return (
     <div className={card}>
       <ShuttleBg />
@@ -1319,86 +1297,53 @@ function MatchesAdmin({ matches, nameOf, onPick, onClear, onDelete }: { matches:
           {matches.map((m) => (
             <li
               key={m.id}
-              className="rounded-xl border border-slate-200 p-3 bg-white shadow-sm"
+              className="rounded-xl border border-slate-200 p-3 bg-white"
             >
-              {/* Felső sor – csapatok szépen tördelve */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                <div
-                  className={`p-2 rounded-lg border ${
-                    m.winner === "A"
-                      ? "bg-indigo-50 border-indigo-300"
-                      : "border-slate-200"
-                  }`}
-                >
-                  <div className="font-medium">
-                    {nameOf(m.teamA[0])} & {nameOf(m.teamA[1])}
-                  </div>
-                  {m.winner === "A" && (
-                    <div className="text-indigo-600 text-xs font-semibold">
-                      WINNER
-                    </div>
-                  )}
-                </div>
-
-                <div
-                  className={`p-2 rounded-lg border ${
-                    m.winner === "B"
-                      ? "bg-indigo-50 border-indigo-300"
-                      : "border-slate-200"
-                  }`}
-                >
-                  <div className="font-medium">
-                    {nameOf(m.teamB[0])} & {nameOf(m.teamB[1])}
-                  </div>
-                  {m.winner === "B" && (
-                    <div className="text-indigo-600 text-xs font-semibold">
-                      WINNER
-                    </div>
-                  )}
-                </div>
+              <div className="mb-2 text-sm">
+                <p>
+                  <span className="font-semibold">Team A:</span>{" "}
+                  {nameOf(m.teamA[0])} & {nameOf(m.teamA[1])}
+                </p>
+                <p>
+                  <span className="font-semibold">Team B:</span>{" "}
+                  {nameOf(m.teamB[0])} & {nameOf(m.teamB[1])}
+                </p>
               </div>
 
-              {/* Alsó sor – Pick winner + Delete gombok */}
-              <div className="mt-3 flex items-center gap-2 text-xs">
-                <span className="font-medium text-slate-600">
-                  {m.winner ? "Winner:" : "Pick winner:"}
-                </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500">Winner:</span>
                 <button
                   type="button"
                   onClick={() => onPick(m.id, "A")}
-                  disabled={m.winner === "A"}
                   className={`${btnBase} px-3 py-1 ${
                     m.winner === "A"
-                      ? "bg-indigo-600 text-white"
-                      : "bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
+                      ? "bg-emerald-500 text-white"
+                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                   }`}
                 >
-                  Team A
+                  Team A {m.winner === "A" && "🏆"}
                 </button>
                 <button
                   type="button"
                   onClick={() => onPick(m.id, "B")}
-                  disabled={m.winner === "B"}
                   className={`${btnBase} px-3 py-1 ${
                     m.winner === "B"
-                      ? "bg-indigo-600 text-white"
-                      : "bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
+                      ? "bg-emerald-500 text-white"
+                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                   }`}
                 >
-                  Team B
+                  Team B {m.winner === "B" && "🏆"}
                 </button>
 
                 {m.winner && (
                   <button
                     type="button"
                     onClick={() => onClear(m.id)}
-                    // 🛠️ FIX: Fekete háttér eltávolítása: hozzáadva a bg-white
                     className={`${btnBase} px-3 py-1 text-slate-500 hover:bg-slate-100 bg-white`}
                   >
                     clear
                   </button>
                 )}
-
                 <button
                   type="button"
                   onClick={() => onDelete(m.id)}
@@ -1428,20 +1373,18 @@ function MatchesPlayer({
   // ha van grouped, nyissuk a legutolsót
   useEffect(() => {
     if (!grouped.length) return;
-    const sorted = [...grouped].sort((a, b) =>
-      b.date.localeCompare(a.date)
-    );
+    const sorted = [...grouped].sort((a, b) => b.date.localeCompare(a.date));
     const latestDate = sorted[0].date;
-
     setOpenDate((prev) => {
       // ha már nyitva van, hagyjuk
       if (prev === latestDate) return prev;
-      
       // különben nyissuk az utolsót
       return latestDate;
     });
   }, [grouped]);
   
+  // Segédfüggvény a név emoji nélküli részének kinyerésére (soroláshoz)
+  const baseName = (full: string) => full.replace(/^.+?\s/, "");
 
   return (
     <div className={card}>
@@ -1453,6 +1396,20 @@ function MatchesPlayer({
         <div className="space-y-2">
           {grouped.map((g) => {
             const isOpen = openDate === g.date;
+
+            // 🆕 Jelenlévő játékosok kinyerése
+            const presentIds = new Set<string>();
+            g.matches.forEach((m) => {
+              m.teamA.forEach((id) => presentIds.add(id));
+              m.teamB.forEach((id) => presentIds.add(id));
+            });
+            const presentPlayers = Array.from(presentIds)
+              .map(nameOf) // Emoji-val együtt
+              .sort((a, b) =>
+                baseName(a).localeCompare(baseName(b), "hu")
+              );
+            // 🆕 Kinyerés VÉGE
+            
             return (
               <div
                 key={g.date}
@@ -1463,71 +1420,110 @@ function MatchesPlayer({
                 <button
                   type="button"
                   onClick={() => setOpenDate(isOpen ? null : g.date)}
-                  className=" flex w-full items-center justify-between px-3 py-2 text-sm rounded-t-xl bg-white text-slate-800 /* <-- EZ A FONTOS!!! */ border-b border-slate-200 hover:bg-slate-50 "
+                  className="flex w-full items-center justify-between p-3"
                 >
-                  <span className="flex flex-col items-start">
-                    <span className="font-medium">{g.date}</span>
+                  <div className="flex-1 min-w-0 flex items-center gap-2">
+                    <span className="text-lg font-medium">{g.date}</span>
                     <span className="text-xs text-gray-500">
-                      {" "}
-                      {weekday(g.date)}{" "}
+                      ({weekday(g.date)})
                     </span>
-                  </span>
-                  <span className="text-xs text-gray-500">
-                    {g.matches.length} match
-                    <span className="ml-2 inline-block">
-                      {" "}
-                      {isOpen ? "▲" : "▼"}{" "}
+                    {/* 🆕 Résztvevők száma */}
+                    <span className="ml-2 text-xs font-semibold text-indigo-600 rounded-full px-2 py-0.5 bg-indigo-50 border border-indigo-200">
+                      {presentPlayers.length} present
                     </span>
-                  </span>
+                    
+                    {/* 🔔 Last session badge: only show if it's the last session date */}
+                    {g.date === grouped[0].date && (
+                      <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 border border-emerald-200">
+                        Last
+                      </span>
+                    )}
+                  </div>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={1.5}
+                    stroke="currentColor"
+                    className={`h-5 w-5 text-gray-400 transition-transform ${
+                      isOpen ? "rotate-180" : ""
+                    }`}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M19.5 8.25l-7.5 7.5-7.5-7.5"
+                    />
+                  </svg>
                 </button>
-                {/* Lenyíló rész – csak ha nyitva van */}
+                
+                {/* Tartalom: Jelenléti lista + meccsek */}
                 {isOpen && (
-                  <div className="border-t border-slate-200 px-3 py-2">
-                    <ul className="space-y-3">
-                      {g.matches.map((m) => (
-                        <li
-                          key={m.id}
-                          className="rounded-lg border border-slate-200 bg-slate-50/70 p-3 text-sm"
+                  <div className="p-3 border-t border-slate-100">
+                    
+                    {/* 🆕 Jelenléti lista megjelenítése */}
+                    <h4 className="text-sm font-semibold mb-2 text-slate-700">
+                      Attending Players ({presentPlayers.length})
+                    </h4>
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {presentPlayers.map((name) => (
+                        <span
+                          key={name}
+                          className="text-xs bg-slate-100 rounded-full px-3 py-1 text-slate-700"
                         >
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            {/* Team A */}
-                            <div
-                              className={`p-2 rounded-lg border ${
-                                m.winner === "A"
-                                  ? "bg-indigo-100 border-indigo-300"
-                                  : "border-slate-200"
-                              }`}
-                            >
-                              <div className="font-medium">
-                                {nameOf(m.teamA[0])} & {nameOf(m.teamA[1])}
-                              </div>
-                              {m.winner === "A" && (
-                                <div className="text-indigo-600 text-xs font-semibold">
-                                  WINNER
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Team B */}
-                            <div
-                              className={`p-2 rounded-lg border ${
-                                m.winner === "B"
-                                  ? "bg-indigo-100 border-indigo-300"
-                                  : "border-slate-200"
-                              }`}
-                            >
-                              <div className="font-medium">
-                                {nameOf(m.teamB[0])} & {nameOf(m.teamB[1])}
-                              </div>
-                              {m.winner === "B" && (
-                                <div className="text-indigo-600 text-xs font-semibold">
-                                  WINNER
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </li>
+                          {name}
+                        </span>
                       ))}
+                    </div>
+
+                    <h4 className="text-sm font-semibold mb-2 text-slate-700 border-t border-slate-100 pt-3">
+                      Matches ({g.matches.length})
+                    </h4>
+                    
+                    <ul className="space-y-2">
+                      {g.matches.map((m) => {
+                        const winA = m.winner === "A";
+                        const winB = m.winner === "B";
+
+                        return (
+                          <li
+                            key={m.id}
+                            className="text-sm rounded-xl border border-slate-200 p-3 bg-white"
+                          >
+                            <div
+                              className={`
+                                flex items-center justify-between
+                                ${winA && "font-semibold text-emerald-700"}
+                              `}
+                            >
+                              <p>
+                                {nameOf(m.teamA[0])} & {nameOf(m.teamA[1])}
+                              </p>
+                              {m.winner && (
+                                <span className="text-xs font-semibold">
+                                  {winA ? "Win 🏆" : "Loss 😞"}
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-xs text-gray-400">vs</div>
+                            <div
+                              className={`
+                                flex items-center justify-between
+                                ${winB && "font-semibold text-emerald-700"}
+                              `}
+                            >
+                              <p>
+                                {nameOf(m.teamB[0])} & {nameOf(m.teamB[1])}
+                              </p>
+                              {m.winner && (
+                                <span className="text-xs font-semibold">
+                                  {winB ? "Win 🏆" : "Loss 😞"}
+                                </span>
+                              )}
+                            </div>
+                          </li>
+                        );
+                      })}
                     </ul>
                   </div>
                 )}
@@ -1540,7 +1536,6 @@ function MatchesPlayer({
   );
 }
 
-
 function StandingsInfo() {
   return (
     <div className={card}>
@@ -1552,13 +1547,10 @@ function StandingsInfo() {
           <b>Base Points + Bonus Points</b>.
         </p>
         <p>
-          🥇 <b>Base points:</b> Win = +3 points, Loss = +1 point.
-          Ties are broken first by higher total points, higher Win% comes
-          first, then the number of matches played.
+          🥇 <b>Base points:</b> Win = +3 points, Loss = +1 point. Ties are broken first by higher total points, higher Win% comes first, then the number of matches played.
         </p>
         <p>
-          ⭐ <b>Bonus points:</b> +1 point for achievements such as beating
-          Melinda, or reaching the Ironman 10-session streak.
+          ⭐ <b>Bonus points:</b> +1 point for achievements such as beating Melinda, or reaching the Ironman 10-session streak.
         </p>
       </div>
     </div>
@@ -1589,19 +1581,22 @@ function AdminDateJump({
               <button
                 type="button"
                 onClick={() => setDate(g.date)}
-                className={` flex w-full items-center justify-between rounded-lg px-2 py-1 text-left bg-white text-slate-700 border border-slate-200 transition ${
-                  date === g.date
-                    ? "bg-indigo-50 border-indigo-300 text-indigo-700"
-                    : "hover:bg-slate-100"
-                } `}
+                className={`
+                  flex w-full items-center justify-between rounded-lg px-2 py-1 text-left
+                  bg-white text-slate-700 border border-slate-200 transition
+                  ${
+                    date === g.date
+                      ? "bg-indigo-50 border-indigo-300 text-indigo-700"
+                      : "hover:bg-slate-100"
+                  }
+                `}
               >
                 <span>{g.date}</span>
                 <span className="flex items-center gap-1 text-xs text-gray-500">
-                  {weekday(g.date)}{" "}
+                  {weekday(g.date)}
                   {lastSessionDate === g.date && (
                     <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 border border-emerald-200">
-                      {" "}
-                      Last{" "}
+                      Last
                     </span>
                   )}
                 </span>
@@ -1611,13 +1606,11 @@ function AdminDateJump({
         </ul>
       )}
       <p className="mt-2 text-xs text-gray-400">
-        {" "}
-        Pick a date to edit or add matches (including past sessions).{" "}
+        Training days: Monday & Wednesday
       </p>
     </div>
   );
 }
-
 
 function BackupPanel({
   backups,
@@ -1629,50 +1622,50 @@ function BackupPanel({
   onRestore: (id: string) => void;
 }) {
   const [note, setNote] = useState("");
-
   return (
     <div className={card}>
       <ShuttleBg />
-      <h3 className="mb-2 font-semibold">Backups ({backups.length})</h3>
+      <h3 className="mb-2 font-semibold">Data Backup</h3>
+      <div className="space-y-3">
+        <div className="flex gap-2">
+          <input
+            className={input}
+            placeholder="Backup note (optional)"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+          />
+          <button
+            className={btnPrimary}
+            onClick={() => {
+              onCreate(note);
+              setNote("");
+            }}
+          >
+            Create
+          </button>
+        </div>
 
-      <div className="flex gap-2 mb-3">
-        <input
-          className={input}
-          placeholder="Backup note (optional)"
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-        />
-        <button
-          className={btnSecondary}
-          onClick={() => {
-            onCreate(note);
-            setNote("");
-          }}
-          disabled={note.length > 50}
-        >
-          Create
-        </button>
-      </div>
+        <h4 className="mb-1 text-xs font-semibold text-slate-600 uppercase tracking-wide border-t border-slate-100 pt-3">
+          Restore from backup
+        </h4>
 
-      {backups.length === 0 ? (
-        <p className="text-sm text-gray-500">No backups yet.</p>
-      ) : (
-        <ul className="space-y-2 max-h-52 overflow-y-auto">
-          {[...backups]
-            .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-            .map((b) => (
+        {backups.length === 0 ? (
+          <p className="text-sm text-gray-500">No backups yet.</p>
+        ) : (
+          <ul className="space-y-2 max-h-52 overflow-y-auto">
+            {[...backups].reverse().map((b) => (
               <li
                 key={b.id}
-                className="rounded-xl border border-slate-200 p-3 bg-white shadow-sm"
+                className="flex items-center justify-between rounded-lg border border-slate-200 p-2 text-sm bg-white"
               >
-                <div className="text-xs text-gray-500">
-                  {b.createdAt.slice(0, 16).replace("T", " ")}
-                </div>
-                {b.note && (
-                  <div className="font-medium text-sm mt-1 mb-2">
-                    {b.note}
+                <div className="min-w-0">
+                  <div className="truncate font-medium">
+                    {new Date(b.createdAt).toLocaleString()}
                   </div>
-                )}
+                  <div className="truncate text-xs text-gray-500">
+                    {b.note || "No note"}
+                  </div>
+                </div>
                 <button
                   className={`${btnSecondary} px-3 py-1 text-xs`}
                   onClick={() => onRestore(b.id)}
@@ -1681,8 +1674,9 @@ function BackupPanel({
                 </button>
               </li>
             ))}
-        </ul>
-      )}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }
@@ -1707,13 +1701,10 @@ function PlayerStats({
     matches.forEach((m) => {
       const inA = m.teamA.includes(playerId);
       const inB = m.teamB.includes(playerId);
-
       if (!inA && !inB) return;
       if (!m.winner) return;
 
-      const isWin =
-        (m.winner === "A" && inA) || (m.winner === "B" && inB);
-
+      const isWin = (m.winner === "A" && inA) || (m.winner === "B" && inB);
       if (isWin) {
         wins++;
         form.push("W");
@@ -1742,88 +1733,143 @@ function PlayerStats({
     [players]
   );
 
-  // ha még nincs meId elmentve, válasszuk az első (ABC szerinti) playert
+  // ha még nincs meId elmentve, válasszuk az elsőt
   useEffect(() => {
-    const exists = sortedPlayers.some((p) => p.id === meId);
-    if ((!meId || !exists) && sortedPlayers.length) {
-      setMeId(sortedPlayers[0].id);
+    if (!meId && players.length) {
+      setMeId(players[0].id);
     }
-  }, [meId, sortedPlayers, setMeId]);
+    // Ha a meId egy már nem létező játékos, reset
+    if (meId && !players.some((p) => p.id === meId)) {
+      setMeId(players.length ? players[0].id : "");
+    }
+  }, [meId, players, setMeId]);
 
-  const me = sortedPlayers.find((p) => p.id === meId);
-  if (!me || !sortedPlayers.length) return null;
-
-  const stats = computePlayerStats(meId, matches);
+  const me = players.find((p) => p.id === meId);
+  const stats = me ? computePlayerStats(me.id, matches) : null;
 
   return (
     <div className={card}>
       <ShuttleBg />
-      <h3 className="mb-2 text-sm font-semibold text-slate-700"> My stats </h3>
+      <h3 className="mb-2 font-semibold">My Stats</h3>
 
-      {/* Játékosválasztó – ABC szerint rendezve */}
-      <select
-        className={`${input} text-sm mb-3`}
-        value={meId}
-        onChange={(e) => setMeId(e.target.value)}
-      >
-        {sortedPlayers.map((p) => (
-          <option key={p.id} value={p.id}>
-            {p.name}
-          </option>
-        ))}
-      </select>
-
-      <div className="space-y-2 text-sm">
-        <div className="flex justify-between">
-          <span>Total matches:</span>
-          <b>{stats.total}</b>
-        </div>
-        <div className="flex justify-between">
-          <span>Wins:</span>
-          <b className="text-emerald-700">{stats.wins}</b>
-        </div>
-        <div className="flex justify-between">
-          <span>Losses:</span>
-          <b className="text-rose-700">{stats.losses}</b>
-        </div>
-        <div className="flex justify-between font-semibold border-t border-slate-100 pt-2">
-          <span>Win rate:</span>
-          <b>{stats.winRate}%</b>
-        </div>
-      </div>
-
-      {/* Form (utolsó 5 meccs) */}
-      <div className="mt-3 border-t border-slate-100 pt-2">
-        <div className="flex justify-between">
-          <span className="text-xs text-gray-500">Form (last 5 matches):</span>
-          <div className="flex gap-1">
-            {stats.formLast5.map((f, i) => (
-              <span
-                key={i}
-                className={`
-                  inline-flex h-5 w-5 items-center justify-center rounded-full text-xs font-semibold
-                  ${
-                    f === "W"
-                      ? "bg-emerald-500 text-white"
-                      : "bg-rose-500 text-white"
-                  }
-                `}
-              >
-                {f}
-              </span>
-            ))}
+      {players.length === 0 ? (
+        <p className="text-sm text-gray-500">No players yet.</p>
+      ) : (
+        <>
+          <div className="mb-3">
+            <label className="mb-1 block text-xs text-gray-500">
+              Who am I?
+            </label>
+            <select
+              className={input}
+              value={meId}
+              onChange={(e) => setMeId(e.target.value)}
+            >
+              {sortedPlayers.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
           </div>
-        </div>
-      </div>
+
+          {stats && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-4">
+                <StatBox
+                  label="Matches"
+                  value={stats.total}
+                  icon="🏸"
+                  color="bg-indigo-50"
+                  iconColor="text-indigo-600"
+                />
+                <StatBox
+                  label="Wins"
+                  value={stats.wins}
+                  icon="🥇"
+                  color="bg-emerald-50"
+                  iconColor="text-emerald-600"
+                />
+                <StatBox
+                  label="Losses"
+                  value={stats.losses}
+                  icon="😞"
+                  color="bg-rose-50"
+                  iconColor="text-rose-600"
+                />
+                <StatBox
+                  label="Win %"
+                  value={`${stats.winRate}%`}
+                  icon="🎯"
+                  color="bg-amber-50"
+                  iconColor="text-amber-600"
+                />
+              </div>
+
+              {/* Forma (W/L) */}
+              <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
+                <span className="text-xs text-gray-500">
+                  Last {stats.formLast5.length} matches:
+                </span>
+                <div className="flex gap-1">
+                  {stats.formLast5.map((f, i) => (
+                    <span
+                      key={i}
+                      className={`
+                        inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold
+                        ${
+                          f === "W"
+                            ? "bg-emerald-500 text-white"
+                            : "bg-rose-500 text-white"
+                        }
+                      `}
+                    >
+                      {f}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
 
+function StatBox({
+  label,
+  value,
+  icon,
+  color,
+  iconColor,
+}: {
+  label: string;
+  value: string | number;
+  icon: string;
+  color: string;
+  iconColor: string;
+}) {
+  return (
+    <div
+      className={`flex flex-1 flex-col items-center justify-center rounded-xl p-2 ${color}`}
+    >
+      <div
+        className={`flex h-6 w-6 items-center justify-center rounded-full bg-white text-sm shadow-sm ${iconColor}`}
+      >
+        {icon}
+      </div>
+      <div className="mt-1 text-base font-semibold text-slate-900">
+        {value}
+      </div>
+      <div className="text-[10px] uppercase text-gray-500">{label}</div>
+    </div>
+  );
+}
 
 function Standings({
   rows,
-  players,
-  matches,
+  // matches, // REMOVED: unused prop
   achievementsById,
 }: {
   rows: (ReturnType<typeof useLeague>[0]["players"][number] & {
@@ -1836,8 +1882,7 @@ function Standings({
     totalPoints: number;
     qualified: boolean;
   })[];
-  players: Player[];
-  matches: Match[];
+  // matches: Match[]; // REMOVED: unused prop
   achievementsById: Map<string, Achievement[]>;
 }) {
   const BADGE_CONFIG: Record<string, { icon: string; label: string }> = {
@@ -1861,83 +1906,60 @@ function Standings({
         <div className="overflow-x-auto">
           <table className="w-full min-w-[700px] text-sm">
             <thead>
-              <tr className="text-left text-gray-500">
-                <th className="py-2 px-2">#</th>
-                <th className="py-2 px-2">Player</th>
-                <th className="py-2 px-2">Wins</th>
-                <th className="py-2 px-2">Losses</th>
-                <th className="py-2 px-2">Win%</th>
-                <th className="py-2 px-2">Matches</th>
-                <th className="py-2 px-2">Points</th>
+              <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
+                <th className="py-2 pl-1 font-semibold">#</th>
+                <th className="py-2 font-semibold">Player</th>
+                <th className="py-2 font-semibold">Total Points</th>
+                <th className="py-2 font-semibold">Wins</th>
+                <th className="py-2 font-semibold">Losses</th>
+                <th className="py-2 font-semibold">Played</th>
+                <th className="py-2 font-semibold">Win %</th>
+                <th className="py-2 pr-1 font-semibold">Badges</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((row, idx) => {
-                const ach =
-                  achievementsById?.get(row.id) ??
-                  computeAchievementsFull(row.id, matches, players);
-                return (
-                  <tr
-                    key={row.id}
-                    className={
-                      idx % 2 === 0 ? "border-t bg-slate-50/60" : "border-t"
-                    }
-                  >
-                    <td className="py-2 px-2 align-middle">{idx + 1}</td>
-                    {/* Név + ❕ + badge ikonok EGY SORBAN */}
-                    <td className="py-2 px-2 align-middle">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium flex items-center gap-1">
-                          {row.name}{" "}
-                          {!row.qualified && (
-                            <span
-                              className=" inline-flex items-center rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 border border-amber-200 "
-                              title="Less than 5 matches – provisional ranking"
-                            >
-                              {" "}
-                              ❕{" "}
-                            </span>
-                          )}
-                        </span>
-                        <div className="flex gap-1">
-                          {ach.map((a) => {
-                            const config = BADGE_CONFIG[a.id];
-                            if (!config) return null;
-                            return (
-                              <span
-                                key={a.id}
-                                className="text-xs"
-                                title={config.label}
-                              >
-                                {config.icon}
-                              </span>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-2 px-2 align-middle">{row.wins}</td>
-                    <td className="py-2 px-2 align-middle">{row.losses}</td>
-                    <td className="py-2 px-2 align-middle">
-                      {row.winRate}%
-                    </td>
-                    <td className="py-2 px-2 align-middle">{row.matches}</td>
-                    <td className="py-2 px-2 align-middle">
-                      <b className="text-slate-900">{row.basePoints}</b>
-                      {row.bonusPoints > 0 && (
-                        <span className="text-xs text-amber-700 ml-1">
-                          (+{row.bonusPoints}
-                          <span title="Bonus points for achievements">
-                            {" "}
-                            ⭐
-                          </span>
-                          )
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
+              {rows.map((r, i) => (
+                <tr
+                  key={r.id}
+                  className={`border-b border-slate-100 ${
+                    !r.qualified ? "opacity-60" : ""
+                  }`}
+                >
+                  <td className="py-2 pl-1 font-medium">{i + 1}.</td>
+                  <td className="py-2 font-medium text-slate-800">
+                    {r.name}
+                    {!r.qualified && (
+                      <span className="ml-2 text-xs text-gray-500">
+                        (min. 5 matches needed)
+                      </span>
+                    )}
+                  </td>
+                  <td className="py-2 font-bold text-indigo-700">
+                    {r.totalPoints}
+                    {r.bonusPoints > 0 && (
+                      <span className="ml-1 text-xs font-normal text-gray-500">
+                        ({r.basePoints} + {r.bonusPoints}
+                        <span className="ml-1 text-amber-500"> ⭐ </span>)
+                      </span>
+                    )}
+                  </td>
+                  <td className="py-2 text-emerald-600">{r.wins}</td>
+                  <td className="py-2 text-rose-600">{r.losses}</td>
+                  <td className="py-2">{r.matches}</td>
+                  <td className="py-2 font-medium">{r.winRate}%</td>
+                  <td className="py-2 pr-1">
+                    {achievementsById.get(r.id)?.map((a) => (
+                      <span
+                        key={a.id}
+                        className="mr-1 inline-block"
+                        title={a.title}
+                      >
+                        {BADGE_CONFIG[a.id]?.icon || "⭐"}
+                      </span>
+                    ))}
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
@@ -1946,17 +1968,16 @@ function Standings({
   );
 }
 
-
 export default function App() {
   const [role, setRole] = useState<"player" | "admin">(() => {
-    return (localStorage.getItem("bia_role") as "player" | "admin") || "player";
+    return (
+      (localStorage.getItem("bia_role") as "player" | "admin") || "player"
+    );
   });
-
   const setPlayer = () => {
     localStorage.setItem("bia_role", "player");
     setRole("player");
   };
-
   const setAdmin = () => {
     const pwd = prompt("Admin password:");
     if (pwd === "biatollas") {
@@ -1971,7 +1992,6 @@ export default function App() {
   const [meId, setMeId] = useState(() => {
     return localStorage.getItem("meId") || "";
   });
-
   useEffect(() => {
     if (meId) localStorage.setItem("meId", meId);
   }, [meId]);
@@ -1981,7 +2001,7 @@ export default function App() {
 
   // 🆕 Jelenlét a sorsoláshoz (Admin nézet)
   const [presentPlayerIds, setPresentPlayerIds] = useState<string[]>([]);
-  
+
   // 🆕 Reset attendance when date changes
   const setDateAndResetAttendance = useCallback((newDate: string) => {
     setDate(newDate);
@@ -1990,40 +2010,54 @@ export default function App() {
 
   // ========================= Data derivation =========================
   const [league, write] = useLeague();
-  
   const players = league.players || [];
   const backups = league.backups ?? [];
-  const matchesForDate = useMemo(
-    () => league.matches.filter((m) => m.date === date),
-    [league.matches, date]
-  );
+  const isAdmin = role === "admin";
+
+  const grouped = useMemo(() => {
+    // Csoportosítás dátum szerint (a legújabb van elöl!)
+    const map = new Map<string, Match[]>();
+    [...league.matches].reverse().forEach((m) => {
+      if (!map.has(m.date)) map.set(m.date, []);
+      map.get(m.date)?.push(m);
+    });
+
+    return Array.from(map.entries()).map(([date, matches]) => ({
+      date,
+      matches,
+    }));
+  }, [league.matches]);
+
+  const matchesForDate = useMemo(() => {
+    return league.matches.filter((m) => m.date === date);
+  }, [league.matches, date]);
+
   const nameOf = useCallback(
-    (id: string) => players.find((p) => p.id === id)?.name || "?",
+    (id: string) => players.find((p) => p.id === id)?.name || id,
     [players]
   );
 
-  // seen teammate pairs only for this date
   const seenTeammatesToday = useMemo(() => {
-    const s = new Set<string>();
+    const seen = new Set<string>();
     matchesForDate.forEach((m) => {
-      s.add(key(m.teamA[0], m.teamA[1]));
-      s.add(key(m.teamB[0], m.teamB[1]));
+      // Csak azok a meccsek számítanak, amiknek már van győztese
+      if (m.winner) {
+        seen.add(key(m.teamA[0], m.teamA[1]));
+        seen.add(key(m.teamB[0], m.teamB[1]));
+      }
     });
-    return s;
+    return seen;
   }, [matchesForDate]);
 
-  // everyone can appear in multiple matches on a date
-  const freeIds = useMemo(() => players.map((p) => p.id), [players]);
+  const lastSessionDate = grouped.length > 0 ? grouped[0].date : null;
 
+  // ========================= Standings calculation =========================
+  const { standings, achievementsById } = useMemo(() => {
+    const MIN_MATCHES = 5;
 
-  // ========================= Standings (aggregate all dates) =========================
-  const standings = useMemo(() => {
-    const MIN_MATCHES = 5; // if changed later, only this needs to be updated
     const map = new Map<
       string,
-      {
-        id: string;
-        name: string;
+      (Player & {
         wins: number;
         losses: number;
         matches: number;
@@ -2032,10 +2066,10 @@ export default function App() {
         bonusPoints: number;
         totalPoints: number;
         qualified: boolean;
-      }
+      })
     >();
 
-    players.forEach((p) => {
+    players.forEach((p) =>
       map.set(p.id, {
         ...p,
         wins: 0,
@@ -2046,12 +2080,14 @@ export default function App() {
         bonusPoints: 0,
         totalPoints: 0,
         qualified: false,
-      });
-    });
+      })
+    );
 
+    // BASE points: +3 for win, +1 for loss
     league.matches.forEach((m) => {
-      const winnerTeam = m.winner === "A" ? m.teamA : m.winner === "B" ? m.teamB : null;
-      const loserTeam = m.winner === "A" ? m.teamB : m.winner === "B" ? m.teamA : null;
+      if (!m.winner) return;
+      const winnerTeam = m.winner === "A" ? m.teamA : m.teamB;
+      const loserTeam = m.winner === "A" ? m.teamB : m.teamA;
 
       if (winnerTeam) {
         winnerTeam.forEach((id) => {
@@ -2078,70 +2114,53 @@ export default function App() {
     });
 
     // BONUS points: Beat Melinda + Ironman (10 streak)
+    const achievementsMap = new Map<string, Achievement[]>();
     players.forEach((p) => {
       const ach = computeAchievementsFull(p.id, league.matches, players);
+      achievementsMap.set(p.id, ach);
+
       const hasBeatMelinda = ach.some((a) => a.id === "beatMelinda");
       const hasIronman = ach.some((a) => a.id === "streak10");
+
       const r = map.get(p.id);
       if (!r) return;
+      
       if (hasBeatMelinda) r.bonusPoints += 1;
       if (hasIronman) r.bonusPoints += 1;
+      
       r.totalPoints = r.basePoints + r.bonusPoints;
     });
 
-    // Ranking – qualified first, then totalPoints, win%, matches, name
-    return Array.from(map.values()).sort((a, b) => {
-      // 1) first: minimum matches achieved?
+    // Ranking – qualified first, then total points, then win rate, then total matches
+    const sorted = Array.from(map.values()).sort((a, b) => {
+      // 1. Qualified vs Not Qualified (Qualified first)
       if (a.qualified !== b.qualified) {
         return a.qualified ? -1 : 1;
       }
-      // 2) main criteria: total score (basePoints + bonusPoints)
+      // 2. Total Points (Higher is better)
       if (b.totalPoints !== a.totalPoints) {
         return b.totalPoints - a.totalPoints;
       }
-      // 3) if points are equal: better win rate comes first
+      // 3. Win Rate (Higher is better)
       if (b.winRate !== a.winRate) {
         return b.winRate - a.winRate;
       }
-      // 4) if still equal: more matches come first
+      // 4. Total Matches (More is better)
       if (b.matches !== a.matches) {
         return b.matches - a.matches;
       }
-      // 5) final tie-breaker: by name
-      return a.name.localeCompare(b.name);
+      // 5. Alphabetical name (A-Z)
+      return a.name.localeCompare(b.name, "hu");
     });
-  }, [league.matches, players]);
 
+    return { standings: sorted, achievementsById: achievementsMap };
+  }, [players, league.matches]);
 
-  // Grouped results for Player view + last session date
-  const grouped = useMemo(() => {
-    const by: Record<string, Match[]> = {};
-    league.matches.forEach((m) => {
-      if (!by[m.date]) by[m.date] = [];
-      by[m.date].push(m);
-    });
-    return Object.entries(by)
-      .map(([date, matches]) => ({ date, matches }))
-      .sort((a, b) => b.date.localeCompare(a.date)); // descending date
-  }, [league.matches]);
-
-  const lastSessionDate = grouped[0]?.date || null;
-
-
-  // Cache all achievements for standings table
-  const achievementsById = useMemo(() => {
-    const map = new Map<string, Achievement[]>();
-    players.forEach((p) => {
-      map.set(p.id, computeAchievementsFull(p.id, league.matches, players));
-    });
-    return map;
-  }, [league.matches, players]);
-
-  // ========================= Data modification handlers =========================
+  // ========================= Admin actions =========================
 
   const addPlayer = (name: string) => {
     if (!role) return;
-    const newPlayer: Player = { id: uid(), name };
+    const newPlayer = { id: uid(), name };
     write({ players: [...players, newPlayer] });
     // Ha admin ad hozzá, attól még nem lesz ő a "meId"
     // Ha player nézetből jött, akkor a PlayerStats úgyis beállítja őt meId-nek (lásd: PlayerStats useEffect)
@@ -2149,7 +2168,9 @@ export default function App() {
 
   const removePlayer = (id: string) => {
     if (!role) return;
-    if (!confirm("Delete this player permanently? This cannot be undone.")) return;
+    if (!confirm("Delete this player permanently? This cannot be undone."))
+      return;
+
     write({
       players: players.filter((p) => p.id !== id),
       matches: league.matches.filter(
@@ -2182,58 +2203,50 @@ export default function App() {
 
   const pickWinner = (id: string, w: "A" | "B") => {
     if (!isAdmin) return;
-    write({
-      matches: league.matches.map((m) =>
-        m.id === id ? { ...m, winner: w } : m
-      ),
-    });
-  };
-
-  const deleteMatch = (id: string) => {
-    if (!isAdmin) return;
-    if (!confirm("Delete this match permanently?")) return;
-    write({ matches: league.matches.filter((m) => m.id !== id) });
+    const nextMatches = league.matches.map((m) =>
+      m.id === id ? { ...m, winner: w } : m
+    );
+    write({ matches: nextMatches });
   };
 
   const clearWinner = (id: string) => {
     if (!isAdmin) return;
-    write({
-      matches: league.matches.map((m) =>
-        m.id === id ? { ...m, winner: undefined } : m
-      ),
+    const nextMatches = league.matches.map((m) => {
+      if (m.id !== id) return m;
+      const { winner, ...rest } = m;
+      return rest;
     });
+    write({ matches: nextMatches });
   };
 
-  // ... (previous code: clearWinner)
-  // 🆕 NEW: Balanced "High-Low" draw for 3 ROUNDS (using present players)
-  const autoDraw = () => {
+  const deleteMatch = (id: string) => {
     if (!isAdmin) return;
-    
-    // 🆕 Jelenlévő játékosok használata
-    const poolIds = presentPlayerIds.length > 0 ? presentPlayerIds : players.map((p) => p.id);
-    const poolPlayers = players.filter((p) => poolIds.includes(p.id));
-    const allPlayerIds = poolPlayers.map(p => p.id);
+    if (!confirm("Delete this match permanently? This cannot be undone."))
+      return;
+    write({ matches: league.matches.filter((m) => m.id !== id) });
+  };
 
-    // 🆕 Check for minimum players
-    if (poolPlayers.length < 4) {
-      alert("Need at least 4 players to draw matches. (Check the attendance list.)");
+  const drawMatches = (allPlayerIds: string[]) => {
+    if (!isAdmin) return;
+    if (allPlayerIds.length < 4) {
+      alert("At least 4 players are required for a draw.");
       return;
     }
 
-    // 1. Helper function: Calculate score for a player
+    // 1. Compute current 'score' based on wins (1 pt per win) for fair pairing.
     const getScore = (pid: string) => {
       let pts = 0;
       let matchCount = 0;
-      league.matches.forEach(m => {
-        if (m.winner) {
-          const inA = m.teamA.includes(pid);
-          const inB = m.teamB.includes(pid);
-          if (!inA && !inB) return;
-          matchCount++;
-          const isWin = (m.winner === "A" && inA) || (m.winner === "B" && inB);
-          // Auto-draw score is still just 1 point for win, 0 for loss for fair pairing
-          if (isWin) pts += 1; // Used only for pairing
-        }
+      // Only count matches with a winner on the *current date* to ensure fresh ranking for the day.
+      matchesForDate.forEach((m) => {
+        if (!m.winner) return; // Only matches with winners count
+        const inA = m.teamA.includes(pid);
+        const inB = m.teamB.includes(pid);
+        if (!inA && !inB) return;
+        matchCount++;
+        const isWin = (m.winner === "A" && inA) || (m.winner === "B" && inB);
+        // Auto-draw score is still just 1 point for win, 0 for loss for fair pairing
+        if (isWin) pts += 1; // Used only for pairing
       });
       return { id: pid, score: pts, matches: matchCount };
     };
@@ -2261,45 +2274,60 @@ export default function App() {
       // 3. CREATE PAIRS (High-Low method)
       while (workingPool.length >= 2) {
         const high = workingPool[0]; // The strongest player
-        let bestMateIndex = -1; // Search from the bottom up (Looking for the weakest) for a partner they haven't teamed up with today
-        
+        let bestMateIndex = -1;
+        // Search from the bottom up (Looking for the weakest) for a partner they haven't teamed up with today
         for (let i = workingPool.length - 1; i > 0; i--) {
           const candidate = workingPool[i];
           if (!localSeenTeammatesToday.has(key(high.id, candidate.id))) {
             bestMateIndex = i;
-            break; // Found the best partner
+            break;
           }
         }
 
-        // If there's no "virgin" pair, select the weakest available
-        if (bestMateIndex === -1) bestMateIndex = workingPool.length - 1;
+        if (bestMateIndex !== -1) {
+          const mate = workingPool[bestMateIndex];
+          teams.push([high.id, mate.id] as Pair);
 
-        const low = workingPool[bestMateIndex];
-        const newPair: Pair = [high.id, low.id];
-        teams.push(newPair);
+          // Remove both players from the pool (high is 0, mate is bestMateIndex)
+          workingPool.splice(bestMateIndex, 1);
+          workingPool.splice(0, 1); // remove high (was at index 0)
 
-        // ❗️ UPDATE: This pair has been seen today (matters for later rounds)
-        localSeenTeammatesToday.add(key(high.id, low.id));
-
-        // Remove them from the pool
-        workingPool.splice(bestMateIndex, 1);
-        workingPool.shift();
+          // Mark this pair as seen for future rounds on this day
+          localSeenTeammatesToday.add(key(high.id, mate.id));
+        } else {
+          // Fallback: If no unseen partner is found, take the lowest ranked partner
+          const mate = workingPool[workingPool.length - 1];
+          teams.push([high.id, mate.id] as Pair);
+          workingPool.splice(workingPool.length - 1, 1);
+          workingPool.splice(0, 1);
+          // Still mark as seen
+          localSeenTeammatesToday.add(key(high.id, mate.id));
+        }
       }
 
-      // 4. CREATE MATCHES from the even teams
-      // Pair up the teams (1st team vs 2nd team, 3rd team vs 4th team, etc.)
-      for (let i = 0; i + 1 < teams.length; i += 2) {
+      // If we have at least 2 teams, pair them up
+      while (teams.length >= 2) {
+        // High-low match: strongest team (0) vs weakest team (last)
+        const teamA = teams[0];
+        const teamB = teams[teams.length - 1];
+
+        // This match is ready
         roundMatches.push({
           id: uid(),
           date,
-          teamA: teams[i],
-          teamB: teams[i + 1],
+          teamA,
+          teamB,
         });
+
+        // Remove teams
+        teams.splice(teams.length - 1, 1);
+        teams.splice(0, 1);
       }
-      
+
+      // Add round matches to all matches
       allMatches.push(...roundMatches);
     }
-    
+
     if (allMatches.length === 0) {
       alert("Could not generate a balanced draw with the current players.");
       return;
@@ -2308,7 +2336,6 @@ export default function App() {
     // Add all generated matches to the league data
     write({ matches: [...league.matches, ...allMatches] });
   };
-
 
   const createBackup = (note: string) => {
     if (!isAdmin) return;
@@ -2335,12 +2362,9 @@ export default function App() {
       )
     )
       return;
-
     // Restore players and matches from backup
     write({ players: backup.data.players, matches: backup.data.matches });
   };
-
-  const isAdmin = role === "admin";
 
   return (
     <div className="min-h-screen bg-[#eef2ff] text-slate-900">
@@ -2355,6 +2379,7 @@ export default function App() {
         {/* Date selector */}
         <div className="space-y-2">
           <DatePicker value={date} onChange={setDateAndResetAttendance} />
+
           {role === "admin" && (
             <div className="flex flex-wrap gap-2 text-xs text-gray-600">
               <button
@@ -2367,9 +2392,11 @@ export default function App() {
               <button
                 type="button"
                 className={`${btnSecondary} px-3 py-1`}
-                onClick={() => setDateAndResetAttendance(fmt(nextTrainingDate()))}
+                onClick={() =>
+                  setDateAndResetAttendance(fmt(nextTrainingDate()))
+                }
               >
-                Next training
+                Next Training Day
               </button>
               {lastSessionDate && (
                 <button
@@ -2377,34 +2404,49 @@ export default function App() {
                   className={`${btnSecondary} px-3 py-1`}
                   onClick={() => setDateAndResetAttendance(lastSessionDate)}
                 >
-                  Last session
+                  Last Session ({lastSessionDate})
                 </button>
               )}
             </div>
           )}
         </div>
 
-
-        {role === "admin" ? (
+        {/* ========================= ADMIN VIEW ========================= */}
+        {isAdmin ? (
           <>
-            <section className="grid gap-4 sm:gap-6 md:grid-cols-3">
+            <section className="mt-4 grid gap-4 sm:mt-6 md:grid-cols-3">
               <div className="space-y-4 md:col-span-2">
                 <PlayerEditor
                   players={players}
                   onAdd={addPlayer}
                   onRemove={removePlayer}
                   onUpdateEmoji={updatePlayerEmoji}
-                  disabled={!isAdmin}
                 />
-
+                <AttendanceList
+                  players={players}
+                  date={date}
+                  presentIds={presentPlayerIds}
+                  setPresentIds={setPresentPlayerIds}
+                />
                 <SelectPairs
                   players={players}
-                  freeIds={freeIds}
+                  freeIds={players
+                    .filter((p) => presentPlayerIds.includes(p.id))
+                    .map((p) => p.id)}
                   seenTeammates={seenTeammatesToday}
                   onCreate={addMatch}
-                  disabled={!isAdmin}
                 />
+                <button
+                  className={btnPrimary}
+                  onClick={() => drawMatches(presentPlayerIds)}
+                  disabled={presentPlayerIds.length < 4}
+                >
+                  🎲 Auto-Draw 3 Matches (Present Players:{" "}
+                  {presentPlayerIds.length})
+                </button>
+              </div>
 
+              <div className="space-y-4">
                 <MatchesAdmin
                   matches={matchesForDate}
                   nameOf={nameOf}
@@ -2412,50 +2454,17 @@ export default function App() {
                   onClear={clearWinner}
                   onDelete={deleteMatch}
                 />
-              </div>
-
-              {/* Jobb oldali sáv: Jelenlét, Sorsolás, Dátumugrás, Backup, Infó */}
-              <div className="space-y-4">
-                {/* 🆕 Jelenléti Lista */}
-                <AttendanceList 
-                  players={players} 
-                  date={date} 
-                  presentIds={presentPlayerIds} 
-                  setPresentIds={setPresentPlayerIds} 
-                />
-
-                <div className={card}>
-                  <ShuttleBg />
-                  <h3 className="mb-2 font-semibold">Match Draw (based on attendance)</h3>
-                  <button
-                    className={`${btnPrimary} w-full`}
-                    onClick={autoDraw}
-                    disabled={players.length < 4 || presentPlayerIds.length < 4}
-                  >
-                    Auto-draw 3 Rounds (High-Low)
-                  </button>
-                  {presentPlayerIds.length > 0 && presentPlayerIds.length < 4 && (
-                    <p className="mt-2 text-xs text-rose-500">
-                      Minimum 4 **present** players required for auto-draw.
-                    </p>
-                  )}
-                  {presentPlayerIds.length === 0 && players.length >= 4 && (
-                     <p className="mt-2 text-xs text-gray-400">
-                      **Warning:** Currently using **ALL** players for draw (since no one is marked as present).
-                    </p>
-                  )}
-                  <p className="mt-2 text-xs text-gray-400">
-                    Creates 3 rounds of matches using a balanced high-low
-                    ranking method to ensure variety.
-                  </p>
-                </div>
                 <AdminDateJump
                   grouped={grouped}
                   date={date}
                   setDate={setDateAndResetAttendance}
                   lastSessionDate={lastSessionDate}
                 />
-                <BackupPanel onCreate={createBackup} onRestore={restoreBackup} backups={backups} />
+                <BackupPanel
+                  onCreate={createBackup}
+                  onRestore={restoreBackup}
+                  backups={backups}
+                />
                 <StandingsInfo />
               </div>
             </section>
@@ -2464,63 +2473,27 @@ export default function App() {
             <div className="mt-4 sm:mt-6">
               <Standings
                 rows={standings}
-                players={players}
-                matches={league.matches}
+                // matches={league.matches} // REMOVED: unused prop
                 achievementsById={achievementsById}
               />
             </div>
           </>
         ) : (
+          /* ========================= PLAYER VIEW ========================= */
           <>
             <section className="grid gap-4 sm:gap-6 md:grid-cols-3">
               <div className="space-y-4 md:col-span-2">
-                <MatchesPlayer
-                  grouped={grouped}
-                  nameOf={nameOf}
-                />
-                <StandingsInfo />
+                <MatchesPlayer grouped={grouped} nameOf={nameOf} />
               </div>
 
               <div className="space-y-4">
-                {/* Legutolsó dátumok lista */}
-                <div className={card}>
-                  <ShuttleBg />
-                  <h3 className="mb-2 font-semibold">Latest sessions</h3>
-                  {grouped.length === 0 ? (
-                    <p className="text-sm text-gray-500">No matches yet.</p>
-                  ) : (
-                    <ul className="text-sm space-y-1 max-h-52 overflow-y-auto">
-                      {grouped.slice(0, 10).map((g) => (
-                        <li key={g.date}>
-                          <a
-                            href={`#date-${g.date}`}
-                            className="flex w-full items-center justify-between rounded-lg px-2 py-1 text-left bg-white text-slate-700 border border-slate-200 transition hover:bg-slate-100 hover:text-[#4f8ef7]"
-                            onClick={(e) => {
-                              // manuálisan nyissa meg az adott dátumot
-                              e.preventDefault();
-                              // ez a logikát kicseréltem a MatchesPlayer komponensbe:
-                              // setOpenDate(g.date); 
-                              window.location.hash = `date-${g.date}`;
-                            }}
-                          >
-                            <span>{g.date}</span>
-                            <span className="flex items-center gap-1 text-xs text-gray-500">
-                              {weekday(g.date)}
-                              {lastSessionDate === g.date && (
-                                <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 border border-emerald-200">
-                                  Last
-                                </span>
-                              )}
-                            </span>
-                          </a>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  <p className="mt-2 text-xs text-gray-400">
-                    Training days: Monday & Wednesday
-                  </p>
-                </div>
+                {/* Dátum ugrás (Player nézet) */}
+                <AdminDateJump
+                  grouped={grouped}
+                  date={date}
+                  setDate={setDate}
+                  lastSessionDate={lastSessionDate}
+                />
 
                 {/* Statisztikák */}
                 <PlayerStats
@@ -2538,6 +2511,7 @@ export default function App() {
                 />
 
                 {/* Infók */}
+                <StandingsInfo />
               </div>
             </section>
 
@@ -2545,8 +2519,7 @@ export default function App() {
             <div className="mt-4 sm:mt-6">
               <Standings
                 rows={standings}
-                players={players}
-                matches={league.matches}
+                // matches={league.matches} // REMOVED: unused prop
                 achievementsById={achievementsById}
               />
             </div>
