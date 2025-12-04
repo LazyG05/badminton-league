@@ -623,11 +623,11 @@ const btnBase =
   "inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-40 disabled:cursor-not-allowed";
 
 const btnPrimary = `${btnBase} bg-[#4f8ef7] text-white hover:bg-[#3b7ae0] focus-visible:ring-[#4f8ef7]`;
-const btnSecondary = `${btnBase} border border-slate-200 bg-white text-slate-800 hover:bg-slate-50 focus-visible:ring-[#4f8ef7]`;
+const btnSecondary = `${btnBase} border border-slate-300 bg-slate-50 text-slate-800 hover:bg-slate-100 focus-visible:ring-slate-400`;
 const btnDanger = `${btnBase} bg-rose-500 text-white hover:bg-rose-600 focus-visible:ring-rose-400`;
 
 const card =
-  "relative overflow-hidden rounded-3xl bg-white/95 p-4 shadow-sm border border-slate-100";
+  "relative overflow-hidden rounded-3xl bg-white p-4 shadow-sm border border-slate-200 text-slate-900";
 
 const input =
   "w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#4f8ef7]";
@@ -1698,9 +1698,10 @@ function StandingsInfo() {
         <p>
           🥇 <b>Base points:</b> Win = +3 points, Loss = +1 point. Ties are broken first by higher total points, higher Win% comes first, then the number of matches played.
         </p>
-        <p>
-          ⭐ <b>Bonus points:</b> +1 point for achievements such as beating Melinda, or reaching the Ironman 10-session streak.
-        </p>
+<p>
+  ⭐ <b>Bonus points:</b> +1 point for special achievements:
+  beating Melinda, and reaching the Ironman 10-session streak.
+</p>
       </div>
     </div>
   );
@@ -2354,14 +2355,22 @@ export default function App() {
       }
     });
 
-    // Compute achievements (bonus points)
-    const achievementsMap = new Map<string, Achievement[]>();
-    map.forEach((stats) => {
-      const ach = computeAchievementsFull(stats.id, league.matches, players);
-      achievementsMap.set(stats.id, ach);
-      stats.bonusPoints = ach.length; // +1 point for each achievement
-      stats.totalPoints = stats.basePoints + stats.bonusPoints;
-    });
+ // Compute achievements (bonus points)
+const achievementsMap = new Map<string, Achievement[]>();
+
+// csak ezek a badge-ek érnek +1 pontot
+const BONUS_ACHIEVEMENT_IDS = new Set(["beatMelinda", "streak10"]);
+
+map.forEach((stats) => {
+  const ach = computeAchievementsFull(stats.id, league.matches, players);
+  achievementsMap.set(stats.id, ach);
+
+  // csak a beatMelinda és a streak10 badge-eket számoljuk bonusznak
+  stats.bonusPoints = ach.filter((a) => BONUS_ACHIEVEMENT_IDS.has(a.id)).length;
+
+  stats.totalPoints = stats.basePoints + stats.bonusPoints;
+});
+
 
     const rows = Array.from(map.values());
 
@@ -2536,8 +2545,8 @@ export default function App() {
 
   return (
     // 🛠️ FIX: Beállítjuk a fő háttérszínt, hogy felülírja a sötét mód fekete hátterét.
-    <div className="min-h-screen bg-slate-50"> 
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-slate-100 text-slate-900">
+    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         <Header
           title={league.title}
           role={role}
