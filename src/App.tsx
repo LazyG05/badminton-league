@@ -1,4 +1,6 @@
-// 🔹 Elsőként: polyfill régi böngészőkhöz (iOS 10 Safari)
+// 🔹 Polyfillek régi böngészőkhöz (iOS 10, régi Safari)
+import "core-js/stable";
+import "regenerator-runtime/runtime";
 import "cross-fetch/polyfill";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
