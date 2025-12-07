@@ -1,3 +1,6 @@
+// 🔹 Elsőként: polyfill régi böngészőkhöz (iOS 10 Safari)
+import "cross-fetch/polyfill";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { initializeApp } from "firebase/app";
 import {
