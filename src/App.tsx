@@ -2277,8 +2277,7 @@ export default function App() {
   const { players, matches, backups = [] } = league;
 
   const [role, setRole] = useState<"player" | "admin">("player");
-  const [adminPass, setAdminPass] = useState("");
-  const isAdmin = role === "admin" && adminPass === "biatollas";
+  const isAdmin = role === "admin";
 
   // Player view: selected player ID
   const [meId, setMeId] = useState<string>(players.length ? players[0].id : "");
@@ -2287,13 +2286,12 @@ export default function App() {
   const [date, setDate] = useState(defaultDate);
   // 🆕 Admin view: Jelenléti lista
   const [presentIds, setPresentIds] = useState<string[]>([]);
-  
+
   // Amikor az admin átvált dátumot, nullázza a jelenléti listát (hogy új session indulhasson)
   const setDateAndResetAttendance = useCallback((newDate: string) => {
     setDate(newDate);
     setPresentIds([]);
   }, []);
-
 
   // ========================= Filter matches by date =========================
   const matchesForDate = useMemo(
@@ -2337,9 +2335,9 @@ export default function App() {
   const { standings, achievementsById } = useMemo(() => {
     const MIN_MATCHES = 5;
 
-    const map = new Map<
+    const statsById = new Map<
       string,
-      Player & {
+      {
         wins: number;
         losses: number;
         matches: number;
@@ -2351,9 +2349,8 @@ export default function App() {
       }
     >();
 
-    players.forEach((p) =>
-      map.set(p.id, {
-        ...p,
+    players.forEach((p) => {
+      statsById.set(p.id, {
         wins: 0,
         losses: 0,
         matches: 0,
@@ -2362,96 +2359,77 @@ export default function App() {
         bonusPoints: 0,
         totalPoints: 0,
         qualified: false,
-      })
-    );
+      });
+    });
 
-    // BASE points: +3 for win, +1 for loss
-    league.matches.forEach((m) => {
+    // Alap statisztikák
+    matches.forEach((m) => {
       if (!m.winner) return;
+      const allPlayers = [...m.teamA, ...m.teamB];
+      allPlayers.forEach((pid) => {
+        const s = statsById.get(pid);
+        if (!s) return;
+        s.matches += 1;
+      });
 
-      const winnerTeam = m.winner === "A" ? m.teamA : m.teamB;
-      const loserTeam = m.winner === "A" ? m.teamB : m.teamA;
+      // Győztes csapat
+      const winners = m.winner === "A" ? m.teamA : m.teamB;
+      const losers = m.winner === "A" ? m.teamB : m.teamA;
 
-      if (winnerTeam) {
-        winnerTeam.forEach((id) => {
-          const stats = map.get(id);
-          if (stats) {
-            stats.wins += 1;
-            stats.matches += 1;
-            stats.basePoints += 3;
-          }
-        });
-      }
+      winners.forEach((pid) => {
+        const s = statsById.get(pid);
+        if (!s) return;
+        s.wins += 1;
+      });
+      losers.forEach((pid) => {
+        const s = statsById.get(pid);
+        if (!s) return;
+        s.losses += 1;
+      });
+    });
 
-      if (loserTeam) {
-        loserTeam.forEach((id) => {
-          const stats = map.get(id);
-          if (stats) {
-            stats.losses += 1;
-            stats.matches += 1;
-            stats.basePoints += 1;
-          }
-        });
+    // Win% + base points
+    statsById.forEach((s) => {
+      const total = s.wins + s.losses;
+      s.winRate = total ? Math.round((s.wins / total) * 100) : 0;
+      s.basePoints = s.wins * 3 + s.losses * 1;
+      s.qualified = s.matches >= MIN_MATCHES;
+    });
+
+    // Badge-ek / extra pontok
+    const achievementsMap = new Map<string, Achievement[]>();
+    players.forEach((p) => {
+      const ach = computeAchievementsFull(p.id, matches, players);
+      achievementsMap.set(p.id, ach);
+
+      // Bonus pontok – csak beatMelinda + streak10
+      let bonus = 0;
+      if (ach.some((a) => a.id === "beatMelinda")) bonus += 1;
+      if (ach.some((a) => a.id === "streak10")) bonus += 1;
+
+      const st = statsById.get(p.id);
+      if (st) {
+        st.bonusPoints = bonus;
+        st.totalPoints = st.basePoints + bonus;
       }
     });
 
-    // Compute win rate and check qualification
-    map.forEach((stats) => {
-      if (stats.matches > 0) {
-        stats.winRate = Math.round((stats.wins / stats.matches) * 100);
-      }
-      if (stats.matches >= MIN_MATCHES) {
-        stats.qualified = true;
-      }
-    });
-
- // Compute achievements (bonus points)
-const achievementsMap = new Map<string, Achievement[]>();
-
-// csak ezek a badge-ek érnek +1 pontot
-const BONUS_ACHIEVEMENT_IDS = new Set(["beatMelinda", "streak10"]);
-
-map.forEach((stats) => {
-  const ach = computeAchievementsFull(stats.id, league.matches, players);
-  achievementsMap.set(stats.id, ach);
-
-  // csak a beatMelinda és a streak10 badge-eket számoljuk bonusznak
-  stats.bonusPoints = ach.filter((a) => BONUS_ACHIEVEMENT_IDS.has(a.id)).length;
-
-  stats.totalPoints = stats.basePoints + stats.bonusPoints;
-});
-
-
-    const rows = Array.from(map.values());
-
-    // Segédfüggvény a név emoji nélküli részének kinyerésére (soroláshoz)
-    const baseName = (full: string) =>
-      full.replace(/^.+?\s/, "");
-
-    // Rendezés
-    const sorted = rows.sort((a, b) => {
-      // 1. Qualified players first
-      if (a.qualified && !b.qualified) return -1;
-      if (!a.qualified && b.qualified) return 1;
-
-      // 2. Total points (High to Low)
-      if (b.totalPoints !== a.totalPoints) {
-        return b.totalPoints - a.totalPoints;
-      }
-
-      // 3. Win rate (High to Low)
-      if (b.winRate !== a.winRate) {
-        return b.winRate - a.winRate;
-      }
-
-      // 4. Matches played (High to Low)
-      if (b.matches !== a.matches) {
-        return b.matches - a.matches;
-      }
-
-      // 5. Alphabetical name (A-Z)
-      return baseName(a.name).localeCompare(baseName(b.name), "hu");
-    });
+    // Rendezés: több pont, jobb win%, több meccs, név
+    const sorted = players
+      .map((p) => {
+        const s = statsById.get(p.id)!;
+        return {
+          ...p,
+          ...s,
+        };
+      })
+      .sort((a, b) => {
+        if (b.totalPoints !== a.totalPoints)
+          return b.totalPoints - a.totalPoints;
+        if (b.winRate !== a.winRate) return b.winRate - a.winRate;
+        if (b.matches !== a.matches) return b.matches - a.matches;
+        return a.name.localeCompare(b.name, "hu");
+      });
 
     return { standings: sorted, achievementsById: achievementsMap };
   }, [players, league.matches]);
@@ -2461,8 +2439,6 @@ map.forEach((stats) => {
     if (!role) return;
     const newPlayer = { id: uid(), name };
     write({ players: [...players, newPlayer] });
-    // Ha admin ad hozzá, attól még nem lesz ő a "meId"
-    // Ha player nézetből jött, akkor a PlayerStats úgyis beállítja őt meId-nek (lásd: PlayerStats useEffect)
   };
 
   const removePlayer = (id: string) => {
@@ -2500,9 +2476,9 @@ map.forEach((stats) => {
     write({ players: nextPlayers });
   };
 
-  // 🛠️ FIX: 'nameOf' egyszerű, nem memoizált függvényre cserélve (elkerüli a linter figyelmeztetést)
+  // Egyszerű név-kinyerés id alapján
   const nameOf = (id: string) => players.find((p) => p.id === id)?.name || "—";
-  
+
   const createMatch = (teamA: Pair, teamB: Pair) => {
     if (!isAdmin) return;
     const newMatch: Match = {
@@ -2510,7 +2486,6 @@ map.forEach((stats) => {
       date,
       teamA,
       teamB,
-      // winner: undefined
     };
     write({ matches: [...matches, newMatch] });
   };
@@ -2553,7 +2528,6 @@ map.forEach((stats) => {
         matches: league.matches,
       },
     };
-    // backups már garantáltan egy tömb a destructuring miatt
     write({ backups: [...backups, newBackup] });
     alert("Backup created successfully!");
   };
@@ -2567,7 +2541,6 @@ map.forEach((stats) => {
     )
       return;
 
-    // backups már garantáltan egy tömb a destructuring miatt
     const backup = backups.find((b) => b.id === id);
     if (!backup) {
       alert("Backup not found!");
@@ -2577,33 +2550,29 @@ map.forEach((stats) => {
     write({
       players: backup.data.players,
       matches: backup.data.matches,
-      // leave existing backups
+      // backups marad
     });
     alert("Data restored successfully!");
   };
 
   // ========================= Render =========================
-  
+
   const playersWhoPlayedToday = new Set<string>();
   matchesForDate.forEach((m) => {
-    m.teamA.forEach(id => playersWhoPlayedToday.add(id));
-    m.teamB.forEach(id => playersWhoPlayedToday.add(id));
+    m.teamA.forEach((id) => playersWhoPlayedToday.add(id));
+    m.teamB.forEach((id) => playersWhoPlayedToday.add(id));
   });
 
   // Játékosok, akik jelen vannak, de még nem játszottak ezen a dátumon
-  const freeIds = presentIds.filter(id => !playersWhoPlayedToday.has(id));
+  const freeIds = presentIds.filter((id) => !playersWhoPlayedToday.has(id));
 
   return (
-    // 🛠️ FIX: Beállítjuk a fő háttérszínt, hogy felülírja a sötét mód fekete hátterét.
-    <div className="min-h-screen bg-slate-100 text-slate-900">
-    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-slate-50">
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         <Header
           title={league.title}
           role={role}
-          setPlayer={() => {
-            setRole("player");
-            setAdminPass("");
-          }}
+          setPlayer={() => setRole("player")}
           setAdmin={() => setRole("admin")}
         />
 
@@ -2611,92 +2580,73 @@ map.forEach((stats) => {
           {/* ========================= ADMIN VIEW ========================= */}
           {role === "admin" && (
             <div className="space-y-4 sm:space-y-6">
-              {!isAdmin && (
-                <div className={card}>
-                  <h3 className="mb-2 font-semibold text-rose-500">
-                    Admin Login
-                  </h3>
-                  <input
-                    className={input}
-                    type="password"
-                    placeholder="Admin Password"
-                    value={adminPass}
-                    onChange={(e) => setAdminPass(e.target.value)}
+              <section className="grid gap-4 sm:gap-6 md:grid-cols-3">
+                <div className="space-y-4 md:col-span-2">
+                  <DatePicker
+                    value={date}
+                    onChange={setDateAndResetAttendance}
                   />
-                  <p className="mt-2 text-xs text-gray-500">
-                    Hint: biatollas
-                  </p>
+                  <AttendanceList
+                    players={players}
+                    date={date}
+                    presentIds={presentIds}
+                    setPresentIds={setPresentIds}
+                  />
+                  <DrawMatches
+                    players={players}
+                    presentIds={presentIds}
+                    matchesForDate={matchesForDate}
+                    seenTeammatesToday={seenTeammatesToday}
+                    date={date}
+                    league={league}
+                    write={write}
+                  />
                 </div>
-              )}
 
-              {isAdmin && (
-                <>
-                  <section className="grid gap-4 sm:gap-6 md:grid-cols-3">
-                    <div className="space-y-4 md:col-span-2">
-                      <DatePicker value={date} onChange={setDateAndResetAttendance} />
-                      <AttendanceList 
-                        players={players} 
-                        date={date} 
-                        presentIds={presentIds} 
-                        setPresentIds={setPresentIds} 
-                      />
-                      <DrawMatches
-                        players={players}
-                        presentIds={presentIds}
-                        matchesForDate={matchesForDate}
-                        seenTeammatesToday={seenTeammatesToday}
-                        date={date}
-                        league={league}
-                        write={write}
-                      />
-                    </div>
+                <div className="space-y-4">
+                  <PlayerEditor
+                    players={players}
+                    onAdd={addPlayer}
+                    onRemove={removePlayer}
+                    onUpdateEmoji={updatePlayerEmoji}
+                  />
+                  <AdminDateJump
+                    grouped={grouped}
+                    date={date}
+                    setDate={setDateAndResetAttendance}
+                    lastSessionDate={lastSessionDate}
+                  />
+                  <BackupPanel
+                    onCreate={createBackup}
+                    onRestore={restoreBackup}
+                    backups={backups}
+                  />
+                </div>
+              </section>
 
-                    <div className="space-y-4">
-                      <PlayerEditor
-                        players={players}
-                        onAdd={addPlayer}
-                        onRemove={removePlayer}
-                        onUpdateEmoji={updatePlayerEmoji}
-                      />
-                      <AdminDateJump
-                        grouped={grouped}
-                        date={date}
-                        setDate={setDateAndResetAttendance}
-                        lastSessionDate={lastSessionDate}
-                      />
-                      <BackupPanel
-                        onCreate={createBackup}
-                        onRestore={restoreBackup}
-                        backups={backups} // backups a fix után garantáltan nem undefined
-                      />
-                    </div>
-                  </section>
+              <section className="space-y-4">
+                <MatchesAdmin
+                  matches={matchesForDate}
+                  nameOf={nameOf}
+                  onPick={pickWinner}
+                  onClear={clearWinner}
+                  onDelete={deleteMatch}
+                />
+                <SelectPairs
+                  players={players}
+                  freeIds={freeIds}
+                  seenTeammates={seenTeammatesToday}
+                  onCreate={createMatch}
+                />
+              </section>
 
-                  <section className="space-y-4">
-                    <MatchesAdmin
-                      matches={matchesForDate}
-                      nameOf={nameOf}
-                      onPick={pickWinner}
-                      onClear={clearWinner}
-                      onDelete={deleteMatch}
-                    />
-                    <SelectPairs
-                      players={players}
-                      freeIds={freeIds}
-                      seenTeammates={seenTeammatesToday}
-                      onCreate={createMatch}
-                    />
-                  </section>
-
-                  {/* Standings */}
-                  <div className="mt-4 sm:mt-6">
-                    <Standings
-                      rows={standings}
-                      achievementsById={achievementsById}
-                    />
-                  </div>
-                </>
-              )}
+              {/* Standings */}
+              <div className="mt-4 sm:mt-6">
+                <Standings
+                  rows={standings}
+                  achievementsById={achievementsById}
+                />
+              </div>
             </div>
           )}
 
@@ -2717,33 +2667,29 @@ map.forEach((stats) => {
                     lastSessionDate={lastSessionDate}
                   />
 
-                  {/* Statisztikák */}
+                  {/* Saját statok + badge-ek */}
                   <PlayerStats
                     players={players}
-                    matches={league.matches}
+                    matches={matches}
                     meId={meId}
                     setMeId={setMeId}
                   />
-
-                  {/* Achievementek */}
                   <PlayerAchievements
                     players={players}
-                    matches={league.matches}
+                    matches={matches}
                     meId={meId}
                   />
-
-                  {/* Infók */}
-                  <StandingsInfo />
                 </div>
               </section>
 
-              {/* 🆕 Standings teljes szélességben */}
-              <div className="mt-4 sm:mt-6">
+              {/* Standings + info */}
+              <section className="grid gap-4 sm:gap-6 md:grid-cols-[2fr,1fr] mt-4 sm:mt-6">
                 <Standings
                   rows={standings}
                   achievementsById={achievementsById}
                 />
-              </div>
+                <StandingsInfo />
+              </section>
             </>
           )}
         </div>
