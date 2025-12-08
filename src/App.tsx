@@ -1,3 +1,8 @@
+// 🔹 Polyfillek régi böngészőkhöz (iOS 10, régi Safari)
+import "core-js/stable";
+import "regenerator-runtime/runtime";
+import "cross-fetch/polyfill";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { initializeApp } from "firebase/app";
 import {
@@ -13,48 +18,38 @@ import { getAuth, signInAnonymously } from "firebase/auth";
 /**
  * =============================================================
  * BIA-TOLLAS – Biatorbágy (Badminton League)
- * - Player/Admin toggle (view switch, no password)
+ * - Player/Admin toggle, admin password: "biatollas"
  * - Emoji selection for new players (40 emojis) + subsequent modification
  * - Date navigation in Player view + "Last session" badge
- * - Training days: Monday & Wednesday; default date = next training day
- * - Attendance list: tap small cards instead of checkboxes
- * - Random match draw: tries to balance teams, avoid repeat teammates TODAY
- * - Badge system: achievements for players (streaks, beating Melinda, etc.)
- * - Standings summary: base points + special bonus points
- *
- * IMPORTANT:
- * - League data is stored in Firestore under "leagues/default"
- * - Backups are stored as an array in the same document
+ * - Training days: Monday & Wednesday; default date = closest such day
+ * - Firestore realtime sync (single league doc: "leagues/default")
+ * - Jelenléti lista: Attendance
+ * * 🆕 JELENLÉTI LISTA & HELYSZÍNI SORSOLÁS
+ * * 🛠️ PlayerEditor átalakítva: Alapértelmezetten összecsukott
+ * * 🆕 Player nézet: Jelenléti lista dátum szerint
+ * * 🛠️ FIX: Kijavítva a Dark Mode fekete háttér problémája az App komponensben.
  * =============================================================
  */
 
 // ========================= Types =========================
-
-type Player = {
-  id: string;
-  name: string;
-  emoji?: string;
-  active?: boolean; // optional, used for filtering "retired" players
-};
-
-type Match = {
+export type Player = { id: string; name: string };
+export type Pair = [string, string];
+export type Match = {
   id: string;
   date: string; // YYYY-MM-DD
-  teamA: [string, string]; // player ids
-  teamB: [string, string]; // player ids
-  winner?: "A" | "B" | "draw";
-  createdAt?: any;
+  teamA: Pair;
+  teamB: Pair;
+  winner?: "A" | "B";
 };
 
-type Backup = {
+export type Backup = {
   id: string;
-  label: string;
   createdAt: string;
-  players: Player[];
-  matches: Match[];
+  note?: string;
+  data: { players: Player[]; matches: Match[] };
 };
 
-type LeagueDoc = {
+export type LeagueDoc = {
   players: Player[];
   matches: Match[];
   createdAt?: any;
@@ -85,313 +80,595 @@ const weekday = (dstr: string) =>
   new Date(dstr + "T12:00:00").toLocaleDateString(undefined, {
     weekday: "long",
   });
+const key = (a: string, b: string) => [a, b].sort().join("::");
 
-const trainingDays = [1, 3]; // Monday (1) and Wednesday (3)
-const nextTrainingDate = () => {
-  const today = new Date();
-  for (let i = 0; i < 14; i++) {
-    const d = new Date(today);
-    d.setDate(today.getDate() + i);
-    if (trainingDays.includes(d.getDay())) return d;
-  }
-  return today;
-};
 
-// ========================= Achievements & Stats =========================
-
-type AchievementId =
-  | "beatMelinda"
-  | "streak10"
-  | "streak3"
-  | "streak6"
-  | "win5"
-  | "win10"
-  | "win25"
-  | "min5matches";
-
-type Achievement = {
-  id: AchievementId;
-  label: string;
+export type Achievement = {
+  id: string;
+  title: string;
   description: string;
 };
 
-const achievementDefinitions: Record<AchievementId, Achievement> = {
-  beatMelinda: {
-    id: "beatMelinda",
-    label: "Beat Melinda",
-    description: "Won a match against Melinda.",
-  },
-  streak10: {
-    id: "streak10",
-    label: "Ironman 10",
-    description: "Played in 10 consecutive sessions.",
-  },
-  streak3: {
-    id: "streak3",
-    label: "On Fire 3",
-    description: "3-session attendance streak.",
-  },
-  streak6: {
-    id: "streak6",
-    label: "On Fire 6",
-    description: "6-session attendance streak.",
-  },
-  win5: {
-    id: "win5",
-    label: "5 Wins",
-    description: "Reached 5 total wins.",
-  },
-  win10: {
-    id: "win10",
-    label: "10 Wins",
-    description: "Reached 10 total wins.",
-  },
-  win25: {
-    id: "win25",
-    label: "25 Wins",
-    description: "Reached 25 total wins.",
-  },
-  min5matches: {
-    id: "min5matches",
-    label: "Match Ready",
-    description: "Played at least 5 matches.",
-  },
-};
+function PlayerAchievements({
+  players,
+  matches,
+  meId,
+}: {
+  players: Player[];
+  matches: Match[];
+  meId: string;
+}) {
+  const me = players.find((p) => p.id === meId);
+  if (!me || !players.length) return null;
 
-type PlayerStats = {
-  id: string;
-  matches: number;
-  wins: number;
-  losses: number;
-  draws: number;
-  basePoints: number;
-  bonusPoints: number;
-  totalPoints: number;
-};
+  const ach = computeAchievementsFull(meId, matches, players);
 
-// For achievement styling
-const badgeStyles: Record<
-  AchievementId,
-  { icon: string; accent: string; bg: string }
-> = {
-  beatMelinda: {
-    icon: "⭐",
-    accent: "text-yellow-700",
-    bg: "from-yellow-50 via-white to-emerald-50",
-  },
-  win5: {
-    icon: "🎯",
-    accent: "text-indigo-700",
-    bg: "from-indigo-50 via-white to-emerald-50",
-  },
-  win10: {
-    icon: "🎖️",
-    accent: "text-emerald-700",
-    bg: "from-emerald-50 via-white to-sky-50",
-  },
-  win25: {
-    icon: "🏅",
-    accent: "text-amber-700",
-    bg: "from-amber-50 via-white to-emerald-50",
-  },
-  min5matches: {
-    icon: "📈",
-    accent: "text-slate-700",
-    bg: "from-slate-50 via-white to-emerald-50",
-  },
-  streak3: {
-    icon: "🔥",
-    accent: "text-orange-700",
-    bg: "from-orange-50 via-white to-emerald-50",
-  },
-  streak6: {
-    icon: "💪",
-    accent: "text-emerald-700",
-    bg: "from-emerald-50 via-white to-sky-50",
-  },
-  streak10: {
-    icon: "🏆",
-    accent: "text-indigo-700",
-    bg: "from-indigo-50 via-white to-emerald-50",
-  },
-};
+  // badge meta: icon + colors per achievement id
+   const BADGE_META: Record<
+    string,
+    { icon: string; accent: string; bg: string }
+  > = {
+    win5: {
+      icon: "🥉",
+      accent: "text-amber-700",
+      bg: "from-amber-50 via-white to-slate-50",
+    },
+    win10: {
+      icon: "🥈",
+      accent: "text-slate-700",
+      bg: "from-slate-50 via-white to-indigo-50",
+    },
+    win25: {
+      icon: "🥇",
+      accent: "text-yellow-700",
+      bg: "from-yellow-50 via-white to-amber-50",
+    },
+    beatMelinda: {
+      icon: "🎯",
+      accent: "text-rose-700",
+      bg: "from-rose-50 via-white to-indigo-50",
+    },
+    streak3: {
+      icon: "🔥",
+      accent: "text-orange-700",
+      bg: "from-orange-50 via-white to-emerald-50",
+    },
+    streak6: {
+      icon: "💪",
+      accent: "text-emerald-700",
+      bg: "from-emerald-50 via-white to-sky-50",
+    },
+    streak10: {
+      icon: "🏆",
+      accent: "text-indigo-700",
+      bg: "from-indigo-50 via-white to-amber-50",
+    },
+    // 🆕 Min. 5 matches
+    min5matches: {
+      icon: "🏸",
+      accent: "text-sky-700",
+      bg: "from-sky-50 via-white to-emerald-50",
+    },
+  };
 
-// Basic match stats
-function computePlayerStats(players: Player[], matches: Match[]): PlayerStats[] {
-  const statsMap = new Map<string, PlayerStats>();
-  players.forEach((p) =>
-    statsMap.set(p.id, {
-      id: p.id,
-      matches: 0,
-      wins: 0,
-      losses: 0,
-      draws: 0,
-      basePoints: 0,
-      bonusPoints: 0,
-      totalPoints: 0,
-    })
-  );
-
-  for (const m of matches) {
-    const [a1, a2] = m.teamA;
-    const [b1, b2] = m.teamB;
-    const teamAPlayers = [a1, a2];
-    const teamBPlayers = [b1, b2];
-
-    const all = [...teamAPlayers, ...teamBPlayers];
-    for (const pid of all) {
-      const s = statsMap.get(pid);
-      if (!s) continue;
-      s.matches += 1;
-      if (m.winner === "A" && teamAPlayers.includes(pid)) {
-        s.wins += 1;
-        s.basePoints += 3;
-      } else if (m.winner === "B" && teamBPlayers.includes(pid)) {
-        s.wins += 1;
-        s.basePoints += 3;
-      } else if (m.winner === "A" && teamBPlayers.includes(pid)) {
-        s.losses += 1;
-      } else if (m.winner === "B" && teamAPlayers.includes(pid)) {
-        s.losses += 1;
-      } else if (m.winner === "draw") {
-        s.draws += 1;
-        s.basePoints += 1;
-      }
+  // All existing badges (showcase list)
+  const ALL_BADGES: Achievement[] = [
+    {
+      id: "win5",
+      title: "Novice Winner",
+      description: "Win 5 matches.",
+    },
+    {
+      id: "win10",
+      title: "Pro Winner",
+      description: "Win 10 matches.",
+    },
+    {
+      id: "win25",
+      title: "Champion",
+      description: "Win 25 matches.",
+    },
+    {
+      id: "beatMelinda",
+      title: "Beat Melinda!",
+      description: "Win a match against Coach Melinda.",
+    },
+    {
+      id: "streak3",
+      title: "Regular",
+      description: "Attend 3 sessions in a row.",
+    },
+    {
+      id: "streak6",
+      title: "Dedicated",
+      description: "Attend 6 sessions in a row.",
+    },
+    {
+      id: "streak10",
+      title: "Ironman",
+      description: "Attend 10 sessions in a row.",
+    },
+    // 🆕 Min. 5 matches
+    {
+      id: "min5matches",
+      title: "Seasoned Player",
+      description: "Play at least 5 matches.",
     }
-  }
+  ];
 
-  return Array.from(statsMap.values());
+
+  const earnedIds = new Set(ach.map((a) => a.id));
+
+  // 🔔 For badge reward animation: what did we just unlock?
+  const [justUnlocked, setJustUnlocked] = useState<Achievement | null>(null);
+  const knownIdsRef = useRef<string[]>([]);
+  const firstRender = useRef(true);
+
+  useEffect(() => {
+    const currentIds = ach.map((a) => a.id);
+
+    // Don't show all badges at once on first render
+    if (firstRender.current) {
+      firstRender.current = false;
+      knownIdsRef.current = currentIds;
+      return;
+    }
+
+    const prev = knownIdsRef.current;
+    const newOnes = currentIds.filter((id) => !prev.includes(id));
+
+    knownIdsRef.current = currentIds;
+
+    if (newOnes.length === 0) return;
+
+    const latestId = newOnes[newOnes.length - 1];
+    const unlocked = ach.find((a) => a.id === latestId) || null;
+    if (!unlocked) return;
+
+    setJustUnlocked(unlocked);
+    const timer = window.setTimeout(() => setJustUnlocked(null), 4000);
+    return () => window.clearTimeout(timer);
+  }, [ach]);
+
+  return (
+    <>
+      <div className={card}>
+        <ShuttleBg />
+        <h3 className="mb-1 text-sm font-semibold text-slate-700">
+          Achievements
+        </h3>
+        <p className="mb-3 text-xs text-gray-500">
+          Badges earned by{" "}
+          <span className="font-medium text-slate-800">{me.name}</span>
+        </p>
+
+        {/* Megszerzett badge-ek */}
+        {ach.length === 0 ? (
+          <p className="text-sm text-gray-500 mb-3">
+            No achievements yet. Keep playing! 🏸
+          </p>
+        ) : (
+          <ul className="space-y-2 mb-4">
+            {ach.map((a) => {
+              const meta = BADGE_META[a.id] || {
+                icon: "⭐",
+                accent: "text-slate-700",
+                bg: "from-slate-50 via-white to-slate-50",
+              };
+
+              return (
+                <li
+                  key={a.id}
+                  className={`
+                    group relative overflow-hidden
+                    rounded-2xl border border-slate-200
+                    bg-gradient-to-r ${meta.bg}
+                    px-3 py-2 text-sm shadow-sm
+                    transition-transform hover:-translate-y-0.5 hover:shadow-md
+                  `}
+                >
+                  {/* small "shimmer" overlay */}
+                  <div className="pointer-events-none absolute -right-6 -top-6 h-16 w-16 rounded-full bg-white/40 blur-2 opacity-0 group-hover:opacity-70 transition-opacity" />
+
+                  <div className="flex items-center gap-3 relative">
+                    <div
+                      className={`
+                        flex h-9 w-9 items-center justify-center
+                        rounded-full bg-white shadow
+                        text-lg ${meta.accent}
+                      `}
+                    >
+                      {meta.icon}
+                    </div>
+
+                    <div className="min-w-0">
+                      <div className="truncate font-semibold text-slate-800">
+                        {a.title}
+                      </div>
+                      <div className="text-xs text-gray-600">
+                        {a.description}
+                      </div>
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+        {/* Összes badge bemutatása */}
+        <div className="mt-1">
+          <h4 className="mb-1 text-xs font-semibold text-slate-600 uppercase tracking-wide">
+            All badges
+          </h4>
+          <ul className="space-y-1">
+            {ALL_BADGES.map((b) => {
+              const meta = BADGE_META[b.id] || {
+                icon: "⭐",
+                accent: "text-slate-700",
+                bg: "from-slate-50 via-white to-slate-50",
+              };
+              const earned = earnedIds.has(b.id);
+
+              return (
+                <li
+                  key={b.id}
+                  className={`
+                    flex items-center gap-2 rounded-xl border px-2 py-1
+                    text-xs
+                    ${
+                      earned
+                        ? "border-emerald-200 bg-emerald-50/60 text-slate-800"
+                        : "border-slate-200 bg-slate-50 text-slate-500"
+                    }
+                  `}
+                >
+                  <span
+                    className={`
+                      flex h-6 w-6 items-center justify-center rounded-full bg-white text-base
+                      ${earned ? meta.accent : "text-slate-400"}
+                    `}
+                  >
+                    {meta.icon}
+                  </span>
+                  <div className="min-w-0">
+                    <div className="truncate font-medium">
+                      {b.title}
+                      {earned && (
+                        <span className="ml-1 text-[10px] text-emerald-700">
+                          (earned)
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[10px] truncate">
+                      {b.description}
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      </div>
+
+      {/* 🔔 Badge reward toast animáció */}
+      {justUnlocked && (
+        <div className="fixed bottom-4 right-4 z-50">
+          <div className="relative overflow-hidden rounded-2xl border border-amber-200 bg-white px-4 py-3 shadow-lg">
+            <div className="pointer-events-none absolute -right-10 -top-10 h-24 w-24 rounded-full bg-gradient-to-tr from-yellow-300/40 via-pink-300/40 to-amber-200/40 blur-xl opacity-70" />
+
+            {(() => {
+              const meta =
+                BADGE_META[justUnlocked.id] || {
+                  icon: "⭐",
+                  accent: "text-amber-700",
+                  bg: "",
+                };
+
+              return (
+                <div className="relative flex items-center gap-3">
+                  <div
+                    className={`
+                      flex h-10 w-10 items-center justify-center rounded-full 
+                      bg-amber-50 shadow-inner text-2xl
+                      ${meta.accent} animate-bounce
+                    `}
+                  >
+                    {meta.icon}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+                      New badge unlocked!
+                    </div>
+                    <div className="text-sm font-semibold text-slate-900">
+                      {justUnlocked.title}
+                    </div>
+                    <div className="text-xs text-slate-600">
+                      {justUnlocked.description}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+    </>
+  );
 }
 
-// Achievements
-function computeAchievementsFull(
+
+
+// ... (achievement computation functions - unchanged)
+
+export function computeAchievementsFull(
   playerId: string,
-  allMatches: Match[],
+  matches: Match[],
   players: Player[]
 ): Achievement[] {
-  const result: Achievement[] = [];
+  const out: Achievement[] = [];
 
-  const meMatches = allMatches.filter((m) =>
-    [m.teamA[0], m.teamA[1], m.teamB[0], m.teamB[1]].includes(playerId)
+  // --- basic stats: only the matches of the given player ---
+  const playerMatches = matches.filter(
+    (m) => m.teamA.includes(playerId) || m.teamB.includes(playerId)
   );
 
-  const wins = meMatches.filter((m) => {
-    if (m.winner === "draw" || !m.winner) return false;
-    const isTeamA = m.teamA.includes(playerId);
-    return (m.winner === "A" && isTeamA) || (m.winner === "B" && !isTeamA);
+  let wins = 0;
+  const datesPlayed = new Set<string>();
+
+  playerMatches.forEach((m) => {
+    const inA = m.teamA.includes(playerId);
+    const inB = m.teamB.includes(playerId);
+
+    if (!inA && !inB) return;
+
+    if (m.winner) {
+      const didWin =
+        (m.winner === "A" && inA) ||
+        (m.winner === "B" && inB);
+      if (didWin) wins++;
+    }
+
+    datesPlayed.add(m.date);
   });
 
-  if (wins.length >= 5) result.push(achievementDefinitions.win5);
-  if (wins.length >= 10) result.push(achievementDefinitions.win10);
-  if (wins.length >= 25) result.push(achievementDefinitions.win25);
-
-  if (meMatches.length >= 5) result.push(achievementDefinitions.min5matches);
-
-  const baseName = (full: string) => full.replace(/^.+?\s/, "");
-
-  const melinda = players.find(
-    (p) => baseName(p.name) === "Melinda" || p.name === "Melinda"
-  );
-  if (melinda) {
-    const melindaId = melinda.id;
-    const beatsMelinda = wins.some((m) => {
-      const allIds = [
-        ...m.teamA,
-        ...m.teamB,
-      ];
-      if (!allIds.includes(melindaId)) return false;
-      const isOnWinnerTeam =
-        (m.winner === "A" && m.teamA.includes(playerId)) ||
-        (m.winner === "B" && m.teamB.includes(playerId));
-      const melindaOnLoserTeam =
-        (m.winner === "A" && m.teamB.includes(melindaId)) ||
-        (m.winner === "B" && m.teamA.includes(melindaId));
-      return isOnWinnerTeam && melindaOnLoserTeam;
+  // --- win achievements ---
+  if (wins >= 5)
+    out.push({
+      id: "win5",
+      title: "Novice Winner",
+      description: "Win 5 matches.",
     });
-    if (beatsMelinda) {
-      result.push(achievementDefinitions.beatMelinda);
-    }
+
+  if (wins >= 10)
+    out.push({
+      id: "win10",
+      title: "Pro Winner",
+      description: "Win 10 matches.",
+    });
+
+  if (wins >= 25)
+    out.push({
+      id: "win25",
+      title: "Champion",
+      description: "Win 25 matches.",
+    });
+
+  // --- Melinda challenge ---
+  const melinda = players.find((p) =>
+  p.name.toLowerCase().includes("melinda")
+);
+
+if (melinda) {
+  const beatMelinda = playerMatches.some((m) => {
+    const melInA = m.teamA.includes(melinda.id);
+    const melInB = m.teamB.includes(melinda.id);
+    const playerInA = m.teamA.includes(playerId);
+    const playerInB = m.teamB.includes(playerId);
+
+    // both must be in the match
+    if (!(melInA || melInB)) return false;
+    if (!(playerInA || playerInB)) return false;
+    if (!m.winner) return false;
+
+    // important: must be an OPPONENT, not a TEAMMATE
+    const onOppositeTeams =
+      (melInA && playerInB) || (melInB && playerInA);
+
+    if (!onOppositeTeams) return false;
+
+    // did the player's team win?
+    const playerWon =
+      (m.winner === "A" && playerInA) ||
+      (m.winner === "B" && playerInB);
+
+    return playerWon;
+  });
+
+  if (beatMelinda) {
+    out.push({
+      id: "beatMelinda",
+      title: "Beat Melinda!",
+      description: "Won a match against Coach Melinda.",
+    });
+  }
+}
+
+  // --- Min. 5 matches badge ---
+  const matchesPlayed = playerMatches.length;
+  if (matchesPlayed >= 5) {
+    out.push({
+      id: "min5matches",
+      title: "Seasoned Player",
+      description: "Play at least 5 matches.",
+    });
   }
 
-  const datesSet = new Set<string>();
-  meMatches.forEach((m) => datesSet.add(m.date));
-  const dates = Array.from(datesSet).sort();
 
-  let longestStreak = 0;
-  let currentStreak = 0;
-  let prevDate: Date | null = null;
+  // --- Attendance streak ---
+  const streak = computeAttendanceStreak(playerId, matches);
 
-  for (const dstr of dates) {
-    const d = new Date(dstr + "T12:00:00");
-    if (!prevDate) {
-      currentStreak = 1;
+  if (streak >= 3)
+    out.push({
+      id: "streak3",
+      title: "Regular",
+      description: "Attend 3 sessions in a row.",
+    });
+
+  if (streak >= 6)
+    out.push({
+      id: "streak6",
+      title: "Dedicated",
+      description: "Attend 6 sessions in a row.",
+    });
+
+  if (streak >= 10)
+    out.push({
+      id: "streak10",
+      title: "Ironman",
+      description: "Attend 10 sessions in a row.",
+    });
+
+  return out;
+}
+
+
+// Training days: Monday (1), Wednesday (3) – JS Date.getDay()
+const TRAINING_DAYS = [1, 3];
+
+function nextTrainingDate(from: Date = new Date()): Date {
+  const d = new Date(from);
+  while (!TRAINING_DAYS.includes(d.getDay())) {
+    d.setDate(d.getDate() + 1);
+  }
+  return d;
+}
+// Consecutive league days on which the player played.
+// Here "session" = any date when there was any match in the league.
+function computeAttendanceStreak(playerId: string, matches: Match[]): number {
+  if (!matches.length) return 0;
+
+  // All league dates (date of any match), sorted
+  const allDates = Array.from(new Set(matches.map((m) => m.date))).sort();
+
+  // Days when the player played
+  const playedDates = new Set<string>();
+  matches.forEach((m) => {
+    if (m.teamA.includes(playerId) || m.teamB.includes(playerId)) {
+      playedDates.add(m.date);
+    }
+  });
+
+  let best = 0;
+  let current = 0;
+
+  // Iterate through all league days in chronological order,
+  // and check if the player was present at a match.
+  for (const d of allDates) {
+    if (playedDates.has(d)) {
+      current++;
+      if (current > best) best = current;
     } else {
-      const diffDays = Math.round(
-        (d.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24)
-      );
-      if (diffDays <= 3) {
-        currentStreak += 1;
-      } else {
-        currentStreak = 1;
-      }
+      current = 0;
     }
-    prevDate = d;
-    if (currentStreak > longestStreak) longestStreak = currentStreak;
   }
 
-  if (longestStreak >= 3) result.push(achievementDefinitions.streak3);
-  if (longestStreak >= 6) result.push(achievementDefinitions.streak6);
-  if (longestStreak >= 10) result.push(achievementDefinitions.streak10);
-
-  return result;
+  return best;
 }
 
-function computeStandings(players: Player[], matches: Match[]) {
-  const baseStats = computePlayerStats(players, matches);
-  const standings = baseStats.map((s) => ({ ...s }));
-  const map = new Map<string, PlayerStats>();
-  standings.forEach((s) => map.set(s.id, s));
 
-  const achievementsMap = new Map<string, Achievement[]>();
+// ... (EMOJIS, UI tokens - unchanged)
 
-  const BONUS_ACHIEVEMENT_IDS = new Set<AchievementId>([
-    "beatMelinda",
-    "streak10",
-  ]);
+// ========================= Emoji list =========================
+const EMOJIS = [
+  "🐶",
+  "🐱",
+  "🐭",
+  "🐹",
+  "🐰",
+  "🦊",
+  "🐻",
+  "🐼",
+  "🐨",
+  "🐯",
+  "🦁",
+  "🐮",
+  "🐷",
+  "🐸",
+  "🐵",
+  "🐔",
+  "🐧",
+  "🐦",
+  "🐤",
+  "🦆",
+  "🦅",
+  "🦉",
+  "🐺",
+  "🦄",
+  "🐝",
+  "🐛",
+  "🦋",
+  "🐌",
+  "🐞",
+  "🐢",
+  "🐍",
+  "🦎",
+  "🐙",
+  "🦑",
+  "🦀",
+  "🐡",
+  "🐠",
+  "🐳",
+  "🐬",
+  "🐊",
+];
 
-  standings.forEach((stats) => {
-    const ach = computeAchievementsFull(stats.id, matches, players);
-    achievementsMap.set(stats.id, ach);
+// ========================= UI tokens =========================
+const btnBase =
+  "inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-40 disabled:cursor-not-allowed";
 
-    stats.bonusPoints = ach.filter((a) =>
-      BONUS_ACHIEVEMENT_IDS.has(a.id)
-    ).length;
+const btnPrimary = `${btnBase} bg-[#4f8ef7] text-white hover:bg-[#3b7ae0] focus-visible:ring-[#4f8ef7]`;
+const btnSecondary = `${btnBase} border border-slate-300 bg-slate-50 text-slate-800 hover:bg-slate-100 focus-visible:ring-slate-400`;
+const btnDanger = `${btnBase} bg-rose-500 text-white hover:bg-rose-600 focus-visible:ring-rose-400`;
 
-    stats.totalPoints = stats.basePoints + stats.bonusPoints;
-  });
+const card =
+  "relative overflow-hidden rounded-3xl bg-white p-4 shadow-sm border border-slate-200 text-slate-900";
 
-  standings.sort((a, b) => {
-    if (b.totalPoints !== a.totalPoints) {
-      return b.totalPoints - a.totalPoints;
-    }
-    if (b.basePoints !== a.basePoints) {
-      return b.basePoints - a.basePoints;
-    }
-    return b.wins - a.wins;
-  });
+const input =
+  "w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#4f8ef7]";
 
-  return { standings, achievementsMap };
-}
+// Shuttlecock watermark
+const ShuttleBg = () => (
+  <svg
+    className="pointer-events-none absolute right-2 top-2 h-16 w-16 opacity-15 text-slate-300"
+    viewBox="0 0 64 64"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path
+      d="M14 38c6-10 16-16 26-20l6 6-8 22-10-4-8-4Z"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <circle
+      cx="40"
+      cy="46"
+      r="5"
+      stroke="currentColor"
+      strokeWidth="2"
+    />
+  </svg>
+);
 
-// ========================= League Hook =========================
-
+// ========================= Data sync (single league doc) =========================
 function useLeague() {
   const [data, setData] = useState<LeagueDoc>({
     players: [],
     matches: [],
     backups: [],
   });
-
   const suppress = useRef(false);
   const tRef = useRef<number | null>(null);
 
@@ -401,22 +678,13 @@ function useLeague() {
       if (snap.metadata.hasPendingWrites) return;
       if (snap.exists()) {
         suppress.current = true;
-        const remote = snap.data() as LeagueDoc;
-        setData({
-          players: remote.players || [],
-          matches: remote.matches || [],
-          backups: remote.backups || [],
-          createdAt: remote.createdAt,
-          updatedAt: remote.updatedAt,
-          title: remote.title ?? "Bia-Tollas Liga",
-        });
+        setData(snap.data() as LeagueDoc);
         setTimeout(() => (suppress.current = false), 0);
       } else {
         await setDoc(ref, {
           players: [],
           matches: [],
           backups: [],
-          title: "Bia-Tollas Liga",
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
@@ -425,50 +693,41 @@ function useLeague() {
     return () => unsub();
   }, []);
 
-  const write = useCallback((patch: Partial<LeagueDoc>) => {
-    if (tRef.current) window.clearTimeout(tRef.current);
+  const write = useCallback(
+    (patch: Partial<LeagueDoc>) => {
+      // Use functional update to avoid reading stale `data` from closure.
+      if (tRef.current) window.clearTimeout(tRef.current);
 
-    setData((prev) => {
-      const next: LeagueDoc = {
-        ...prev,
-        ...patch,
-        backups: patch.backups ?? prev.backups ?? [],
-      };
+      setData((prev) => {
+        const next = { ...prev, ...patch };
 
-      if (suppress.current) return next;
+        // If we're suppressing (incoming remote update), update local state but
+        // don't push to Firestore.
+        if (suppress.current) return next;
 
-      tRef.current = window.setTimeout(async () => {
-        const ref = doc(db, "leagues", "default");
-        const payload = {
-          ...next,
-          updatedAt: serverTimestamp(),
-        } as LeagueDoc;
-        try {
-          await setDoc(ref, payload, { merge: true });
-        } catch (err) {
-          console.error("Failed to sync league:", err);
-        }
-      }, 120);
+        tRef.current = window.setTimeout(async () => {
+          const ref = doc(db, "leagues", "default");
+          const payload = {
+            ...next,
+            updatedAt: serverTimestamp(),
+          } as LeagueDoc;
+          try {
+            await setDoc(ref, payload, { merge: true });
+          } catch (err) {
+            console.error("Failed to sync league:", err);
+          }
+        }, 120);
 
-      return next;
-    });
-  }, []);
+        return next;
+      });
+    },
+    []
+  );
 
   return [data, write] as const;
 }
 
 // ========================= Components =========================
-
-const card =
-  "relative overflow-hidden rounded-3xl bg-white p-4 shadow-sm border border-slate-200 text-slate-900";
-const input =
-  "w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-200";
-const btnBase =
-  "inline-flex items-center justify-center rounded-xl px-3 py-1.5 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2";
-const btnPrimary = `${btnBase} bg-sky-600 text-white hover:bg-sky-700 focus-visible:ring-sky-500`;
-const btnSecondary = `${btnBase} border border-slate-300 bg-slate-50 text-slate-800 hover:bg-slate-100 focus-visible:ring-slate-400`;
-
-// ===== Header =====
 function Header({
   title,
   role,
@@ -484,70 +743,63 @@ function Header({
   return (
     <header className="mb-4 flex flex-col gap-2 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <h1 className="text-xl font-bold sm:text-2xl text-slate-900">
-          {title || "Bia-Tollas Liga"}
+        <h1 className="text-xl font-bold sm:text-2xl">
+          🏸 {title || "Bia-Tollas League"}
         </h1>
-        <p className="text-xs text-slate-500 sm:text-sm">
-          Biatorbágy – Fun, fair matches & steady improvement.
+        <p className="text-xs text-slate-500">
+          Biatorbágy – training on Monday & Wednesday
         </p>
       </div>
-
-      <div className="inline-flex items-center gap-1 rounded-full bg-slate-100 p-1">
-        <button
-          type="button"
-          className={
-            role === "player"
-              ? "rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-900 shadow-sm sm:text-sm"
-              : "rounded-full px-3 py-1 text-xs font-medium text-slate-500 hover:text-slate-700 sm:text-sm"
-          }
-          onClick={setPlayer}
-        >
-          👤 Player
-        </button>
-        <button
-          type="button"
-          className={
-            role === "admin"
-              ? "rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-900 shadow-sm sm:text-sm"
-              : "rounded-full px-3 py-1 text-xs font-medium text-slate-500 hover:text-slate-700 sm:text-sm"
-          }
-          onClick={setAdmin}
-        >
-          🛠️ Admin
-        </button>
+      <div className="flex gap-2">
+        <div className="rounded-full border border-slate-200 bg-white p-1 shadow-sm">
+          <button
+            type="button"
+            onClick={setPlayer}
+            className={`${btnBase} ${
+              !isAdmin
+                ? "bg-[#4f8ef7] text-white"
+                : "bg-white text-slate-700"
+            } px-3 py-1`}
+          >
+            Player
+          </button>
+          <button
+            type="button"
+            onClick={setAdmin}
+            className={`${btnBase} ${
+              isAdmin
+                ? "bg-[#4f8ef7] text-white"
+                : "bg-white text-slate-700"
+            } px-3 py-1`}
+          >
+            Admin
+          </button>
+        </div>
       </div>
-
-      {isAdmin && (
-        <span className="text-[10px] uppercase tracking-wide text-rose-500 sm:text-xs">
-          Admin view
-        </span>
-      )}
     </header>
   );
 }
 
-// ===== Date Picker =====
 function DatePicker({
   value,
   onChange,
 }: {
   value: string;
-  onChange: (v: string) => void;
+  onChange: (val: string) => void;
 }) {
   return (
     <div className={card}>
-      <div className="flex items-center justify-between gap-2">
+      <ShuttleBg />
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-sm font-semibold text-slate-900 sm:text-base">
-            Training session
-          </h2>
-          <p className="text-xs text-slate-500">
-            {value} • {weekday(value)}
+          <h2 className="text-lg font-semibold">Round date</h2>
+          <p className="text-sm text-gray-500">
+            {value} / {weekday(value)}
           </p>
         </div>
         <input
+          className={input}
           type="date"
-          className={`${input} w-auto`}
           value={value}
           onChange={(e) => onChange(e.target.value)}
         />
@@ -556,7 +808,7 @@ function DatePicker({
   );
 }
 
-// ===== Attendance List (Admin) =====
+// 🆕 Jelenléti Lista Komponens
 function AttendanceList({
   players,
   date,
@@ -568,745 +820,342 @@ function AttendanceList({
   presentIds: string[];
   setPresentIds: (ids: string[]) => void;
 }) {
+  const isPresent = (id: string) => presentIds.includes(id);
+
   const togglePresence = (id: string) => {
-    setPresentIds(
-      presentIds.includes(id)
-        ? presentIds.filter((x) => x !== id)
-        : [...presentIds, id]
-    );
-  };
-
-  const sortedPlayers = [...players].sort((a, b) =>
-    a.name.localeCompare(b.name, "hu")
-  );
-
-  const totalPresent = presentIds.length;
-
-  return (
-    <div className={card}>
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <div>
-          <h3 className="text-sm font-semibold text-slate-900 sm:text-base">
-            Attendance – {date}
-          </h3>
-          <p className="text-xs text-slate-500">
-            Tap the cards to mark who is present.
-          </p>
-        </div>
-        <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700 sm:text-xs">
-          {totalPresent} present
-        </span>
-      </div>
-
-      <ul className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-52 overflow-y-auto pr-1">
-        {sortedPlayers.map((p) => {
-          const checked = presentIds.includes(p.id);
-          return (
-            <li key={p.id}>
-              <button
-                type="button"
-                onClick={() => togglePresence(p.id)}
-                className={`
-                  w-full rounded-xl px-2 py-2 text-xs sm:text-sm border text-left
-                  flex items-center justify-between gap-2
-                  transition-colors
-                  ${
-                    checked
-                      ? "bg-emerald-50 border-emerald-300 text-slate-900"
-                      : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
-                  }
-                `}
-              >
-                <span className="truncate">{p.name}</span>
-                <span
-                  className={`
-                    inline-flex h-5 min-w-[2.5rem] items-center justify-center rounded-full
-                    text-[10px] sm:text-xs font-semibold
-                    ${
-                      checked
-                        ? "bg-emerald-100 text-emerald-700"
-                        : "bg-slate-100 text-slate-500"
-                    }
-                  `}
-                >
-                  {checked ? "Itt" : "Hiányzik"}
-                </span>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-    </div>
-  );
-}
-
-// ===== Draw Matches (Admin) =====
-
-
-
-function DrawMatches({
-  players,
-  presentIds,
-  matchesForDate,
-  seenTeammatesToday,
-  date,
-  league,
-  write,
-}: {
-  players: Player[];
-  presentIds: string[];
-  matchesForDate: Match[];
-  seenTeammatesToday: Set<string>;
-  date: string;
-  league: LeagueDoc;
-  write: (patch: Partial<LeagueDoc>) => void;
-}) {
-  const canDraw = presentIds.length >= 4;
-
-  const baseName = (full: string) => full.replace(/^.+?\s/, "");
-
-  const isCoach = (id: string) => {
-    const p = players.find((pl) => pl.id === id);
-    if (!p) return false;
-    const name = baseName(p.name);
-    return name === "Robi" || name === "Melinda";
-  };
-
-  const canBeTeammates = (aId: string, bId: string) =>
-    !(isCoach(aId) && isCoach(bId));
-
-  const draw = () => {
-    if (!canDraw) return;
-
-    const attendanceSet = new Set(presentIds);
-    const presentPlayers = players.filter((p) => attendanceSet.has(p.id));
-    if (presentPlayers.length < 4) return;
-
-    const idToStats = new Map<string, { wins: number; matches: number }>();
-    league.matches.forEach((m) => {
-      const allIds = [...m.teamA, ...m.teamB];
-      allIds.forEach((id) => {
-        if (!idToStats.has(id)) {
-          idToStats.set(id, { wins: 0, matches: 0 });
-        }
-      });
-
-      const winners: string[] = [];
-      if (m.winner === "A") winners.push(...m.teamA);
-      if (m.winner === "B") winners.push(...m.teamB);
-
-      allIds.forEach((id) => {
-        const stats = idToStats.get(id)!;
-        stats.matches += 1;
-        if (winners.includes(id)) stats.wins += 1;
-      });
-    });
-
-    const sortedIds = [...presentPlayers]
-      .map((p) => {
-        const s = idToStats.get(p.id) ?? { wins: 0, matches: 0 };
-        const ratio = s.matches ? s.wins / s.matches : 0;
-        return { id: p.id, ratio, matches: s.matches };
-      })
-      .sort((a, b) => {
-        if (a.matches === 0 && b.matches === 0) {
-          const pa = players.find((p) => p.id === a.id)?.name ?? "";
-          const pb = players.find((p) => p.id === b.id)?.name ?? "";
-          return pa.localeCompare(pb, "hu");
-        }
-        if (b.ratio !== a.ratio) return b.ratio - a.ratio;
-        return b.matches - a.matches;
-      })
-      .map((x) => x.id);
-
-    const key = (a: string, b: string) => [a, b].sort().join("|");
-
-    const allMatches: Match[] = [];
-    const localSeenTeammatesToday = new Set<string>(seenTeammatesToday);
-
-    const pool: { id: string; ratio: number }[] = sortedIds.map((id) => {
-      const s = idToStats.get(id) ?? { wins: 0, matches: 0 };
-      const ratio = s.matches ? s.wins / s.matches : 0;
-      return { id, ratio };
-    });
-
-    const totalInPool = pool.length;
-    const minPlayersInMatch = 4;
-    const maxMatches = Math.floor(totalInPool / minPlayersInMatch);
-    if (maxMatches <= 0) return;
-
-    const used = new Set<string>();
-
-    const pickStrongest = () => {
-      const available = pool.filter((p) => !used.has(p.id));
-      if (!available.length) return null;
-      return available.reduce((best, curr) =>
-        curr.ratio > best.ratio ? curr : best
-      );
-    };
-
-    const pickWeakestPartner = (forId: string) => {
-      const available = pool
-        .filter((p) => !used.has(p.id) && p.id !== forId)
-        .sort((a, b) => a.ratio - b.ratio);
-
-      for (const cand of available) {
-        if (!canBeTeammates(forId, cand.id)) continue;
-        if (!localSeenTeammatesToday.has(key(forId, cand.id))) {
-          return cand;
-        }
-      }
-
-      for (const cand of available) {
-        if (!canBeTeammates(forId, cand.id)) continue;
-        return cand;
-      }
-      return null;
-    };
-
-    const pickOpponents = (teamIds: string[]) => {
-      const available = pool
-        .filter((p) => !used.has(p.id) && !teamIds.includes(p.id))
-        .sort((a, b) => a.ratio - b.ratio);
-
-      if (available.length < 2) return null;
-
-      for (let i = 0; i < available.length - 1; i++) {
-        for (let j = i + 1; j < available.length; j++) {
-          const c1 = available[i];
-          const c2 = available[j];
-          if (!canBeTeammates(c1.id, c2.id)) continue;
-
-          const okPair =
-            !localSeenTeammatesToday.has(key(c1.id, c2.id)) ||
-            available.length <= 2;
-
-          if (!okPair) continue;
-
-          return [c1, c2] as const;
-        }
-      }
-
-      let bestPair: [typeof available[0], typeof available[0]] | null = null;
-      let bestScore = Infinity;
-      for (let i = 0; i < available.length - 1; i++) {
-        for (let j = i + 1; j < available.length; j++) {
-          const c1 = available[i];
-          const c2 = available[j];
-          if (!canBeTeammates(c1.id, c2.id)) continue;
-          const score = c1.ratio + c2.ratio;
-          if (score < bestScore) {
-            bestScore = score;
-            bestPair = [c1, c2];
-          }
-        }
-      }
-      return bestPair;
-    };
-
-    for (let matchIndex = 0; matchIndex < maxMatches; matchIndex++) {
-      const strongest = pickStrongest();
-      if (!strongest) break;
-
-      const partner = pickWeakestPartner(strongest.id);
-      if (!partner) break;
-
-      const teamAIds = [strongest.id, partner.id];
-
-      const opponents = pickOpponents(teamAIds);
-      if (!opponents) break;
-
-      const teamBIds = [opponents[0].id, opponents[1].id];
-
-      const m: Match = {
-        id: uid(),
-        date,
-        teamA: [teamAIds[0], teamAIds[1]],
-        teamB: [teamBIds[0], teamBIds[1]],
-      };
-      allMatches.push(m);
-
-      used.add(teamAIds[0]);
-      used.add(teamAIds[1]);
-      used.add(teamBIds[0]);
-      used.add(teamBIds[1]);
-
-      localSeenTeammatesToday.add(key(teamAIds[0], teamAIds[1]));
-      localSeenTeammatesToday.add(key(teamBIds[0], teamBIds[1]));
-
-      const remainingAvailable = pool.filter((p) => !used.has(p.id));
-      if (remainingAvailable.length < minPlayersInMatch) break;
+    if (isPresent(id)) {
+      setPresentIds(presentIds.filter((pId) => pId !== id));
+    } else {
+      setPresentIds([...presentIds, id]);
     }
-
-    if (!allMatches.length) return;
-
-    write({
-      matches: [...league.matches, ...allMatches],
-    });
   };
+
+  const baseName = (full: string) =>
+    full.replace(/^.+?\s/, ""); // slicing off emoji + space
+
+  const sortedPlayers = useMemo(
+    () =>
+      [...players].sort((a, b) =>
+        baseName(a.name).localeCompare(baseName(b.name), "hu")
+      ),
+    [players]
+  );
+  
+  const presentCount = presentIds.length;
 
   return (
     <div className={card}>
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <div>
-          <h3 className="text-sm font-semibold text-slate-900 sm:text-base">
-            Random matches
-          </h3>
-          <p className="text-xs text-slate-500">
-            Draw balanced matches for the selected date.
-          </p>
-        </div>
+      <ShuttleBg />
+      {/* 🛠️ Névátírás: Jelenlét -> Attendance */}
+      <h3 className="mb-2 font-semibold">
+        Attendance {date} ({presentCount}/{players.length})
+      </h3>
+      
+      {players.length === 0 ? (
+        <p className="text-sm text-gray-500">No players yet. Add them first.</p>
+      ) : (
+        <>
+          <div className="flex gap-2 mb-3 text-xs">
+              <button
+                className={`${btnSecondary} px-3 py-1`}
+                onClick={() => setPresentIds(players.map(p => p.id))}
+              >
+                Select All
+              </button>
+              <button
+                className={`${btnSecondary} px-3 py-1`}
+                onClick={() => setPresentIds([])}
+              >
+                Clear All
+              </button>
+          </div>
+      <ul className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-52 overflow-y-auto pr-1">
+  {sortedPlayers.map((p) => {
+    const checked = isPresent(p.id);
+    return (
+      <li key={p.id}>
         <button
           type="button"
-          className={btnPrimary}
-          disabled={!canDraw}
-          onClick={draw}
+          onClick={() => togglePresence(p.id)}
+          className={`
+            w-full rounded-xl px-2 py-2 text-xs sm:text-sm border text-left
+            flex items-center justify-between gap-2
+            transition-colors
+            ${
+              checked
+                ? "bg-emerald-50 border-emerald-300 text-slate-900"
+                : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+            }
+          `}
         >
-          🎲 Draw matches
+          <span className="truncate">{p.name}</span>
+          <span
+            className={`
+              inline-flex h-5 min-w-[2.5rem] items-center justify-center rounded-full
+              text-[10px] sm:text-xs font-semibold
+              ${
+                checked
+                  ? "bg-emerald-100 text-emerald-700"
+                  : "bg-slate-100 text-slate-500"
+              }
+            `}
+          >
+            {checked ? "Here" : "Away"}
+          </span>
         </button>
-      </div>
-      {!canDraw && (
-        <p className="text-xs text-rose-500">
-          At least 4 players must be present to draw matches.
-        </p>
-      )}
-      {matchesForDate.length > 0 && (
-        <p className="mt-2 text-xs text-slate-500">
-          Already {matchesForDate.length} matches scheduled for this day.
-        </p>
+      </li>
+    );
+  })}
+</ul>
+
+        </>
       )}
     </div>
   );
 }
-
-// ===== Player Editor (Admin) =====
-const EMOJIS = [
-  "🐧",
-  "🦊",
-  "🐼",
-  "🦁",
-  "🐯",
-  "🐸",
-  "🐨",
-  "🐰",
-  "🐻",
-  "🐙",
-  "🐵",
-  "🐶",
-  "🐱",
-  "🐭",
-  "🐹",
-  "🐮",
-  "🐷",
-  "🐔",
-  "🐣",
-  "🐢",
-  "🐬",
-  "🦉",
-  "🦄",
-  "🐝",
-  "🐞",
-  "🌟",
-  "⚡",
-  "🔥",
-  "🎈",
-  "🎾",
-  "🏸",
-  "🚀",
-  "🎧",
-  "🎮",
-  "🌈",
-  "🍀",
-  "🍎",
-  "🍉",
-  "🍕",
-];
+// 🆕 Jelenléti Lista Komponens VÉGE
 
 function PlayerEditor({
   players,
   onAdd,
   onRemove,
   onUpdateEmoji,
+  disabled,
 }: {
   players: Player[];
-  onAdd: (name: string, emoji?: string) => void;
+  onAdd: (name: string) => void;
   onRemove: (id: string) => void;
-  onUpdateEmoji: (id: string, emoji?: string) => void;
+  onUpdateEmoji: (id: string, emoji: string) => void;
+  disabled?: boolean;
 }) {
   const [name, setName] = useState("");
-  const [emoji, setEmoji] = useState<string | undefined>(undefined);
-  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
-
-  const getBaseName = (full: string) => full.replace(/^.+?\s/, "");
-
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmed = name.trim();
-    if (!trimmed) return;
-
-    const emojiPart = emoji ? emoji + " " : "";
-    const finalName = emojiPart + trimmed;
-
-    onAdd(finalName, emoji);
-    setName("");
-    setEmoji(undefined);
-  };
-
-  const sorted = [...players].sort((a, b) =>
-    getBaseName(a.name).localeCompare(getBaseName(b.name), "hu")
+  const [selectedEmoji, setSelectedEmoji] = useState<string>(EMOJIS[0]);
+  const [editingEmoji, setEditingEmoji] = useState(false);
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(
+    players.length ? players[0].id : null
   );
+  // 🆕 Kibontható/összecsukható állapot
+  const [showManagement, setShowManagement] = useState(false);
 
-  const selectedPlayer = selectedPlayerId
-    ? players.find((p) => p.id === selectedPlayerId) || null
-    : null;
-
-  const [editEmoji, setEditEmoji] = useState<string | undefined>(undefined);
-
+  // if the players array changes (e.g., new player), update the select
   useEffect(() => {
-    if (!selectedPlayer) {
-      setEditEmoji(undefined);
-      return;
+    if (!players.length) {
+      setSelectedPlayerId(null);
+    } else if (!selectedPlayerId || !players.some(p => p.id === selectedPlayerId)) {
+      setSelectedPlayerId(players[0].id);
     }
-    const match = selectedPlayer.name.match(/^(\p{Emoji_Presentation}|\p{Extended_Pictographic})\s/u);
-    if (match) {
-      setEditEmoji(match[0].trim());
-    } else if (selectedPlayer.emoji) {
-      setEditEmoji(selectedPlayer.emoji);
-    } else {
-      setEditEmoji(undefined);
-    }
-  }, [selectedPlayer?.id]);
+  }, [players, selectedPlayerId]);
 
-  const updateEmoji = () => {
-    if (!selectedPlayer) return;
-    onUpdateEmoji(selectedPlayer.id, editEmoji);
+  const getBaseName = (full: string) =>
+    full.replace(/^.+?\s/, ""); // slicing off emoji + space
+
+  const getEmoji = (full: string) => {
+    const m = full.match(/^(\S+)/);
+    return m ? m[1] : "😀";
   };
+
+  const handleAdd = () => {
+    const t = name.trim();
+    if (!t || disabled) return;
+    onAdd(`${selectedEmoji} ${t}`);
+    setName("");
+  };
+
+  const selectedPlayer =
+    selectedPlayerId && players.find((p) => p.id === selectedPlayerId)
+      ? players.find((p) => p.id === selectedPlayerId)!
+      : null;
 
   return (
     <div className={card}>
-      <h3 className="mb-2 text-sm font-semibold text-slate-900 sm:text-base">
-        Players
-      </h3>
-      <form onSubmit={submit} className="space-y-2">
-        <input
-          className={input}
-          placeholder="New player name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-        <div className="flex flex-wrap gap-1">
-          {EMOJIS.map((e) => (
+      <ShuttleBg />
+      <h2 className="mb-2 text-lg font-semibold">
+        Players ({players.length})
+      </h2>
+
+      {/* Új játékos felvétele – Mindig látható */}
+      <div className="mb-4 space-y-2">
+        <div className="flex w-full flex-col gap-2 sm:flex-row">
+          {/* Emoji + Input + Add Button */}
+          <div className="flex-1 flex items-center gap-2">
             <button
-              key={e}
               type="button"
-              className={
-                emoji === e
-                  ? "rounded-full bg-sky-100 px-2 py-1 text-sm"
-                  : "rounded-full bg-slate-100 px-2 py-1 text-sm"
-              }
-              onClick={() => setEmoji(emoji === e ? undefined : e)}
+              className={`${btnSecondary} px-3 py-2 text-xl`}
+              onClick={() => setEditingEmoji(true)}
+              disabled={!!disabled}
             >
-              {e}
+              {selectedEmoji}
             </button>
-          ))}
+            <input
+              className={`${input} flex-1`}
+              placeholder="Player name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !disabled) {
+                  handleAdd();
+                }
+              }}
+              disabled={!!disabled}
+            />
+          </div>
+          <button
+            className={btnPrimary}
+            onClick={handleAdd}
+            disabled={!!disabled || !name.trim()}
+          >
+            Add
+          </button>
         </div>
-        <button type="submit" className={btnPrimary}>
-          ➕ Add player
-        </button>
-      </form>
+      </div>
 
-      <div className="mt-4 border-t border-slate-100 pt-3">
-        <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-          Edit existing player
-        </h4>
-        <select
-          className={input}
-          value={selectedPlayerId || ""}
-          onChange={(e) => setSelectedPlayerId(e.target.value)}
-        >
-          <option value="">Select a player</option>
-          {sorted.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
+      {/* 🆕 Toggle button for the rest of the management features */}
+      <button
+        type="button"
+        className={`${btnSecondary} w-full`}
+        onClick={() => setShowManagement((v) => !v)}
+        disabled={!!disabled}
+      >
+        {showManagement ? "Close Management ⏶" : "Manage Players / Options ⏷"}
+      </button>
 
-        {selectedPlayer && (
-          <div className="mt-3 space-y-2 rounded-xl bg-slate-50 p-3 text-xs text-slate-700">
-            <div className="flex items-center justify-between">
-              <span className="font-medium">{selectedPlayer.name}</span>
-              <button
-                type="button"
-                className="text-xs text-rose-500 hover:text-rose-600"
-                onClick={() => onRemove(selectedPlayer.id)}
-              >
-                Remove
-              </button>
-            </div>
-            <div>
-              <p className="mb-1 text-[11px] font-semibold uppercase text-slate-500">
-                Emoji
-              </p>
-              <div className="flex flex-wrap gap-1">
+      {/* Kezelőfelület: CSAK akkor látszik, ha kibontottuk */}
+      {showManagement && (
+        <div className="border-t border-slate-100 pt-3 mt-3">
+          {/* Új játékos emoji lista */}
+          {editingEmoji && (
+            <div className="mb-4 space-y-2">
+              <div className="text-xs text-slate-500">
+                Pick an emoji for the new player:
+              </div>
+              <div className="flex flex-wrap gap-1 max-h-40 overflow-y-auto">
                 {EMOJIS.map((e) => (
                   <button
                     key={e}
                     type="button"
-                    className={
-                      editEmoji === e
-                        ? "rounded-full bg-sky-100 px-2 py-1 text-sm"
-                        : "rounded-full bg-slate-100 px-2 py-1 text-sm"
-                    }
-                    onClick={() =>
-                      setEditEmoji(editEmoji === e ? undefined : e)
-                    }
+                    className={`rounded-lg border px-2 py-1 text-xs ${
+                      e === selectedEmoji
+                        ? "bg-[#e0edff] border-[#4f8ef7]"
+                        : "bg-white border-slate-200"
+                    }`}
+                    onClick={() => {
+                      setSelectedEmoji(e);
+                      setEditingEmoji(false);
+                    }}
+                    disabled={!!disabled}
                   >
                     {e}
                   </button>
                 ))}
               </div>
-              <button
-                type="button"
-                className={`${btnSecondary} mt-2`}
-                onClick={updateEmoji}
-              >
-                Save emoji
-              </button>
             </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+          )}
 
-// ===== Admin Date Jump =====
-function AdminDateJump({
-  grouped,
-  date,
-  setDate,
-  lastSessionDate,
-}: {
-  grouped: Record<string, Match[]>;
-  date: string;
-  setDate: (d: string) => void;
-  lastSessionDate: string | null;
-}) {
-  const dates = Object.keys(grouped).sort().reverse();
-  return (
-    <div className={card}>
-      <h3 className="mb-2 text-sm font-semibold text-slate-900 sm:text-base">
-        Sessions
-      </h3>
-      <div className="flex flex-wrap gap-1">
-        {dates.map((d) => (
-          <button
-            key={d}
-            type="button"
-            className={
-              d === date
-                ? "rounded-full bg-sky-100 px-2 py-1 text-xs font-semibold text-sky-800"
-                : "rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-700 hover:bg-slate-200"
-            }
-            onClick={() => setDate(d)}
-          >
-            {d} • {weekday(d)}
-          </button>
-        ))}
-        {lastSessionDate && !dates.includes(lastSessionDate) && (
-          <button
-            type="button"
-            className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700"
-            onClick={() => setDate(lastSessionDate)}
-          >
-            Last session ({lastSessionDate})
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ===== Backup Panel =====
-function BackupPanel({
-  backups,
-  onCreate,
-  onRestore,
-}: {
-  backups: Backup[];
-  onCreate: () => void;
-  onRestore: (id: string) => void;
-}) {
-  const sorted = [...backups].sort((a, b) =>
-    b.createdAt.localeCompare(a.createdAt)
-  );
-  return (
-    <div className={card}>
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold text-slate-900 sm:text-base">
-          Backups
-        </h3>
-        <button type="button" className={btnSecondary} onClick={onCreate}>
-          💾 Create backup
-        </button>
-      </div>
-      {sorted.length === 0 && (
-        <p className="text-xs text-slate-500">No backups yet.</p>
-      )}
-      {sorted.length > 0 && (
-        <ul className="space-y-1 text-xs text-slate-700">
-          {sorted.map((b) => (
-            <li
-              key={b.id}
-              className="flex items-center justify-between rounded-lg bg-slate-50 px-2 py-1"
+          {/* Játékos módosítás/törlés */}
+          <div className="space-y-4">
+            <h3 className="mb-2 font-semibold text-sm">
+              Manage existing players
+            </h3>
+            <select
+              className={input}
+              value={selectedPlayerId || ""}
+              onChange={(e) => setSelectedPlayerId(e.target.value)}
+              disabled={players.length === 0 || !!disabled}
             >
-              <span className="truncate">{b.label}</span>
-              <button
-                type="button"
-                className="text-[11px] text-sky-600 hover:text-sky-700"
-                onClick={() => onRestore(b.id)}
-              >
-                Restore
-              </button>
-            </li>
-          ))}
-        </ul>
+              <option value="" disabled>
+                Select a player to edit
+              </option>
+              {players.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+
+            {selectedPlayer && (
+              <div className="space-y-3">
+                {/* Törlés */}
+                <button
+                  className={btnDanger}
+                  onClick={() => onRemove(selectedPlayer.id)}
+                  disabled={!!disabled}
+                >
+                  Remove Player ({getBaseName(selectedPlayer.name)})
+                </button>
+
+                {/* Emoji módosítás */}
+                <div>
+                  <div className="mb-1 text-xs text-slate-500">
+                    Change emoji for{" "}
+                    <span className="font-semibold">
+                      {getBaseName(selectedPlayer.name)}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
+                    {EMOJIS.map((e) => (
+                      <button
+                        key={e}
+                        type="button"
+                        className={`rounded-lg border px-2 py-1 text-xs ${
+                          e === getEmoji(selectedPlayer.name)
+                            ? "bg-[#e0edff] border-[#4f8ef7]"
+                            : "bg-white border-slate-200"
+                        }`}
+                        onClick={() => {
+                          onUpdateEmoji(selectedPlayer.id, e);
+                          // nem muszáj bezárni, de lehet:
+                          // setEditingEmoji(false);
+                        }}
+                        disabled={!!disabled}
+                      >
+                        {e}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
 }
 
-// ===== Matches Admin =====
-function MatchesAdmin({
-  matches,
-  nameOf,
-  onPick,
-  onClear,
-  onDelete,
-}: {
-  matches: Match[];
-  nameOf: (id: string) => string;
-  onPick: (id: string, winner: "A" | "B" | "draw") => void;
-  onClear: (id: string) => void;
-  onDelete: (id: string) => void;
-}) {
-  if (!matches.length) {
-    return (
-      <div className={card}>
-        <h3 className="mb-2 text-sm font-semibold text-slate-900 sm:text-base">
-          Matches (admin)
-        </h3>
-        <p className="text-xs text-slate-500">
-          No matches for this day yet. Draw or create some above.
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className={card}>
-      <h3 className="mb-2 text-sm font-semibold text-slate-900 sm:text-base">
-        Matches (admin)
-      </h3>
-      <ul className="space-y-2 text-xs sm:text-sm">
-        {matches.map((m) => (
-          <li
-            key={m.id}
-            className="flex flex-col gap-1 rounded-xl bg-slate-50 p-2 sm:flex-row sm:items-center sm:justify-between"
-          >
-            <div className="flex flex-wrap items-center gap-1">
-              <span className="font-medium text-slate-800">
-                {nameOf(m.teamA[0])} & {nameOf(m.teamA[1])}
-              </span>
-              <span className="text-[11px] text-slate-400">vs</span>
-              <span className="font-medium text-slate-800">
-                {nameOf(m.teamB[0])} & {nameOf(m.teamB[1])}
-              </span>
-            </div>
-            <div className="flex flex-wrap items-center gap-1">
-              <button
-                type="button"
-                className={
-                  m.winner === "A"
-                    ? "rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-800"
-                    : "rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-700 hover:bg-slate-200"
-                }
-                onClick={() => onPick(m.id, "A")}
-              >
-                A win
-              </button>
-              <button
-                type="button"
-                className={
-                  m.winner === "B"
-                    ? "rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-800"
-                    : "rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-700 hover:bg-slate-200"
-                }
-                onClick={() => onPick(m.id, "B")}
-              >
-                B win
-              </button>
-              <button
-                type="button"
-                className={
-                  m.winner === "draw"
-                    ? "rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-800"
-                    : "rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-700 hover:bg-slate-200"
-                }
-                onClick={() => onPick(m.id, "draw")}
-              >
-                Draw
-              </button>
-              {m.winner && (
-                <button
-                  type="button"
-                  className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500 hover:bg-slate-200"
-                  onClick={() => onClear(m.id)}
-                >
-                  Clear
-                </button>
-              )}
-              <button
-                type="button"
-                className="rounded-full bg-rose-50 px-2 py-0.5 text-[11px] text-rose-600 hover:bg-rose-100"
-                onClick={() => onDelete(m.id)}
-              >
-                Delete
-              </button>
-            </div>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-// ===== SelectPairs (Admin manual match creation) =====
 function SelectPairs({
   players,
   freeIds,
   seenTeammates,
   onCreate,
+  disabled,
 }: {
   players: Player[];
   freeIds: string[];
   seenTeammates: Set<string>;
-  onCreate: (m: Match) => void;
+  onCreate: (a: Pair, b: Pair) => void;
+  disabled?: boolean;
 }) {
-  const [teamA1, setTeamA1] = useState("");
-  const [teamA2, setTeamA2] = useState("");
-  const [teamB1, setTeamB1] = useState("");
-  const [teamB2, setTeamB2] = useState("");
+  const [teamA1, setTeamA1] = useState<string>("");
+  const [teamA2, setTeamA2] = useState<string>("");
+  const [teamB1, setTeamB1] = useState<string>("");
+  const [teamB2, setTeamB2] = useState<string>("");
 
-  const baseName = (full: string) => full.replace(/^.+?\s/, "");
+  const reset = () => {
+    setTeamA1("");
+    setTeamA2("");
+    setTeamB1("");
+    setTeamB2("");
+  };
+
+  const selectedIds = [teamA1, teamA2, teamB1, teamB2].filter(Boolean);
+  const hasDuplicate = new Set(selectedIds).size !== selectedIds.length;
+  const canCreate = !disabled && selectedIds.length === 4 && !hasDuplicate;
+
+  const warnA = !!teamA1 && !!teamA2 && seenTeammates.has(key(teamA1, teamA2));
+  const warnB = !!teamB1 && !!teamB2 && seenTeammates.has(key(teamB1, teamB2));
 
   const getName = (id: string) =>
     players.find((p) => p.id === id)?.name || "—";
-
-  const key = (a: string, b: string) => [a, b].sort().join("|");
-
-  const currentIds = [teamA1, teamA2, teamB1, teamB2].filter(Boolean);
 
   const renderSelect = (
     label: string,
@@ -1314,22 +1163,22 @@ function SelectPairs({
     onChange: (val: string) => void,
     excludeIds: string[]
   ) => {
-    const options = players
-      .filter((p) => !excludeIds.includes(p.id))
-      .slice()
-      .sort((a, b) => baseName(a.name).localeCompare(baseName(b.name), "hu"));
+    const options = players.filter((p) => !excludeIds.includes(p.id));
 
     return (
       <div className="space-y-1">
-        <label className="block text-xs font-medium text-slate-500">
-          {label}
+        <label className="text-xs text-gray-500 block">
+          {label}:
         </label>
         <select
           className={input}
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          disabled={!!disabled}
         >
-          <option value="">Select player</option>
+          <option value="" disabled>
+            Select player
+          </option>
           {options.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name} {freeIds.includes(p.id) ? " (free)" : " (played)"}
@@ -1340,491 +1189,1448 @@ function SelectPairs({
     );
   };
 
-  const canSubmit =
-    teamA1 && teamA2 && teamB1 && teamB2 && new Set(currentIds).size === 4;
+  return (
+    <div className={card}>
+      <ShuttleBg />
+      <h3 className="mb-2 font-semibold">Manual Match Creation</h3>
 
-  const submit = () => {
-    if (!canSubmit) return;
+      <div className="grid gap-4 sm:grid-cols-2">
+        {/* Team A */}
+        <div
+          className={`rounded-xl border p-3 ${
+            warnA ? "border-amber-400 bg-amber-50" : "border-slate-200 bg-white"
+          }`}
+        >
+          <h4 className="mb-2 font-semibold">Team A</h4>
+          {warnA && (
+            <p className="text-xs text-amber-700 mb-2">
+              ⚠️ Warning: {getName(teamA1)} and {getName(teamA2)} were teammates
+              in a previous match today.
+            </p>
+          )}
+          <div className="space-y-2">
+            {renderSelect(
+              "Team A – Player 1",
+              teamA1,
+              setTeamA1,
+              [teamA2, teamB1, teamB2].filter(Boolean) as string[]
+            )}
+            {renderSelect(
+              "Team A – Player 2",
+              teamA2,
+              setTeamA2,
+              [teamA1, teamB1, teamB2].filter(Boolean) as string[]
+            )}
+          </div>
+        </div>
 
-    const [a1, a2, b1, b2] = [teamA1, teamA2, teamB1, teamB2];
+        {/* Team B */}
+        <div
+          className={`rounded-xl border p-3 ${
+            warnB ? "border-amber-400 bg-amber-50" : "border-slate-200 bg-white"
+          }`}
+        >
+          <h4 className="mb-2 font-semibold">Team B</h4>
+          {warnB && (
+            <p className="text-xs text-amber-700 mb-2">
+              ⚠️ Warning: {getName(teamB1)} and {getName(teamB2)} were teammates
+              in a previous match today.
+            </p>
+          )}
+          <div className="space-y-2">
+            {renderSelect(
+              "Team B – Player 1",
+              teamB1,
+              setTeamB1,
+              [teamA1, teamA2, teamB2].filter(Boolean) as string[]
+            )}
+            {renderSelect(
+              "Team B – Player 2",
+              teamB2,
+              setTeamB2,
+              [teamA1, teamA2, teamB1].filter(Boolean) as string[]
+            )}
+          </div>
+        </div>
+      </div>
 
-    const m: Match = {
-      id: uid(),
-      date: fmt(new Date()),
-      teamA: [a1, a2],
-      teamB: [b1, b2],
+      <div className="mt-4 flex items-start gap-2 text-xs">
+        <button
+          className={btnPrimary}
+          disabled={!canCreate}
+          onClick={() => {
+            onCreate(
+              [teamA1, teamA2] as Pair,
+              [teamB1, teamB2] as Pair
+            );
+            reset();
+          }}
+        >
+          Add match
+        </button>
+        <button
+          className={btnSecondary}
+          type="button"
+          onClick={reset}
+          disabled={!!disabled && selectedIds.length === 0}
+        >
+          Reset
+        </button>
+        {hasDuplicate && (
+          <span className="text-rose-600">
+            The same player cannot be in two positions in one match.
+          </span>
+        )}
+        <span className="text-gray-500">
+          Tip: Players can appear in multiple matches on the same date.
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function MatchesAdmin({
+  matches,
+  nameOf,
+  onPick,
+  onClear,
+  onDelete,
+}: {
+  matches: Match[];
+  nameOf: (id: string) => string;
+  onPick: (id: string, w: "A" | "B") => void;
+  onClear: (id: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  return (
+    <div className={card}>
+      <ShuttleBg />
+      <h3 className="mb-2 font-semibold">Matches (Admin)</h3>
+      {matches.length === 0 ? (
+        <p className="text-sm text-gray-500">No matches for this date yet.</p>
+      ) : (
+        <ul className="space-y-3">
+          {matches.map((m) => (
+            <li
+              key={m.id}
+              className="rounded-xl border border-slate-200 p-3 bg-white"
+            >
+              <div className="mb-2 text-sm">
+                <p>
+                  <span className="font-semibold">Team A:</span>{" "}
+                  {nameOf(m.teamA[0])} & {nameOf(m.teamA[1])}
+                </p>
+                <p>
+                  <span className="font-semibold">Team B:</span>{" "}
+                  {nameOf(m.teamB[0])} & {nameOf(m.teamB[1])}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  className={`${btnBase} px-3 py-1 text-xs ${
+                    m.winner === "A"
+                      ? "bg-emerald-500 text-white"
+                      : "bg-white border border-slate-200 text-slate-800 hover:bg-emerald-50"
+                  }`}
+                  onClick={() => onPick(m.id, "A")}
+                >
+                  {m.winner === "A" ? "Winner (A) 🏆" : "Pick A"}
+                </button>
+                <button
+                  className={`${btnBase} px-3 py-1 text-xs ${
+                    m.winner === "B"
+                      ? "bg-emerald-500 text-white"
+                      : "bg-white border border-slate-200 text-slate-800 hover:bg-emerald-50"
+                  }`}
+                  onClick={() => onPick(m.id, "B")}
+                >
+                  {m.winner === "B" ? "Winner (B) 🏆" : "Pick B"}
+                </button>
+                {m.winner && (
+                  <button
+                    className={`${btnSecondary} px-3 py-1 text-xs`}
+                    onClick={() => onClear(m.id)}
+                  >
+                    Clear Winner
+                  </button>
+                )}
+                <button
+                  className={`${btnDanger} px-3 py-1 text-xs ml-auto`}
+                  onClick={() => onDelete(m.id)}
+                >
+                  Delete
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// 🆕 Helzszíni sorsolás komponens
+function DrawMatches({
+  players,
+  presentIds,
+  matchesForDate,
+  seenTeammatesToday,
+  date,
+  league,
+  write,
+  disabled,
+}: {
+  players: Player[];
+  presentIds: string[];
+  matchesForDate: Match[];
+  seenTeammatesToday: Set<string>;
+  date: string;
+  league: LeagueDoc;
+  write: (patch: Partial<LeagueDoc>) => void;
+  disabled?: boolean;
+}) {
+  const presentPlayers = players.filter((p) => presentIds.includes(p.id));
+  const canDraw = presentPlayers.length >= 4;
+
+  const draw = () => {
+    if (presentPlayers.length < 4) return;
+    if (disabled) return;
+    
+    // Csak a jelenlévő játékosok id-i
+    const allPlayerIds = presentPlayers.map(p => p.id); 
+
+    // Kiszámítja a játékos pontszámát az aznapi lejátszott meccsek alapján.
+    // A pontszám a párosításhoz kell, ahol 1 pont jár minden győzelemért, 0 a vereségért.
+    const getScore = (pid: string) => {
+      let pts = 0;
+      let matchCount = 0;
+
+      // Only count matches with a winner on the *current date* to ensure fresh ranking for the day.
+      matchesForDate.forEach((m) => {
+        if (!m.winner) return; // Only matches with winners count
+        const inA = m.teamA.includes(pid);
+        const inB = m.teamB.includes(pid);
+        if (!inA && !inB) return;
+
+        matchCount++;
+        const isWin = (m.winner === "A" && inA) || (m.winner === "B" && inB);
+        // Auto-draw score is still just 1 point for win, 0 for loss for fair pairing
+        if (isWin) pts += 1; // Used only for pairing
+      });
+
+      return { id: pid, score: pts, matches: matchCount };
     };
-    onCreate(m);
 
-    setTeamA1("");
-    setTeamA2("");
-    setTeamB1("");
-    setTeamB2("");
+    // 2. Rank players based on points (only those present)
+    const sortedIds = allPlayerIds
+      .map(getScore)
+      .sort((a, b) => {
+        // Higher score is better
+        if (b.score !== a.score) return b.score - a.score;
+        // More matches is better
+        return b.matches - a.matches;
+      });
+
+        const allMatches: Match[] = [];
+    const localSeenTeammatesToday = new Set<string>(seenTeammatesToday);
+
+    // 🆕 Edzők azonosítása név alapján (emoji nélkül)
+    const baseName = (full: string) =>
+      full.replace(/^.+?\s/, ""); // levágjuk az emojit + szóközt
+
+    const isCoach = (id: string) => {
+      const p = players.find((pl) => pl.id === id);
+      if (!p) return false;
+      const name = baseName(p.name);
+      return name === "Robi" || name === "Melinda";
+    };
+
+    const canBeTeammates = (aId: string, bId: string) =>
+      !(isCoach(aId) && isCoach(bId)); // Robi & Melinda nem lehetnek egy csapatban
+
+
+
+    // 🎯 MAIN LOOP: Draw 3 ROUNDS
+    for (let round = 0; round < 3; round++) {
+      let workingPool = [...sortedIds]; // Start each round with the full, ranked list
+      const teams: Pair[] = [];
+      const roundMatches: Match[] = [];
+
+    // 3. CREATE PAIRS (High-Low method)
+    while (workingPool.length >= 2) {
+      const high = workingPool[0]; // The strongest player
+
+      // Try to find the weakest possible player who hasn't been a teammate with 'high' yet
+      let bestMate: typeof high | null = null;
+      for (let i = workingPool.length - 1; i >= 1; i--) {
+        const candidate = workingPool[i];
+
+        // csak akkor jó jelölt, ha még nem volt a társa ÉS nem edző–edző páros
+        if (
+          !localSeenTeammatesToday.has(key(high.id, candidate.id)) &&
+          canBeTeammates(high.id, candidate.id)
+        ) {
+          bestMate = candidate;
+          break;
+        }
+      }
+
+      // Ha nem találtunk "friss" társat, keressünk olyat, aki legalább nem edző–edző páros
+      if (!bestMate) {
+        for (let i = workingPool.length - 1; i >= 1; i--) {
+          const candidate = workingPool[i];
+          if (canBeTeammates(high.id, candidate.id)) {
+            bestMate = candidate;
+            break;
+          }
+        }
+      }
+
+      // Ha még így sincs érvényes pár (pl. csak a két edző maradt), akkor itt megállunk
+      if (!bestMate) {
+        break;
+      }
+
+      // Remove the pair from the pool
+      workingPool = workingPool.filter(
+        (p) => p.id !== high.id && p.id !== bestMate!.id
+      );
+
+      teams.push([high.id, bestMate.id] as Pair);
+
+      // Still mark as seen
+      localSeenTeammatesToday.add(key(high.id, bestMate.id));
+    }
+
+
+      // 4. CREATE MATCHES (High-Low method)
+      // If we have at least 2 teams, pair them up
+      while (teams.length >= 2) {
+        // High-low match: strongest team (0) vs weakest team (last)
+        const teamA = teams[0];
+        const teamB = teams[teams.length - 1];
+
+        // This match is ready
+        roundMatches.push({
+          id: uid(),
+          date,
+          teamA,
+          teamB,
+        });
+
+        // Remove teams
+        teams.splice(teams.length - 1, 1);
+        teams.splice(0, 1);
+      }
+
+      // Add round matches to all matches
+      allMatches.push(...roundMatches);
+    }
+
+    if (allMatches.length === 0) {
+      alert("Could not generate a balanced draw with the current players.");
+      return;
+    }
+
+    // Add all generated matches to the league data
+    write({ matches: [...league.matches, ...allMatches] });
   };
-
-  const hasPlayedTogether = (id1: string, id2: string) =>
-    seenTeammates.has(key(id1, id2));
 
   return (
     <div className={card}>
-      <h3 className="mb-2 text-sm font-semibold text-slate-900 sm:text-base">
-        Manual match
-      </h3>
-      <div className="grid gap-2 sm:grid-cols-2">
-        {renderSelect("Team A – Player 1", teamA1, setTeamA1, [
-          teamA2,
-          teamB1,
-          teamB2,
-        ])}
-        {renderSelect("Team A – Player 2", teamA2, setTeamA2, [
-          teamA1,
-          teamB1,
-          teamB2,
-        ])}
-        {renderSelect("Team B – Player 1", teamB1, setTeamB1, [
-          teamA1,
-          teamA2,
-          teamB2,
-        ])}
-        {renderSelect("Team B – Player 2", teamB2, setTeamB2, [
-          teamA1,
-          teamA2,
-          teamB1,
-        ])}
-      </div>
-
-      {canSubmit && (
-        <div className="mt-2 rounded-xl bg-slate-50 p-2 text-xs text-slate-700">
-          <p className="font-medium">Preview:</p>
-          <p>
-            <span className="font-semibold">
-              {getName(teamA1)} & {getName(teamA2)}
-            </span>{" "}
-            vs{" "}
-            <span className="font-semibold">
-              {getName(teamB1)} & {getName(teamB2)}
-            </span>
-          </p>
-          <p className="mt-1 text-[11px] text-slate-500">
-            {hasPlayedTogether(teamA1, teamA2) && (
-              <>
-                Team A has played together today.{" "}
-              </>
-            )}
-            {hasPlayedTogether(teamB1, teamB2) && (
-              <>Team B has played together today.</>
-            )}
-          </p>
-        </div>
+      <ShuttleBg />
+      <h3 className="mb-2 font-semibold">Automatic Draw (3 Rounds)</h3>
+      {presentPlayers.length < 4 ? (
+        <p className="text-sm text-gray-500">
+          At least 4 players must be present to draw matches. ({presentPlayers.length} present)
+        </p>
+      ) : (
+        <p className="text-sm text-gray-500 mb-3">
+          Generates 3 rounds of balanced matches based on current score and avoiding repeated teammates. ({presentPlayers.length} players)
+        </p>
       )}
 
       <button
-        type="button"
-        className={`${btnPrimary} mt-3`}
-        disabled={!canSubmit}
-        onClick={submit}
+        className={btnPrimary}
+        onClick={draw}
+        disabled={!canDraw || !!disabled}
       >
-        ➕ Create match
+        Draw Matches
       </button>
     </div>
   );
 }
+// 🆕 Helzszíni sorsolás komponens VÉGE
 
-// ===== Matches Player View =====
 function MatchesPlayer({
   grouped,
   nameOf,
 }: {
-  grouped: Record<string, Match[]>;
+  grouped: { date: string; matches: Match[] }[];
   nameOf: (id: string) => string;
 }) {
-  const dates = Object.keys(grouped).sort().reverse();
+  const [openDate, setOpenDate] = useState<string | null>(null);
 
-  if (!dates.length) {
-    return (
-      <div className={card}>
-        <h3 className="mb-2 text-sm font-semibold text-slate-900 sm:text-base">
-          Matches
-        </h3>
-        <p className="text-xs text-slate-500">
-          No matches yet. Ask your coach to start the league. 😄
-        </p>
-      </div>
-    );
-  }
+  // Nyissuk ki a legutóbbi alkalmat automatikusan (csak egyszer)
+  const latestDate = useMemo(
+    () => grouped.length > 0 ? grouped[0].date : null,
+    [grouped]
+  );
+  useEffect(() => {
+    if (!latestDate) return;
+    setOpenDate((prev) => {
+      // ha már nyitva van, hagyjuk
+      if (prev === latestDate) return prev;
+      // különben nyissuk az utolsót
+      return latestDate;
+    });
+  }, [grouped]);
+
+  // Segédfüggvény a név emoji nélküli részének kinyerésére (soroláshoz)
+  const baseName = (full: string) =>
+    full.replace(/^.+?\s/, "");
 
   return (
     <div className={card}>
-      <h3 className="mb-2 text-sm font-semibold text-slate-900 sm:text-base">
-        Matches
-      </h3>
-      <div className="space-y-3 text-xs sm:text-sm">
-        {dates.map((d) => (
-          <div key={d} className="space-y-1 rounded-xl bg-slate-50 p-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                {d} • {weekday(d)}
-              </span>
-              <span className="text-[11px] text-slate-400">
-                {grouped[d].length} match
-                {grouped[d].length > 1 ? "es" : ""}
-              </span>
-            </div>
-            <ul className="space-y-1">
-              {grouped[d].map((m) => (
-                <li key={m.id} className="flex flex-wrap gap-1">
-                  <span
-                    className={
-                      m.winner === "A"
-                        ? "font-semibold text-emerald-700"
-                        : "text-slate-800"
+      <ShuttleBg />
+      <h3 className="mb-2 font-semibold">Results by date</h3>
+      {grouped.length === 0 ? (
+        <p className="text-sm text-gray-500">No matches yet.</p>
+      ) : (
+        <div className="space-y-2">
+          {grouped.map((g) => {
+            const isOpen = openDate === g.date;
+
+            // 🆕 Jelenlévő játékosok kinyerése
+            const presentIds = new Set<string>();
+            g.matches.forEach((m) => {
+              m.teamA.forEach((id) => presentIds.add(id));
+              m.teamB.forEach((id) => presentIds.add(id));
+            });
+            const presentPlayers = Array.from(presentIds)
+              .map(nameOf) // Emoji-val együtt
+              .sort((a, b) => baseName(a).localeCompare(baseName(b), "hu"));
+            // 🆕 Kinyerés VÉGE
+
+            return (
+              <div
+                key={g.date}
+                id={`date-${g.date}`}
+                className="rounded-xl border border-slate-200 bg-white"
+              >
+                {/* Date "header" – kattintható sor, mint egy dropdown */}
+                <button
+                  type="button"
+                  onClick={() => setOpenDate(isOpen ? null : g.date)}
+                  // 🛠️ FIX: Explicit háttér/hover/kerekítés a gombhoz
+                  className={`
+                    flex w-full items-center justify-between p-3 transition-colors
+                    bg-white
+                    ${
+                      isOpen
+                        ? "bg-slate-100 rounded-t-xl" 
+                        : "hover:bg-slate-50 rounded-xl"
                     }
-                  >
-                    {nameOf(m.teamA[0])} & {nameOf(m.teamA[1])}
-                  </span>
-                  <span className="text-[11px] text-slate-400">vs</span>
-                  <span
-                    className={
-                      m.winner === "B"
-                        ? "font-semibold text-emerald-700"
-                        : "text-slate-800"
-                    }
-                  >
-                    {nameOf(m.teamB[0])} & {nameOf(m.teamB[1])}
-                  </span>
-                  {m.winner === "draw" && (
-                    <span className="ml-1 text-[11px] text-slate-500">
-                      (draw)
+                  `}
+                >
+                  <div className="flex-1 min-w-0 flex items-center gap-2">
+                    <span className="text-lg font-medium">{g.date}</span>
+                    <span className="text-sm text-gray-500">
+                      {weekday(g.date)} ({g.matches.length} matches)
                     </span>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
+                  </div>
+
+                  <div className="flex items-center gap-2 text-slate-500">
+                    <span className="text-xs font-medium">
+                      {isOpen ? "Close ⏶" : "Open ⏷"}
+                    </span>
+                  </div>
+                </button>
+
+                {/* Match list */}
+                {isOpen && (
+                  <div className="border-t border-slate-100 p-3 pt-2">
+                    {/* Jelenlévő játékosok lista */}
+                    <div className="mb-3">
+                      <p className="mb-1 text-xs font-semibold text-slate-600 uppercase tracking-wide">
+                        Present players ({presentPlayers.length})
+                      </p>
+                      <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm text-slate-700">
+                        {presentPlayers.map((p, i) => (
+                          <span key={i}>{p}</span>
+                        ))}
+                      </div>
+                    </div>
+
+                    <p className="mb-2 text-xs font-semibold text-slate-600 uppercase tracking-wide">
+                        Matches played
+                    </p>
+                    <ul className="space-y-3">
+                      {g.matches.map((m) => {
+                        const winA = m.winner === "A";
+                        const winB = m.winner === "B";
+                        return (
+                          <li
+                            key={m.id}
+                            className={`rounded-lg border p-3 text-sm transition-colors ${
+                              m.winner
+                                ? "border-slate-200 bg-white shadow-sm"
+                                : "border-slate-100 bg-slate-50 text-gray-500"
+                            }`}
+                          >
+                            <p className="mb-1 text-xs">
+                              Match{" "}
+                              {m.winner ? (
+                                <span className="text-emerald-600 font-medium">
+                                  (finished)
+                                </span>
+                              ) : (
+                                "(no result yet)"
+                              )}
+                            </p>
+                            <div
+                              className={`
+                                flex items-center justify-between
+                                ${winA && "font-semibold text-emerald-700"}
+                              `}
+                            >
+                              <p>
+                                {nameOf(m.teamA[0])} & {nameOf(m.teamA[1])}
+                              </p>
+                              {m.winner && (
+                                <span className="text-xs font-semibold">
+                                  {winA ? "Win 🏆" : "Loss 😞"}
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-xs text-gray-400">vs</div>
+                            <div
+                              className={`
+                                flex items-center justify-between
+                                ${winB && "font-semibold text-emerald-700"}
+                              `}
+                            >
+                              <p>
+                                {nameOf(m.teamB[0])} & {nameOf(m.teamB[1])}
+                              </p>
+                              {m.winner && (
+                                <span className="text-xs font-semibold">
+                                  {winB ? "Win 🏆" : "Loss 😞"}
+                                </span>
+                              )}
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StandingsInfo() {
+  return (
+    <div className={card}>
+      <ShuttleBg />
+      <h3 className="mb-2 font-semibold">How the ranking works</h3>
+      <div className="text-sm space-y-3">
+        <p>
+          The ranking is calculated based on{" "}
+          <b>Base Points + Bonus Points</b>.
+        </p>
+        <p>
+          🥇 <b>Base points:</b> Win = +3 points, Loss = +1 point. Ties are broken first by higher total points, higher Win% comes first, then the number of matches played.
+        </p>
+<p>
+  ⭐ <b>Bonus points:</b> +1 point for special achievements:
+  beating Melinda, and reaching the Ironman 10-session streak.
+</p>
       </div>
     </div>
   );
 }
 
-// ===== Standings =====
+function AdminDateJump({
+  grouped,
+  date,
+  setDate,
+  lastSessionDate,
+}: {
+  grouped: { date: string; matches: Match[] }[];
+  date: string;
+  setDate: (d: string) => void;
+  lastSessionDate?: string | null;
+}) {
+  return (
+    <div className={card}>
+      <ShuttleBg />
+      <h3 className="mb-2 font-semibold">Jump to date</h3>
+      {grouped.length === 0 ? (
+        <p className="text-sm text-gray-500">No sessions recorded yet.</p>
+      ) : (
+        <div className="space-y-2">
+          <p className="text-xs text-gray-500">
+            Current date: <span className="font-semibold">{date}</span>
+          </p>
+          <ul className="space-y-1 max-h-40 overflow-y-auto">
+            {grouped.map((g) => (
+              <li key={g.date}>
+                <a
+                  href={`#date-${g.date}`}
+                  className="flex items-center justify-between hover:text-[#4f8ef7]"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setDate(g.date);
+                    // scroll to top after jump
+                    window.scrollTo(0, 0); 
+                  }}
+                >
+                  <span>{g.date}</span>
+                  <span className="flex items-center gap-1 text-xs text-gray-500">
+                    {weekday(g.date)}
+                    {lastSessionDate === g.date && (
+                      <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 border border-emerald-200">
+                        Last
+                      </span>
+                    )}
+                  </span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BackupPanel({
+  backups,
+  onCreate,
+  onRestore,
+}: {
+  backups: Backup[];
+  onCreate: (note: string) => void;
+  onRestore: (id: string) => void;
+}) {
+  const [note, setNote] = useState("");
+  const sortedBackups = useMemo(
+    () => [...backups].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    [backups]
+  );
+  return (
+    <div className={card}>
+      <ShuttleBg />
+      <h3 className="mb-2 font-semibold">Data Backup</h3>
+      <div className="space-y-4">
+        {/* Create Backup */}
+        <div className="space-y-2 rounded-xl border border-slate-200 p-3 bg-white">
+          <h4 className="font-medium text-sm">Create new backup</h4>
+          <input
+            className={input}
+            placeholder="Optional note (e.g., 'Before season 2')"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+          />
+          <button
+            className={btnSecondary}
+            onClick={() => {
+              onCreate(note);
+              setNote("");
+            }}
+          >
+            Create Backup
+          </button>
+        </div>
+
+        {/* Restore Backup */}
+        <div className="space-y-2">
+          <h4 className="font-medium text-sm">Restore backup</h4>
+          {sortedBackups.length === 0 ? (
+            <p className="text-sm text-gray-500">No backups yet.</p>
+          ) : (
+            <ul className="space-y-2 max-h-52 overflow-y-auto">
+              {sortedBackups.map((b) => (
+                <li
+                  key={b.id}
+                  className="flex items-center justify-between rounded-lg border border-slate-200 p-2 text-sm bg-white"
+                >
+                  <div className="min-w-0">
+                    <div className="truncate font-medium">
+                      {new Date(b.createdAt).toLocaleString()}
+                    </div>
+                    <div className="truncate text-xs text-gray-500">
+                      {b.note || "No note"}
+                    </div>
+                  </div>
+                  <button
+                    className={`${btnSecondary} px-3 py-1 text-xs`}
+                    onClick={() => onRestore(b.id)}
+                  >
+                    Restore
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatBox({
+  label,
+  value,
+  icon,
+  color,
+  iconColor,
+}: {
+  label: string;
+  value: string | number;
+  icon: string;
+  color: string;
+  iconColor: string;
+}) {
+  return (
+    <div
+      className={`flex flex-1 flex-col items-center justify-center rounded-xl p-2 ${color}`}
+    >
+      <div
+        className={`flex h-6 w-6 items-center justify-center rounded-full bg-white text-lg shadow ${iconColor}`}
+      >
+        {icon}
+      </div>
+      <div className="text-xs font-medium text-slate-700 mt-1">
+        {label}
+      </div>
+      <div className="font-bold text-lg text-slate-800">{value}</div>
+    </div>
+  );
+}
+
+function PlayerStats({
+  players,
+  matches,
+  meId,
+  setMeId,
+}: {
+  players: Player[];
+  matches: Match[];
+  meId: string;
+  setMeId: (id: string) => void;
+}) {
+  // segéd: win/loss/winrate számítása az adott játékosra
+  const computePlayerStats = (playerId: string, matches: Match[]) => {
+    let wins = 0;
+    let losses = 0;
+    const form: ("W" | "L")[] = [];
+
+    matches.forEach((m) => {
+      const inA = m.teamA.includes(playerId);
+      const inB = m.teamB.includes(playerId);
+
+      if (!inA && !inB) return;
+      if (!m.winner) return;
+
+      const isWin = (m.winner === "A" && inA) || (m.winner === "B" && inB);
+      if (isWin) {
+        wins++;
+        form.push("W");
+      } else {
+        losses++;
+        form.push("L");
+      }
+    });
+
+    const total = wins + losses;
+    const winRate = total === 0 ? 0 : Math.round((wins / total) * 100);
+
+    return {
+      total,
+      wins,
+      losses,
+      winRate,
+      formLast5: form.slice(-5), // Csak az utolsó 5 meccs formája
+    };
+  };
+
+  const selectedPlayer = players.find((p) => p.id === meId);
+
+  // ha megváltozik a players lista, és a meId már nem érvényes, állítsuk be az elsőre
+  useEffect(() => {
+    if (players.length > 0 && (!meId || !players.some((p) => p.id === meId))) {
+      setMeId(players[0].id);
+    }
+  }, [players, meId, setMeId]);
+
+  const stats = useMemo(() => {
+    if (!meId) return null;
+    return computePlayerStats(meId, matches);
+  }, [meId, matches]);
+
+  // Segédfüggvény a név emoji nélküli részének kinyerésére (soroláshoz)
+  const baseName = (full: string) =>
+    full.replace(/^.+?\s/, "");
+
+  const sortedPlayers = useMemo(
+    () =>
+      [...players].sort((a, b) =>
+        baseName(a.name).localeCompare(baseName(b.name), "hu")
+      ),
+    [players]
+  );
+
+  return (
+    <div className={card}>
+      <ShuttleBg />
+      <h3 className="mb-2 font-semibold">My Stats</h3>
+
+      {players.length === 0 ? (
+        <p className="text-sm text-gray-500">
+          No players yet. Please add players first.
+        </p>
+      ) : (
+        <>
+          <select
+            className={input}
+            value={meId || ""}
+            onChange={(e) => setMeId(e.target.value)}
+          >
+            <option value="" disabled>
+              Select your name
+            </option>
+            {sortedPlayers.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+
+          {!selectedPlayer && meId && (
+            <p className="text-sm text-rose-500 mt-2">
+              Error: Selected player not found.
+            </p>
+          )}
+
+          {selectedPlayer && stats && (
+            <p className="text-sm text-gray-500 mt-2 mb-3">
+              Stats for{" "}
+              <span className="font-medium text-slate-800">
+                {selectedPlayer.name}
+              </span>
+            </p>
+          )}
+
+          {stats && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-4">
+                <StatBox
+                  label="Matches"
+                  value={stats.total}
+                  icon="🏸"
+                  color="bg-indigo-50"
+                  iconColor="text-indigo-600"
+                />
+                <StatBox
+                  label="Wins"
+                  value={stats.wins}
+                  icon="🥇"
+                  color="bg-emerald-50"
+                  iconColor="text-emerald-600"
+                />
+                <StatBox
+                  label="Losses"
+                  value={stats.losses}
+                  icon="😞"
+                  color="bg-rose-50"
+                  iconColor="text-rose-600"
+                />
+                <StatBox
+                  label="Win %"
+                  value={`${stats.winRate}%`}
+                  icon="🎯"
+                  color="bg-amber-50"
+                  iconColor="text-amber-600"
+                />
+              </div>
+
+              {/* Forma (W/L) */}
+              <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
+                <span className="text-xs text-gray-500">
+                  Last {stats.formLast5.length} matches:
+                </span>
+                <div className="flex gap-1">
+                  {stats.formLast5.map((f, i) => (
+                    <span
+                      key={i}
+                      className={`
+                        inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold
+                        ${
+                          f === "W"
+                            ? "bg-emerald-500 text-white"
+                            : "bg-rose-500 text-white"
+                        }
+                      `}
+                    >
+                      {f}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+const BADGE_CONFIG: Record<
+  string,
+  { icon: string; accent: string; bg: string }
+> = {
+  win5: {
+    icon: "🥉",
+    accent: "text-amber-700",
+    bg: "from-amber-50 via-white to-slate-50",
+  },
+  win10: {
+    icon: "🥈",
+    accent: "text-slate-700",
+    bg: "from-slate-50 via-white to-indigo-50",
+  },
+  win25: {
+    icon: "🥇",
+    accent: "text-yellow-700",
+    bg: "from-yellow-50 via-white to-amber-50",
+  },
+  beatMelinda: {
+    icon: "🎯",
+    accent: "text-rose-700",
+    bg: "from-rose-50 via-white to-indigo-50",
+  },
+  streak3: {
+    icon: "🔥",
+    accent: "text-orange-700",
+    bg: "from-orange-50 via-white to-emerald-50",
+  },
+  streak6: {
+    icon: "💪",
+    accent: "text-emerald-700",
+    bg: "from-emerald-50 via-white to-sky-50",
+  },
+  streak10: {
+    icon: "🏆",
+    accent: "text-indigo-700",
+    bg: "from-indigo-50 via-white to-amber-50",
+  },
+  min5matches: {
+    icon: "🏸",
+    accent: "text-sky-700",
+    bg: "from-sky-50 via-white to-emerald-50",
+  },
+};
+
 function Standings({
   rows,
   achievementsById,
 }: {
-  rows: PlayerStats[];
+  rows: (Player & {
+    wins: number;
+    losses: number;
+    matches: number;
+    winRate: number;
+    basePoints: number;
+    bonusPoints: number;
+    totalPoints: number;
+    qualified: boolean;
+  })[];
   achievementsById: Map<string, Achievement[]>;
 }) {
-  if (!rows.length) {
-    return (
-      <div className={card}>
-        <h3 className="mb-2 text-sm font-semibold text-slate-900 sm:text-base">
-          Standings
-        </h3>
-        <p className="text-xs text-slate-500">
-          Standings will appear once matches have been recorded.
-        </p>
-      </div>
-    );
-  }
-
-  const bestMatches = rows.reduce((max, r) => Math.max(max, r.matches), 0);
-  const bestWins = rows.reduce((max, r) => Math.max(max, r.wins), 0);
-
   return (
     <div className={card}>
-      <h3 className="mb-2 text-sm font-semibold text-slate-900 sm:text-base">
-        Standings
-      </h3>
-      <div className="mb-2 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
-        <span>
-          🏆 <b>Total points:</b> base points + special bonus points.
-        </span>
-        <span>
-          ⭐ <b>Bonus points:</b> +1 point for special achievements: beating
-          Melinda, and reaching the Ironman 10-session streak.
-        </span>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="min-w-full text-left text-xs sm:text-sm">
-          <thead>
-            <tr className="border-b border-slate-100 text-[11px] uppercase tracking-wide text-slate-500">
-              <th className="py-1 pr-2">#</th>
-              <th className="py-1 pr-2">Player</th>
-              <th className="py-1 pr-2 text-right">M</th>
-              <th className="py-1 pr-2 text-right">W</th>
-              <th className="py-1 pr-2 text-right">Pts</th>
-              <th className="py-1 pr-2 text-right">Bonus</th>
-              <th className="py-1 pr-2 text-right">Total</th>
-              <th className="py-1 pr-2">Badges</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r, idx) => {
-              const ach = achievementsById.get(r.id) || [];
-              const highlight = idx === 0;
-              return (
+      <ShuttleBg />
+      <h2 className="mb-2 text-xl font-bold">Current Standings</h2>
+
+      {rows.length === 0 ? (
+        <p className="text-sm text-gray-500">No players recorded yet.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-slate-200 text-sm">
+            <thead className="bg-slate-50">
+              <tr>
+                <th
+                  scope="col"
+                  className="px-1 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500"
+                >
+                  Rank
+                </th>
+                <th
+                  scope="col"
+                  className="px-1 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500"
+                >
+                  Player
+                </th>
+                <th
+                  scope="col"
+                  className="px-1 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500"
+                  title="Base Points + Bonus Points"
+                >
+                  Points
+                </th>
+                <th
+                  scope="col"
+                  className="px-1 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500"
+                >
+                  W
+                </th>
+                <th
+                  scope="col"
+                  className="px-1 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500"
+                >
+                  L
+                </th>
+                <th
+                  scope="col"
+                  className="px-1 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500"
+                >
+                  M
+                </th>
+                <th
+                  scope="col"
+                  className="px-1 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500"
+                >
+                  Win%
+                </th>
+                <th
+                  scope="col"
+                  className="px-1 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500"
+                >
+                  Badges
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 bg-white">
+              {rows.map((r, i) => (
                 <tr
                   key={r.id}
-                  className={
-                    highlight
-                      ? "border-b border-slate-100 bg-amber-50/40"
-                      : "border-b border-slate-50"
-                  }
+                  className={`border-b border-slate-100 ${
+                    !r.qualified ? "opacity-60" : ""
+                  }`}
                 >
-                  <td className="py-1 pr-2 text-[11px] text-slate-500">
-                    {idx + 1}
-                  </td>
-                  <td className="py-1 pr-2 font-medium text-slate-900">
-                    {r.id}
-                  </td>
-                  <td className="py-1 pr-2 text-right text-slate-800">
-                    {r.matches}
-                    {r.matches === bestMatches && r.matches > 0 && (
-                      <span className="ml-1 text-[10px] text-emerald-600">
-                        • most
+                  <td className="py-2 pl-1 font-medium">{i + 1}.</td>
+                  <td className="py-2 font-medium text-slate-800">
+                    {r.name}
+                    {!r.qualified && (
+                      <span className="ml-2 text-xs text-gray-500">
+                        {" "}
+                        (min. 5 matches needed)
                       </span>
                     )}
                   </td>
-                  <td className="py-1 pr-2 text-right text-slate-800">
-                    {r.wins}
-                    {r.wins === bestWins && r.wins > 0 && (
-                      <span className="ml-1 text-[10px] text-emerald-600">
-                        • top
-                      </span>
-                    )}
-                  </td>
-                  <td className="py-1 pr-2 text-right text-slate-800">
-                    {r.basePoints}
-                  </td>
-                  <td className="py-1 pr-2 text-right text-emerald-700">
-                    +{r.bonusPoints}
-                  </td>
-                  <td className="py-1 pr-2 text-right font-semibold text-slate-900">
+                  <td className="py-2 font-bold text-indigo-700">
                     {r.totalPoints}
+                    {r.bonusPoints > 0 && (
+                      <span className="ml-1 text-xs font-normal text-gray-500">
+                        {" "}
+                        ({r.basePoints} + {r.bonusPoints}{" "}
+                        <span className="ml-1 text-amber-500"> ⭐ </span>)
+                      </span>
+                    )}
                   </td>
-                  <td className="py-1 pr-2">
-                    <div className="flex flex-wrap gap-1">
-                      {ach.map((a) => {
-                        const style = badgeStyles[a.id];
-                        if (!style) return null;
-                        return (
-                          <span
-                            key={a.id}
-                            className={`inline-flex items-center gap-0.5 rounded-full bg-gradient-to-r px-2 py-0.5 text-[10px] font-medium ${style.accent} ${style.bg}`}
-                            title={a.description}
-                          >
-                            <span>{style.icon}</span>
-                            <span>{a.label}</span>
-                          </span>
-                        );
-                      })}
-                    </div>
+                  <td className="py-2 text-emerald-600">{r.wins}</td>
+                  <td className="py-2 text-rose-600">{r.losses}</td>
+                  <td className="py-2">{r.matches}</td>
+                  <td className="py-2 font-medium">{r.winRate}%</td>
+                  <td className="py-2 pr-1">
+                    {achievementsById.get(r.id)?.map((a) => (
+                      <span
+                        key={a.id}
+                        className="mr-1 inline-block"
+                        title={a.title}
+                      >
+                        {BADGE_CONFIG[a.id]?.icon || "⭐"}
+                      </span>
+                    ))}
                   </td>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
 
-// ========================= App =========================
-
-function App() {
+export default function App() {
   const [league, write] = useLeague();
+  // 🛠️ FIX: backups már garantáltan nem undefined
   const { players, matches, backups = [] } = league;
 
   const [role, setRole] = useState<"player" | "admin">("player");
+  const [adminPass, setAdminPass] = useState("");
+  const isAdmin = role === "admin" && adminPass === "biatollas";
 
+  // Player view: selected player ID
   const [meId, setMeId] = useState<string>(players.length ? players[0].id : "");
+  // Admin view: selected date
   const defaultDate = useMemo(() => fmt(nextTrainingDate()), []);
   const [date, setDate] = useState(defaultDate);
+  // 🆕 Admin view: Jelenléti lista
   const [presentIds, setPresentIds] = useState<string[]>([]);
+  
+  // Amikor az admin átvált dátumot, nullázza a jelenléti listát (hogy új session indulhasson)
+  const setDateAndResetAttendance = useCallback((newDate: string) => {
+    setDate(newDate);
+    setPresentIds([]);
+  }, []);
 
-  const grouped: Record<string, Match[]> = useMemo(() => {
-    const map: Record<string, Match[]> = {};
-    matches.forEach((m) => {
-      if (!map[m.date]) map[m.date] = [];
-      map[m.date].push(m);
-    });
-    Object.keys(map).forEach((d) => {
-      map[d].sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
-    });
-    return map;
-  }, [matches]);
 
-  const matchesForDate = grouped[date] || [];
+  // ========================= Filter matches by date =========================
+  const matchesForDate = useMemo(
+    () => matches.filter((m) => m.date === date),
+    [matches, date]
+  );
 
+  // Az adott napon már látott csapattársak (hogy a manuális/auto draw ne rakja össze őket újra)
   const seenTeammatesToday = useMemo(() => {
-    const s = new Set<string>();
-    const key = (a: string, b: string) => [a, b].sort().join("|");
+    const seen = new Set<string>();
     matchesForDate.forEach((m) => {
-      s.add(key(m.teamA[0], m.teamA[1]));
-      s.add(key(m.teamB[0], m.teamB[1]));
+      // Csak azok a meccsek számítanak, amiknek már van győztese
+      if (m.winner) {
+        seen.add(key(m.teamA[0], m.teamA[1]));
+        seen.add(key(m.teamB[0], m.teamB[1]));
+      }
     });
-    return s;
+    return seen;
   }, [matchesForDate]);
 
-  const lastSessionDate =
-    Object.keys(grouped).sort().reverse()[0] ?? null;
+  // Player nézet: Meccsek dátum szerint csoportosítva (legújabb elöl)
+  const grouped = useMemo(() => {
+    const map = new Map<string, Match[]>();
+    // Soroljuk visszafelé a meccseket, hogy az eredmények időrendben legyenek a listában
+    [...matches].reverse().forEach((m) => {
+      if (!map.has(m.date)) {
+        map.set(m.date, []);
+      }
+      map.get(m.date)!.push(m);
+    });
 
-  useEffect(() => {
-    if (players.length && !players.find((p) => p.id === meId)) {
-      setMeId(players[0].id);
-    }
-  }, [players, meId]);
+    return Array.from(map.entries()).map(([date, matches]) => ({
+      date,
+      matches,
+    }));
+  }, [matches]);
 
-  const createBackup = () => {
-    const id = uid();
-    const label = `Backup ${new Date().toLocaleString()}`;
-    const backup: Backup = {
-      id,
-      label,
-      createdAt: new Date().toISOString(),
-      players: league.players,
-      matches: league.matches,
+  const lastSessionDate = grouped.length > 0 ? grouped[0].date : null;
+
+  // ========================= Standings calculation =========================
+  const { standings, achievementsById } = useMemo(() => {
+    const MIN_MATCHES = 5;
+
+    const map = new Map<
+      string,
+      Player & {
+        wins: number;
+        losses: number;
+        matches: number;
+        winRate: number;
+        basePoints: number;
+        bonusPoints: number;
+        totalPoints: number;
+        qualified: boolean;
+      }
+    >();
+
+    players.forEach((p) =>
+      map.set(p.id, {
+        ...p,
+        wins: 0,
+        losses: 0,
+        matches: 0,
+        winRate: 0,
+        basePoints: 0,
+        bonusPoints: 0,
+        totalPoints: 0,
+        qualified: false,
+      })
+    );
+
+    // BASE points: +3 for win, +1 for loss
+    league.matches.forEach((m) => {
+      if (!m.winner) return;
+
+      const winnerTeam = m.winner === "A" ? m.teamA : m.teamB;
+      const loserTeam = m.winner === "A" ? m.teamB : m.teamA;
+
+      if (winnerTeam) {
+        winnerTeam.forEach((id) => {
+          const stats = map.get(id);
+          if (stats) {
+            stats.wins += 1;
+            stats.matches += 1;
+            stats.basePoints += 3;
+          }
+        });
+      }
+
+      if (loserTeam) {
+        loserTeam.forEach((id) => {
+          const stats = map.get(id);
+          if (stats) {
+            stats.losses += 1;
+            stats.matches += 1;
+            stats.basePoints += 1;
+          }
+        });
+      }
+    });
+
+    // Compute win rate and check qualification
+    map.forEach((stats) => {
+      if (stats.matches > 0) {
+        stats.winRate = Math.round((stats.wins / stats.matches) * 100);
+      }
+      if (stats.matches >= MIN_MATCHES) {
+        stats.qualified = true;
+      }
+    });
+
+ // Compute achievements (bonus points)
+const achievementsMap = new Map<string, Achievement[]>();
+
+// csak ezek a badge-ek érnek +1 pontot
+const BONUS_ACHIEVEMENT_IDS = new Set(["beatMelinda", "streak10"]);
+
+map.forEach((stats) => {
+  const ach = computeAchievementsFull(stats.id, league.matches, players);
+  achievementsMap.set(stats.id, ach);
+
+  // csak a beatMelinda és a streak10 badge-eket számoljuk bonusznak
+  stats.bonusPoints = ach.filter((a) => BONUS_ACHIEVEMENT_IDS.has(a.id)).length;
+
+  stats.totalPoints = stats.basePoints + stats.bonusPoints;
+});
+
+
+    const rows = Array.from(map.values());
+
+    // Segédfüggvény a név emoji nélküli részének kinyerésére (soroláshoz)
+    const baseName = (full: string) =>
+      full.replace(/^.+?\s/, "");
+
+    // Rendezés
+    const sorted = rows.sort((a, b) => {
+      // 1. Qualified players first
+      if (a.qualified && !b.qualified) return -1;
+      if (!a.qualified && b.qualified) return 1;
+
+      // 2. Total points (High to Low)
+      if (b.totalPoints !== a.totalPoints) {
+        return b.totalPoints - a.totalPoints;
+      }
+
+      // 3. Win rate (High to Low)
+      if (b.winRate !== a.winRate) {
+        return b.winRate - a.winRate;
+      }
+
+      // 4. Matches played (High to Low)
+      if (b.matches !== a.matches) {
+        return b.matches - a.matches;
+      }
+
+      // 5. Alphabetical name (A-Z)
+      return baseName(a.name).localeCompare(baseName(b.name), "hu");
+    });
+
+    return { standings: sorted, achievementsById: achievementsMap };
+  }, [players, league.matches]);
+
+  // ========================= Admin actions =========================
+  const addPlayer = (name: string) => {
+    if (!role) return;
+    const newPlayer = { id: uid(), name };
+    write({ players: [...players, newPlayer] });
+    // Ha admin ad hozzá, attól még nem lesz ő a "meId"
+    // Ha player nézetből jött, akkor a PlayerStats úgyis beállítja őt meId-nek (lásd: PlayerStats useEffect)
+  };
+
+  const removePlayer = (id: string) => {
+    if (!role) return;
+    if (!confirm("Delete this player permanently? This cannot be undone."))
+      return;
+
+    write({
+      players: players.filter((p) => p.id !== id),
+      matches: league.matches.filter(
+        (m) => !m.teamA.includes(id) && !m.teamB.includes(id)
+      ),
+    });
+  };
+
+  const updatePlayerEmoji = (id: string, emoji: string) => {
+    if (!role) return;
+
+    const nextPlayers = players.map((p) => {
+      if (p.id !== id) return p;
+
+      const parts = p.name.split(" ");
+      if (parts.length > 1) {
+        const [, ...rest] = parts;
+        return {
+          ...p,
+          name: `${emoji} ${rest.join(" ")}`,
+        };
+      } else {
+        // Ha valamiért nincs emoji elöl
+        return { ...p, name: `${emoji} ${p.name}` };
+      }
+    });
+
+    write({ players: nextPlayers });
+  };
+
+  // 🛠️ FIX: 'nameOf' egyszerű, nem memoizált függvényre cserélve (elkerüli a linter figyelmeztetést)
+  const nameOf = (id: string) => players.find((p) => p.id === id)?.name || "—";
+  
+  const createMatch = (teamA: Pair, teamB: Pair) => {
+    if (!isAdmin) return;
+    const newMatch: Match = {
+      id: uid(),
+      date,
+      teamA,
+      teamB,
+      // winner: undefined
     };
-    write({ backups: [...backups, backup] });
+    write({ matches: [...matches, newMatch] });
+  };
+
+  const pickWinner = (id: string, winner: "A" | "B") => {
+    if (!isAdmin) return;
+    const nextMatches = matches.map((m) =>
+      m.id === id ? { ...m, winner } : m
+    );
+    write({ matches: nextMatches });
+  };
+
+  const clearWinner = (id: string) => {
+    if (!isAdmin) return;
+    const nextMatches = matches.map((m) => {
+      if (m.id === id) {
+        const { winner, ...rest } = m; // remove winner property
+        return rest as Match;
+      }
+      return m;
+    });
+    write({ matches: nextMatches });
+  };
+
+  const deleteMatch = (id: string) => {
+    if (!isAdmin) return;
+    if (!confirm("Delete this match permanently? This cannot be undone."))
+      return;
+    write({ matches: matches.filter((m) => m.id !== id) });
+  };
+
+  const createBackup = (note: string) => {
+    if (!isAdmin) return;
+    const newBackup: Backup = {
+      id: uid(),
+      createdAt: new Date().toISOString(),
+      note: note.trim() || undefined,
+      data: {
+        players: league.players,
+        matches: league.matches,
+      },
+    };
+    // backups már garantáltan egy tömb a destructuring miatt
+    write({ backups: [...backups, newBackup] });
+    alert("Backup created successfully!");
   };
 
   const restoreBackup = (id: string) => {
-    const backup = backups.find((b) => b.id === id);
-    if (!backup) return;
+    if (!isAdmin) return;
     if (
-      !window.confirm(
-        `Restore backup "${backup.label}"? This will overwrite current players and matches.`
+      !confirm(
+        "Restore data? All current players and matches will be overwritten. This cannot be undone (without another backup)."
       )
     )
       return;
 
-    write({
-      players: backup.players,
-      matches: backup.matches,
-    });
-  };
-
-  const addPlayer = (name: string, emoji?: string) => {
-    const id = name;
-    if (league.players.some((p) => p.id === id)) {
-      alert("A player with this name already exists.");
+    // backups már garantáltan egy tömb a destructuring miatt
+    const backup = backups.find((b) => b.id === id);
+    if (!backup) {
+      alert("Backup not found!");
       return;
     }
+
     write({
-      players: [...league.players, { id, name, emoji, active: true }],
+      players: backup.data.players,
+      matches: backup.data.matches,
+      // leave existing backups
     });
+    alert("Data restored successfully!");
   };
 
-  const removePlayer = (id: string) => {
-    if (!window.confirm("Remove this player and keep their matches?")) return;
-    write({
-      players: league.players.filter((p) => p.id !== id),
-    });
-  };
+  // ========================= Render =========================
+  
+  const playersWhoPlayedToday = new Set<string>();
+  matchesForDate.forEach((m) => {
+    m.teamA.forEach(id => playersWhoPlayedToday.add(id));
+    m.teamB.forEach(id => playersWhoPlayedToday.add(id));
+  });
 
-  const updatePlayerEmoji = (id: string, emoji?: string) => {
-    write({
-      players: league.players.map((p) =>
-        p.id === id
-          ? {
-              ...p,
-              emoji,
-              name: emoji ? `${emoji} ${p.name.replace(/^(\p{Emoji_Presentation}|\p{Extended_Pictographic})\s/u, "")}` : p.name,
-            }
-          : p
-      ),
-    });
-  };
-
-  const nameOf = (id: string) =>
-    league.players.find((p) => p.id === id)?.name || id;
-
-  const pickWinner = (id: string, winner: "A" | "B" | "draw") => {
-    write({
-      matches: league.matches.map((m) =>
-        m.id === id ? { ...m, winner } : m
-      ),
-    });
-  };
-
-  const clearWinner = (id: string) => {
-    write({
-      matches: league.matches.map((m) =>
-        m.id === id ? { ...m, winner: undefined } : m
-      ),
-    });
-  };
-
-  const deleteMatch = (id: string) => {
-    if (!window.confirm("Delete this match?")) return;
-    write({
-      matches: league.matches.filter((m) => m.id !== id),
-    });
-  };
-
-  const createMatch = (m: Match) => {
-    write({
-      matches: [...league.matches, m],
-    });
-  };
-
-  const statsAndAchievements = useMemo(() => {
-    const { standings, achievementsMap } = computeStandings(
-      league.players,
-      league.matches
-    );
-    return { standings, achievementsMap };
-  }, [league.players, league.matches]);
-
-  const { standings, achievementsMap } = statsAndAchievements;
-
-  const achievementsById = achievementsMap;
-
-  const freeIds = useMemo(() => {
-    const usedIds = new Set<string>();
-    matchesForDate.forEach((m) => {
-      [...m.teamA, ...m.teamB].forEach((id) => usedIds.add(id));
-    });
-    return league.players
-      .map((p) => p.id)
-      .filter((id) => !usedIds.has(id));
-  }, [matchesForDate, league.players]);
-
-  const setDateAndResetAttendance = (d: string) => {
-    setDate(d);
-    setPresentIds([]);
-  };
-
-
-
-  const myStats = useMemo(() => {
-    if (!meId) return null;
-
-    const stats = computePlayerStats(league.players, league.matches).find(
-      (s) => s.id === meId
-    );
-    if (!stats) return null;
-
-    const ach = achievementsMap.get(meId) || [];
-    return { stats, achievements: ach };
-  }, [meId, league.players, league.matches, achievementsMap]);
+  // Játékosok, akik jelen vannak, de még nem játszottak ezen a dátumon
+  const freeIds = presentIds.filter(id => !playersWhoPlayedToday.has(id));
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+    // 🛠️ FIX: Beállítjuk a fő háttérszínt, hogy felülírja a sötét mód fekete hátterét.
+    <div className="min-h-screen bg-slate-100 text-slate-900">
+    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         <Header
           title={league.title}
           role={role}
-          setPlayer={() => setRole("player")}
+          setPlayer={() => {
+            setRole("player");
+            setAdminPass("");
+          }}
           setAdmin={() => setRole("admin")}
         />
 
         <div className="space-y-4 sm:space-y-6">
           {/* ========================= ADMIN VIEW ========================= */}
           {role === "admin" && (
-            <>
+            <div className="space-y-4 sm:space-y-6">
+              {!isAdmin && (
+                <div className={card}>
+                  <h3 className="mb-2 font-semibold text-rose-500">
+                    Admin Login
+                  </h3>
+                  <input
+                    className={input}
+                    type="password"
+                    placeholder="Admin Password"
+                    value={adminPass}
+                    onChange={(e) => setAdminPass(e.target.value)}
+                  />
+                  <p className="mt-2 text-xs text-gray-500">
+                    Hint: biatollas
+                  </p>
+                </div>
+              )}
+
+              {isAdmin && (
+                <>
                   <section className="grid gap-4 sm:gap-6 md:grid-cols-3">
                     <div className="space-y-4 md:col-span-2">
                       <DatePicker value={date} onChange={setDateAndResetAttendance} />
@@ -1861,7 +2667,7 @@ function App() {
                       <BackupPanel
                         onCreate={createBackup}
                         onRestore={restoreBackup}
-                        backups={backups}
+                        backups={backups} // backups a fix után garantáltan nem undefined
                       />
                     </div>
                   </section>
@@ -1882,13 +2688,16 @@ function App() {
                     />
                   </section>
 
+                  {/* Standings */}
                   <div className="mt-4 sm:mt-6">
                     <Standings
                       rows={standings}
                       achievementsById={achievementsById}
                     />
                   </div>
-            </>
+                </>
+              )}
+            </div>
           )}
 
           {/* ========================= PLAYER VIEW ========================= */}
@@ -1900,84 +2709,40 @@ function App() {
                 </div>
 
                 <div className="space-y-4">
+                  {/* Dátum ugrás (Player nézet) */}
                   <AdminDateJump
                     grouped={grouped}
                     date={date}
                     setDate={setDate}
                     lastSessionDate={lastSessionDate}
                   />
-                  <div className={card}>
-                    <h3 className="mb-2 text-sm font-semibold text-slate-900 sm:text-base">
-                      My stats
-                    </h3>
-                    <div className="space-y-2">
-                      <select
-                        className={input}
-                        value={meId}
-                        onChange={(e) => setMeId(e.target.value)}
-                      >
-                        {players.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.name}
-                          </option>
-                        ))}
-                      </select>
-                      {myStats ? (
-                        <>
-                          <div className="rounded-xl bg-slate-50 p-2 text-xs text-slate-800">
-                            <p>
-                              Matches:{" "}
-                              <b>{myStats.stats.matches}</b>, Wins:{" "}
-                              <b>{myStats.stats.wins}</b>, Draws:{" "}
-                              <b>{myStats.stats.draws}</b>, Losses:{" "}
-                              <b>{myStats.stats.losses}</b>
-                            </p>
-                            <p>
-                              Points: <b>{myStats.stats.basePoints}</b> +{" "}
-                              <span className="text-emerald-700">
-                                {myStats.stats.bonusPoints} bonus
-                              </span>{" "}
-                              ={" "}
-                              <b className="text-slate-900">
-                                {myStats.stats.totalPoints}
-                              </b>
-                            </p>
-                          </div>
-                          {myStats.achievements.length > 0 && (
-                            <div className="space-y-1">
-                              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                                Achievements
-                              </p>
-                              <div className="flex flex-wrap gap-1">
-                                {myStats.achievements.map((a) => {
-                                  const style = badgeStyles[a.id];
-                                  return (
-                                    <span
-                                      key={a.id}
-                                      className={`inline-flex items-center gap-0.5 rounded-full bg-gradient-to-r px-2 py-0.5 text-[10px] font-medium ${style.accent} ${style.bg}`}
-                                      title={a.description}
-                                    >
-                                      <span>{style.icon}</span>
-                                      <span>{a.label}</span>
-                                    </span>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <p className="text-xs text-slate-500">
-                          No stats yet. Play some matches!
-                        </p>
-                      )}
-                    </div>
-                  </div>
+
+                  {/* Statisztikák */}
+                  <PlayerStats
+                    players={players}
+                    matches={league.matches}
+                    meId={meId}
+                    setMeId={setMeId}
+                  />
+
+                  {/* Achievementek */}
+                  <PlayerAchievements
+                    players={players}
+                    matches={league.matches}
+                    meId={meId}
+                  />
+
+                  {/* Infók */}
+                  <StandingsInfo />
                 </div>
               </section>
 
+              {/* 🆕 Standings teljes szélességben */}
               <div className="mt-4 sm:mt-6">
-                <Standings rows={standings} achievementsById={achievementsById} />
+                <Standings
+                  rows={standings}
+                  achievementsById={achievementsById}
+                />
               </div>
             </>
           )}
@@ -1986,5 +2751,3 @@ function App() {
     </div>
   );
 }
-
-export default App;
