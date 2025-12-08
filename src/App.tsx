@@ -1065,11 +1065,18 @@ function PlayerEditor({
               <option value="" disabled>
                 Select a player to edit
               </option>
-              {players.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
+        {[...players]
+  .sort((a, b) =>
+    a.name.replace(/^.+?\s/, "").localeCompare(
+      b.name.replace(/^.+?\s/, ""),
+      "hu"
+    )
+  )
+  .map((p) => (
+    <option key={p.id} value={p.id}>
+      {p.name}
+    </option>
+  ))}
             </select>
 
             {selectedPlayer && (
@@ -1163,7 +1170,15 @@ function SelectPairs({
     onChange: (val: string) => void,
     excludeIds: string[]
   ) => {
-    const options = players.filter((p) => !excludeIds.includes(p.id));
+    const options = players
+  .filter((p) => !excludeIds.includes(p.id))
+  .sort((a, b) =>
+    a.name.replace(/^.+?\s/, "").localeCompare(
+      b.name.replace(/^.+?\s/, ""),
+      "hu"
+    )
+  );
+
 
     return (
       <div className="space-y-1">
