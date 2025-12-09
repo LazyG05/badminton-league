@@ -16,11 +16,12 @@ import { getAuth, signInAnonymously } from "firebase/auth";
 
 /**
  * =============================================================
- * BIA-TOLLAS – Biatorbágy (Badminton League)
- * DESIGN: "Pure Light" v3 (STRICT NO-BLACK)
- * - Removed ALL dark backgrounds from UI elements.
- * - Match cards redesigned: Trophy icon for winners, distinct colors.
- * - Tab style: Light gray container, white active pill.
+ * BIA-TOLLAS – Biatorbágy Badminton
+ * DESIGN: "Pure Light" v4 (ABSOLUTE ZERO BLACK)
+ * - Renamed to "Biatorbágy Badminton"
+ * - Removed ALL bg-slate-900 / dark backgrounds.
+ * - Redesigned Match List with Trophies.
+ * - Redesigned Tabs (Light Gray/White).
  * =============================================================
  */
 
@@ -79,15 +80,20 @@ const getBaseName = (full: string) => full.replace(/^.+?\s/, "");
 
 // ========================= UI Tokens =========================
 
-// GOMBOK
 const btnBase =
   "inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-bold transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm";
 
+// Primary: Lime Green
 const btnPrimary = `${btnBase} bg-[#84cc16] text-white hover:bg-[#65a30d] hover:shadow-md focus:ring-[#84cc16] border border-transparent`;
-// Szigorúan világos másodlagos gomb
+
+// Secondary: Fehér, szürke kerettel
 const btnSecondary = `${btnBase} bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 focus:ring-slate-200`;
+
+// Ghost: Csak szöveg, szürke háttérrel hoverkor (a fekete gombok helyett)
+const btnGhost = "w-full py-2 text-xs font-bold text-slate-500 uppercase tracking-wider hover:text-[#84cc16] hover:bg-slate-50 rounded transition-colors border border-transparent hover:border-slate-100 cursor-pointer";
+
+// Danger
 const btnDanger = `${btnBase} bg-white text-rose-600 border border-rose-200 hover:bg-rose-50 hover:border-rose-300 focus:ring-rose-200`;
-const btnGhost = "w-full py-2 text-xs font-bold text-slate-500 uppercase tracking-wider hover:text-[#84cc16] hover:bg-slate-50 rounded transition-colors border border-transparent hover:border-slate-100";
 
 const card =
   "relative overflow-hidden rounded-xl bg-white p-5 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07)] border border-slate-100";
@@ -229,7 +235,7 @@ function Sidebar({ role, setRole }: { role: "player" | "admin"; setRole: (r: "pl
             )}
         </div>
         <h1 className="text-lg font-bold tracking-wider uppercase text-slate-100">Biatorbágy</h1>
-        <p className="text-xs text-[#84cc16] font-medium uppercase tracking-widest">Badminton Klub</p>
+        <p className="text-xs text-[#84cc16] font-medium uppercase tracking-widest">Badminton</p>
       </div>
 
       {/* Nav */}
@@ -793,7 +799,7 @@ export default function App() {
             <h1 className="text-2xl font-bold text-slate-800">
                 {role === "admin" ? "Admin Dashboard" : "Player Dashboard"}
             </h1>
-            <p className="text-slate-500 text-sm mt-1">Biatorbágy Badminton Klub</p>
+            <p className="text-slate-500 text-sm mt-1">Biatorbágy Badminton</p>
           </div>
           <div className="flex items-center gap-4 w-full md:w-auto">
               <div className="relative w-full md:w-auto">
