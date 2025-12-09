@@ -248,7 +248,7 @@ function Sidebar({ role, setRole }: { role: "player" | "admin"; setRole: (r: "pl
 
       {/* 🟢 LOGO: Glassmorphism Design */}
       <div className="p-6 flex flex-col items-center border-b border-white/5 relative z-10">
-        <div className="relative w-28 h-28 mb-6 flex items-center justify-center">
+        <div className="relative w-40 h-40 mb-6 flex items-center justify-center">
             {/* Háttérfény (Glow) */}
             <div className="absolute inset-0 bg-[#84cc16] rounded-full blur-2xl opacity-20"></div>
             
