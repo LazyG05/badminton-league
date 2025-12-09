@@ -2259,14 +2259,14 @@ function Standings({
         <h2 className="text-xl font-bold">Current Standings</h2>
 
         {/* Tabs: All / Women / Men */}
-<div className="inline-flex items-center rounded-full bg-white/70 p-1 text-xs font-medium border border-slate-200 shadow-sm">
+<div className="inline-flex items-center rounded-full bg-slate-100 p-1 text-xs font-medium">
   <button
     type="button"
     onClick={() => setTab("all")}
     className={`px-3 py-1 rounded-full transition ${
       tab === "all"
         ? "bg-white text-slate-900 shadow-sm"
-        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+        : "text-slate-600 hover:text-slate-800"
     }`}
   >
     All
@@ -2278,7 +2278,7 @@ function Standings({
     className={`px-3 py-1 rounded-full transition ${
       tab === "women"
         ? "bg-white text-slate-900 shadow-sm"
-        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+        : "text-slate-600 hover:text-slate-800"
     }`}
   >
     Women
@@ -2293,7 +2293,7 @@ function Standings({
     className={`px-3 py-1 rounded-full transition ${
       tab === "men"
         ? "bg-white text-slate-900 shadow-sm"
-        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+        : "text-slate-600 hover:text-slate-800"
     }`}
   >
     Men
@@ -2302,7 +2302,6 @@ function Standings({
     )}
   </button>
 </div>
-
 
       </div>
 
