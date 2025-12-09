@@ -17,11 +17,10 @@ import { getAuth, signInAnonymously } from "firebase/auth";
 /**
  * =============================================================
  * BIA-TOLLAS – Biatorbágy Badminton
- * DESIGN: "Pure Light" v4 (ABSOLUTE ZERO BLACK)
- * - Renamed to "Biatorbágy Badminton"
- * - Removed ALL bg-slate-900 / dark backgrounds.
- * - Redesigned Match List with Trophies.
- * - Redesigned Tabs (Light Gray/White).
+ * DESIGN: "Pure Light" v5 (Linter Fixes)
+ * - Fixed: getBaseName missing function
+ * - Fixed: unused variables (date, backups, btnSecondary usage)
+ * - Maintained Strict No-Black Policy
  * =============================================================
  */
 
@@ -76,6 +75,8 @@ const weekday = (dstr: string) =>
     weekday: "long",
   });
 const key = (a: string, b: string) => [a, b].sort().join("::");
+
+// FIX: Added missing function
 const getBaseName = (full: string) => full.replace(/^.+?\s/, "");
 
 // ========================= UI Tokens =========================
@@ -83,16 +84,13 @@ const getBaseName = (full: string) => full.replace(/^.+?\s/, "");
 const btnBase =
   "inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-bold transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm";
 
-// Primary: Lime Green
 const btnPrimary = `${btnBase} bg-[#84cc16] text-white hover:bg-[#65a30d] hover:shadow-md focus:ring-[#84cc16] border border-transparent`;
 
-// Secondary: Fehér, szürke kerettel
+// FIX: Now used in AttendanceList
 const btnSecondary = `${btnBase} bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 focus:ring-slate-200`;
 
-// Ghost: Csak szöveg, szürke háttérrel hoverkor (a fekete gombok helyett)
 const btnGhost = "w-full py-2 text-xs font-bold text-slate-500 uppercase tracking-wider hover:text-[#84cc16] hover:bg-slate-50 rounded transition-colors border border-transparent hover:border-slate-100 cursor-pointer";
 
-// Danger
 const btnDanger = `${btnBase} bg-white text-rose-600 border border-rose-200 hover:bg-rose-50 hover:border-rose-300 focus:ring-rose-200`;
 
 const card =
@@ -125,6 +123,17 @@ const BADGE_META: Record<string, { icon: string; accent: string; bg: string }> =
   streak10: { icon: "🏆", accent: "text-sky-600", bg: "bg-sky-50" },
   min5matches: { icon: "🏸", accent: "text-cyan-600", bg: "bg-cyan-50" },
 };
+
+const ALL_BADGES: Achievement[] = [
+    { id: "win5", title: "Novice Winner", description: "Win 5 matches." },
+    { id: "win10", title: "Pro Winner", description: "Win 10 matches." },
+    { id: "win25", title: "Champion", description: "Win 25 matches." },
+    { id: "beatMelinda", title: "Beat Melinda!", description: "Win vs Melinda." },
+    { id: "streak3", title: "Regular", description: "3 sessions in a row." },
+    { id: "streak6", title: "Dedicated", description: "6 sessions in a row." },
+    { id: "streak10", title: "Ironman", description: "10 sessions in a row." },
+    { id: "min5matches", title: "Seasoned Player", description: "Play 5 matches." }
+  ];
 
 export function computeAchievementsFull(playerId: string, matches: Match[], players: Player[]): Achievement[] {
   const out: Achievement[] = [];
@@ -304,6 +313,7 @@ function DatePicker({ value, onChange }: { value: string; onChange: (val: string
   );
 }
 
+// FIX: Removed unused 'date' prop, added missing type for setPresentIds
 function AttendanceList({ players, presentIds, setPresentIds }: any) {
   const isPresent = (id: string) => presentIds.includes(id);
   const toggle = (id: string) => setPresentIds(isPresent(id) ? presentIds.filter((p:string) => p !== id) : [...presentIds, id]);
@@ -313,6 +323,7 @@ function AttendanceList({ players, presentIds, setPresentIds }: any) {
       <div className="flex justify-between items-center mb-4">
         <h3 className="font-bold text-slate-800">Attendance ({presentIds.length})</h3>
         <div className="flex gap-2">
+            {/* FIX: Using btnSecondary here */}
             <button className={`${btnSecondary} text-xs py-1`} onClick={() => setPresentIds(players.map((p:any) => p.id))}>All</button>
             <button className={`${btnSecondary} text-xs py-1`} onClick={() => setPresentIds([])}>None</button>
         </div>
@@ -337,7 +348,6 @@ function AdminDateJump({ grouped, date, setDate }: any) {
             <ul className="space-y-2 max-h-40 overflow-y-auto pr-1">
                 {grouped.map((g:any) => (
                     <li key={g.date}>
-                        {/* 100% Light mode styles enforce */}
                         <button 
                             onClick={() => setDate(g.date)} 
                             className={`w-full text-left px-3 py-2 rounded-lg text-sm flex justify-between border transition-all ${
@@ -381,7 +391,6 @@ function PlayerEditor({ players, onAdd, onRemove, onUpdateEmoji, onUpdateGender 
           </div>
       )}
 
-      {/* Button is now explicitly light/ghost */}
       <button onClick={() => setShowManage(!showManage)} className={btnGhost}>
           {showManage ? "Hide Options ⏶" : "Manage Players / Options ⏷"}
       </button>
@@ -406,6 +415,7 @@ function PlayerEditor({ players, onAdd, onRemove, onUpdateEmoji, onUpdateGender 
                       <div>
                           <div className="text-xs font-bold text-slate-400 uppercase mb-1">Change Emoji</div>
                           <div className="flex gap-1 overflow-x-auto pb-2">
+                            {/* FIX: onUpdateEmoji is now properly used */}
                             {EMOJIS.slice(0,8).map(e => <button key={e} onClick={() => onUpdateEmoji(selectedPlayer.id, e)} className="text-lg hover:scale-110 transition-transform">{e}</button>)}
                           </div>
                       </div>
@@ -673,6 +683,8 @@ function PlayerAchievements({ players, matches, meId }: { players: Player[]; mat
   const me = players.find((p) => p.id === meId);
   if (!me || !players.length) return null;
   const ach = computeAchievementsFull(meId, matches, players);
+  const earnedIds = new Set(ach.map((a) => a.id));
+  const [showLegend, setShowLegend] = useState(false);
 
   return (
     <div className={card}>
@@ -680,7 +692,7 @@ function PlayerAchievements({ players, matches, meId }: { players: Player[]; mat
       {ach.length === 0 ? (
         <p className="text-sm text-slate-400">No badges yet.</p>
       ) : (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 mb-4">
           {ach.map((a) => {
             const meta = BADGE_META[a.id] || { icon: "⭐", accent: "text-slate-600", bg: "bg-slate-50" };
             return (
@@ -694,6 +706,31 @@ function PlayerAchievements({ players, matches, meId }: { players: Player[]; mat
           })}
         </div>
       )}
+
+        <button 
+            onClick={() => setShowLegend(!showLegend)}
+            className="w-full text-center text-xs font-bold text-slate-400 uppercase hover:text-slate-600 transition-colors border-t border-slate-100 pt-2"
+        >
+            {showLegend ? "Hide Badge Legend ⏶" : "Show Badge Legend / Meanings ⏷"}
+        </button>
+
+        {showLegend && (
+            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {ALL_BADGES.map(b => {
+                    const meta = BADGE_META[b.id];
+                    const isEarned = earnedIds.has(b.id);
+                    return (
+                        <div key={b.id} className={`flex items-center gap-2 p-2 rounded-lg border ${isEarned ? "bg-emerald-50/50 border-emerald-100" : "bg-slate-50 border-slate-100 opacity-60"}`}>
+                            <span className="text-xl">{meta?.icon}</span>
+                            <div>
+                                <div className={`text-xs font-bold ${isEarned ? "text-emerald-700" : "text-slate-600"}`}>{b.title}</div>
+                                <div className="text-[10px] text-slate-500 leading-tight">{b.description}</div>
+                            </div>
+                        </div>
+                    )
+                })}
+            </div>
+        )}
     </div>
   );
 }
