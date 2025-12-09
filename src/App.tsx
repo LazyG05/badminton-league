@@ -17,10 +17,10 @@ import { getAuth, signInAnonymously } from "firebase/auth";
 /**
  * =============================================================
  * BIA-TOLLAS – Biatorbágy (Badminton League)
- * DESIGN: "Pure Light" v2 (FINAL FIX)
- * - REMOVED ALL BLACK BACKGROUNDS from Matches, Tabs, Buttons.
- * - Primary Color: Lime Green (#84cc16).
- * - Backgrounds: White & Light Slate.
+ * DESIGN: "Pure Light" v3 (STRICT NO-BLACK)
+ * - Removed ALL dark backgrounds from UI elements.
+ * - Match cards redesigned: Trophy icon for winners, distinct colors.
+ * - Tab style: Light gray container, white active pill.
  * =============================================================
  */
 
@@ -79,21 +79,15 @@ const getBaseName = (full: string) => full.replace(/^.+?\s/, "");
 
 // ========================= UI Tokens =========================
 
-// GOMBOK - Szigorúan világos vagy Lime
+// GOMBOK
 const btnBase =
   "inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-bold transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm";
 
-// Primary: Lime Green
 const btnPrimary = `${btnBase} bg-[#84cc16] text-white hover:bg-[#65a30d] hover:shadow-md focus:ring-[#84cc16] border border-transparent`;
-
-// Secondary: Fehér, szürke kerettel (soha nem fekete)
-const btnSecondary = `${btnBase} bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 hover:text-slate-900 focus:ring-slate-300`;
-
-// Ghost: Csak szöveg (pl. "Manage Players" lenyitó)
-const btnGhost = "w-full py-2 text-xs font-bold text-slate-400 uppercase tracking-wider hover:text-[#84cc16] hover:bg-slate-50 rounded transition-colors";
-
-// Danger
-const btnDanger = `${btnBase} bg-white text-rose-600 border border-rose-200 hover:bg-rose-50 hover:border-rose-300 focus:ring-rose-400`;
+// Szigorúan világos másodlagos gomb
+const btnSecondary = `${btnBase} bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 focus:ring-slate-200`;
+const btnDanger = `${btnBase} bg-white text-rose-600 border border-rose-200 hover:bg-rose-50 hover:border-rose-300 focus:ring-rose-200`;
+const btnGhost = "w-full py-2 text-xs font-bold text-slate-500 uppercase tracking-wider hover:text-[#84cc16] hover:bg-slate-50 rounded transition-colors border border-transparent hover:border-slate-100";
 
 const card =
   "relative overflow-hidden rounded-xl bg-white p-5 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07)] border border-slate-100";
@@ -337,13 +331,13 @@ function AdminDateJump({ grouped, date, setDate }: any) {
             <ul className="space-y-2 max-h-40 overflow-y-auto pr-1">
                 {grouped.map((g:any) => (
                     <li key={g.date}>
-                        {/* FIX: Removed dark bg classes explicitly */}
+                        {/* 100% Light mode styles enforce */}
                         <button 
                             onClick={() => setDate(g.date)} 
-                            className={`w-full text-left px-3 py-2 rounded-lg text-sm flex justify-between border ${
+                            className={`w-full text-left px-3 py-2 rounded-lg text-sm flex justify-between border transition-all ${
                                 date === g.date 
-                                    ? "bg-[#f0fdf4] border-[#84cc16] text-[#65a30d] font-bold" 
-                                    : "bg-white border-slate-100 text-slate-600 hover:bg-slate-50"
+                                    ? "bg-[#f0fdf4] border-[#84cc16] text-[#65a30d] font-bold shadow-sm" 
+                                    : "bg-white border-slate-100 text-slate-600 hover:bg-slate-50 hover:border-slate-200"
                             }`}
                         >
                             <span>{g.date}</span>
@@ -381,7 +375,7 @@ function PlayerEditor({ players, onAdd, onRemove, onUpdateEmoji, onUpdateGender 
           </div>
       )}
 
-      {/* FIX: Ghost button instead of dark block */}
+      {/* Button is now explicitly light/ghost */}
       <button onClick={() => setShowManage(!showManage)} className={btnGhost}>
           {showManage ? "Hide Options ⏶" : "Manage Players / Options ⏷"}
       </button>
@@ -550,11 +544,10 @@ function MatchesPlayer({ grouped, nameOf }: any) {
                  const isOpen = openDate === g.date;
                  return (
                     <div key={g.date} className={card}>
-                        {/* FIX: Explicit light classes for toggle header */}
                         <button 
                             onClick={() => setOpenDate(isOpen ? null : g.date)} 
-                            className={`w-full flex justify-between items-center p-2 rounded-lg transition-colors ${
-                                isOpen ? "bg-slate-50" : "hover:bg-slate-50"
+                            className={`w-full flex justify-between items-center p-3 rounded-lg transition-all border ${
+                                isOpen ? "bg-slate-50 border-slate-100" : "bg-white border-transparent hover:bg-slate-50"
                             }`}
                         >
                             <div className="text-left">
@@ -564,14 +557,37 @@ function MatchesPlayer({ grouped, nameOf }: any) {
                             <span className="text-slate-400 font-bold">{isOpen ? "▲" : "▼"}</span>
                         </button>
                         {isOpen && (
-                            <div className="mt-4 pt-4 border-t border-slate-100 space-y-2">
-                                {g.matches.map((m:any) => (
-                                    <div key={m.id} className="flex justify-between items-center text-sm p-2 bg-slate-50 rounded-lg border border-slate-100">
-                                        <div className={`${m.winner==='A'?'font-bold text-[#84cc16]':'text-slate-600'}`}>{nameOf(m.teamA[0])} & {nameOf(m.teamA[1])}</div>
-                                        <div className="text-xs text-slate-300">vs</div>
-                                        <div className={`${m.winner==='B'?'font-bold text-[#84cc16]':'text-slate-600'}`}>{nameOf(m.teamB[0])} & {nameOf(m.teamB[1])}</div>
+                            <div className="mt-4 space-y-3">
+                                {g.matches.map((m:any) => {
+                                    const winnerA = m.winner === 'A';
+                                    const winnerB = m.winner === 'B';
+                                    const played = !!m.winner;
+
+                                    return (
+                                    <div key={m.id} className="flex flex-col sm:flex-row justify-between items-center text-sm p-3 bg-white rounded-lg border border-slate-100 shadow-sm gap-2">
+                                        
+                                        {/* TEAM A */}
+                                        <div className={`flex-1 text-center sm:text-left flex items-center gap-2 ${winnerA ? 'font-bold text-slate-800' : 'text-slate-500'}`}>
+                                            {winnerA && <span className="text-lg">🏆</span>}
+                                            <span className={winnerA ? "text-emerald-700" : ""}>
+                                                {nameOf(m.teamA[0])} & {nameOf(m.teamA[1])}
+                                            </span>
+                                        </div>
+
+                                        {/* VS */}
+                                        <div className="px-3 py-1 bg-slate-50 rounded text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                            {played ? "Finished" : "VS"}
+                                        </div>
+
+                                        {/* TEAM B */}
+                                        <div className={`flex-1 text-center sm:text-right flex items-center justify-end gap-2 ${winnerB ? 'font-bold text-slate-800' : 'text-slate-500'}`}>
+                                            <span className={winnerB ? "text-emerald-700" : ""}>
+                                                {nameOf(m.teamB[0])} & {nameOf(m.teamB[1])}
+                                            </span>
+                                            {winnerB && <span className="text-lg">🏆</span>}
+                                        </div>
                                     </div>
-                                ))}
+                                )})}
                             </div>
                         )}
                     </div>
@@ -595,15 +611,15 @@ function Standings({ rows }: any) {
       <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-3">
         <h3 className="font-bold text-slate-800 text-lg">League Standings</h3>
         
-        {/* FIX: Light/Gray Pill Tabs, NO BLACK */}
+        {/* iOS Style Pill Tabs - Light Gray Container, White Active Button */}
         <div className="flex bg-slate-100 p-1 rounded-lg">
             {["All", "Women", "Men"].map(t => (
                 <button
                     key={t}
                     onClick={() => setTab(t as any)}
-                    className={`px-4 py-1 text-xs font-bold rounded-md transition-all ${
+                    className={`px-6 py-1.5 text-xs font-bold rounded-md transition-all ${
                         tab === t 
-                            ? "bg-white text-[#84cc16] shadow-sm" 
+                            ? "bg-white text-[#84cc16] shadow-sm scale-105" 
                             : "text-slate-500 hover:text-slate-700"
                     }`}
                 >
