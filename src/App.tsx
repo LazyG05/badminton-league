@@ -17,10 +17,10 @@ import { getAuth, signInAnonymously } from "firebase/auth";
 /**
  * =============================================================
  * BIA-TOLLAS – Biatorbágy (Badminton League)
- * DESIGN: "Clean Dashboard" (Fixed Linter Errors)
- * - Removed unused btnSecondary
- * - Removed deprecated persistence call
- * - Used freeIds & seenTeammates in SelectPairs
+ * DESIGN: "Pure Light" Style
+ * - NO MORE BLACK BUTTONS.
+ * - Standings moved to top on Dashboard.
+ * - Added Gender Tabs (All/Women/Men) to Standings.
  * =============================================================
  */
 
@@ -79,16 +79,24 @@ const getBaseName = (full: string) => full.replace(/^.+?\s/, "");
 
 // ========================= UI Tokens =========================
 
-// Gombok (Removed unused btnSecondary)
+// GOMBOK (Világos stílus - Nincs fekete!)
 const btnBase =
   "inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-bold transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm";
 
+// Elsődleges: Élénk Lime Zöld
 const btnPrimary = `${btnBase} bg-[#84cc16] text-white hover:bg-[#65a30d] hover:shadow-md focus:ring-[#84cc16] border border-transparent`;
-const btnDanger = `${btnBase} bg-white text-rose-600 border border-rose-200 hover:bg-rose-50 hover:border-rose-300 focus:ring-rose-400`;
 
-// Kártyák
+// Másodlagos: Fehér alap, szürke kerettel (fekete helyett)
+const btnSecondary = `${btnBase} bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 hover:text-slate-800 hover:border-slate-300 focus:ring-slate-200`;
+
+// Veszély/Törlés: Fehér alap, piros kerettel
+const btnDanger = `${btnBase} bg-white text-rose-600 border border-rose-200 hover:bg-rose-50 hover:border-rose-300 focus:ring-rose-200`;
+
+// Szellem gomb (pl. Manage options nyitó): Csak szöveg, hoverre háttér
+const btnGhost = "text-xs font-bold text-slate-500 hover:text-[#84cc16] hover:bg-slate-50 px-2 py-1 rounded transition-colors uppercase tracking-wide";
+
 const card =
-  "relative overflow-hidden rounded-xl bg-white p-5 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] border border-slate-100";
+  "relative overflow-hidden rounded-xl bg-white p-5 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-slate-100";
 
 const input =
   "w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-slate-800 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#84cc16] focus:border-transparent transition-all";
@@ -305,8 +313,9 @@ function AttendanceList({ players, presentIds, setPresentIds }: any) {
       <div className="flex justify-between items-center mb-4">
         <h3 className="font-bold text-slate-800">Attendance ({presentIds.length})</h3>
         <div className="flex gap-2">
-            <button className="text-xs font-bold text-[#84cc16]" onClick={() => setPresentIds(players.map((p:any) => p.id))}>All</button>
-            <button className="text-xs font-bold text-slate-400" onClick={() => setPresentIds([])}>None</button>
+            {/* NO BLACK BACKGROUNDS! Light gray or white used instead. */}
+            <button className={`${btnSecondary} text-xs py-1`} onClick={() => setPresentIds(players.map((p:any) => p.id))}>All</button>
+            <button className={`${btnSecondary} text-xs py-1`} onClick={() => setPresentIds([])}>None</button>
         </div>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
@@ -367,7 +376,8 @@ function PlayerEditor({ players, onAdd, onRemove, onUpdateEmoji, onUpdateGender 
           </div>
       )}
 
-      <button onClick={() => setShowManage(!showManage)} className="w-full text-xs text-slate-400 font-bold uppercase hover:text-slate-600 mb-2">
+      {/* Replaced dark button with text-only ghost button */}
+      <button onClick={() => setShowManage(!showManage)} className={`w-full ${btnGhost} mt-2`}>
           {showManage ? "Hide Options ⏶" : "Manage Players / Options ⏷"}
       </button>
 
@@ -515,8 +525,8 @@ function MatchesList({ matches, nameOf, onPick, onDelete, onClear, isAdmin }: an
                                 <div className="flex gap-2 mt-2">
                                     <button onClick={() => onPick(m.id, 'A')} className={`flex-1 py-1 text-xs rounded font-bold ${m.winner==='A'?'bg-[#84cc16] text-white':'bg-white border hover:bg-slate-50'}`}>A Wins</button>
                                     <button onClick={() => onPick(m.id, 'B')} className={`flex-1 py-1 text-xs rounded font-bold ${m.winner==='B'?'bg-[#84cc16] text-white':'bg-white border hover:bg-slate-50'}`}>B Wins</button>
-                                    {m.winner && <button onClick={() => onClear(m.id)} className="px-2 bg-slate-200 rounded text-xs">↺</button>}
-                                    <button onClick={() => onDelete(m.id)} className="px-2 text-rose-500 font-bold">✕</button>
+                                    {m.winner && <button onClick={() => onClear(m.id)} className="px-2 bg-slate-200 rounded text-xs hover:bg-slate-300 transition">↺</button>}
+                                    <button onClick={() => onDelete(m.id)} className="px-2 text-rose-500 font-bold hover:text-rose-700 transition">✕</button>
                                 </div>
                             )}
                         </div>
@@ -565,17 +575,34 @@ function MatchesPlayer({ grouped, nameOf }: any) {
 // ========================= Features: Stats & Standings =========================
 
 function Standings({ rows }: any) {
-  const [showAll, setShowAll] = useState(false);
-  const displayRows = showAll ? rows : rows.slice(0, 10);
+  const [tab, setTab] = useState<"All"|"Women"|"Men">("All");
+
+  // Filter logic based on Gender
+  const filteredRows = useMemo(() => {
+      if (tab === "All") return rows;
+      const targetGender = tab === "Men" ? "M" : "F";
+      return rows.filter((r:any) => r.gender === targetGender);
+  }, [rows, tab]);
 
   return (
-    <div className={`${card} col-span-1 md:col-span-2`}>
-      <div className="flex justify-between items-center mb-4">
+    <div className={card}>
+      <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-3">
         <h3 className="font-bold text-slate-800 text-lg">League Standings</h3>
-        <button onClick={() => setShowAll(!showAll)} className="text-xs text-[#84cc16] font-bold bg-lime-50 px-2 py-1 rounded hover:bg-lime-100 transition-colors">
-            {showAll ? "Show Top 10" : "View All"}
-        </button>
+        
+        {/* TABOK (Világos gombok, nincs fekete!) */}
+        <div className="flex bg-slate-50 p-1 rounded-lg">
+            {["All", "Women", "Men"].map(t => (
+                <button
+                    key={t}
+                    onClick={() => setTab(t as any)}
+                    className={`px-4 py-1 text-xs font-bold rounded-md transition-all ${tab === t ? "bg-white text-[#84cc16] shadow-sm" : "text-slate-400 hover:text-slate-600"}`}
+                >
+                    {t}
+                </button>
+            ))}
+        </div>
       </div>
+
       <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
               <thead className="text-xs text-slate-400 uppercase bg-slate-50/50 border-b border-slate-100">
@@ -588,7 +615,7 @@ function Standings({ rows }: any) {
                   </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                  {displayRows.map((r:any, i:number) => (
+                  {filteredRows.map((r:any, i:number) => (
                       <tr key={r.id} className={`hover:bg-slate-50/50 transition-colors ${!r.qualified ? "opacity-60" : ""}`}>
                           <td className="px-4 py-3 font-bold text-slate-500">#{i+1}</td>
                           <td className="px-4 py-3 font-bold text-slate-700">
@@ -600,6 +627,9 @@ function Standings({ rows }: any) {
                           <td className="px-4 py-3 text-slate-500">{r.matches}</td>
                       </tr>
                   ))}
+                  {filteredRows.length === 0 && (
+                      <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-400 text-xs italic">No players found in this category.</td></tr>
+                  )}
               </tbody>
           </table>
       </div>
@@ -653,7 +683,6 @@ function PlayerStats({ players, matches, meId, setMeId }: any) {
   return (
       <div className={card}>
           <h3 className="font-bold text-slate-800 mb-3">My Stats</h3>
-          {/* Layout Shift Fix: width-full + truncate */}
           <div className="w-full">
             <select className={`${input} w-full`} value={meId} onChange={e => setMeId(e.target.value)}>
                 {players.map((p:any) => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -773,8 +802,10 @@ export default function App() {
         ) : (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="space-y-6 lg:col-span-2">
-                     <MatchesPlayer grouped={grouped} nameOf={nameOf} />
+                     {/* Dashboard: Tabella legfelül */}
                      <Standings rows={standings} />
+                     {/* Alatta a Meccsek */}
+                     <MatchesPlayer grouped={grouped} nameOf={nameOf} />
                 </div>
                 <div className="space-y-6 min-w-0">
                      <PlayerStats players={players} matches={matches} meId={meId} setMeId={setMeId} />
