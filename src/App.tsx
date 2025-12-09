@@ -2259,51 +2259,50 @@ function Standings({
         <h2 className="text-xl font-bold">Current Standings</h2>
 
         {/* Tabs: All / Women / Men */}
-        <div className="inline-flex items-center rounded-full bg-slate-100 p-1 text-xs font-medium">
-          <button
-            type="button"
-            onClick={() => setTab("all")}
-            className={`px-3 py-1 rounded-full ${
-              tab === "all"
-                ? "bg-white shadow text-slate-900"
-                : "text-slate-600"
-            }`}
-          >
-            All
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab("women")}
-            className={`px-3 py-1 rounded-full ${
-              tab === "women"
-                ? "bg-white shadow text-slate-900"
-                : "text-slate-600"
-            }`}
-          >
-            Women
-            {countWomen > 0 && (
-              <span className="ml-1 text-[10px] text-slate-400">
-                ({countWomen})
-              </span>
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab("men")}
-            className={`px-3 py-1 rounded-full ${
-              tab === "men"
-                ? "bg-white shadow text-slate-900"
-                : "text-slate-600"
-            }`}
-          >
-            Men
-            {countMen > 0 && (
-              <span className="ml-1 text-[10px] text-slate-400">
-                ({countMen})
-              </span>
-            )}
-          </button>
-        </div>
+<div className="inline-flex items-center rounded-full bg-slate-100 p-1 text-xs font-medium">
+  <button
+    type="button"
+    onClick={() => setTab("all")}
+    className={`px-3 py-1 rounded-full transition ${
+      tab === "all"
+        ? "bg-white text-slate-900 shadow-sm"
+        : "text-slate-600 hover:text-slate-800"
+    }`}
+  >
+    All
+  </button>
+
+  <button
+    type="button"
+    onClick={() => setTab("women")}
+    className={`px-3 py-1 rounded-full transition ${
+      tab === "women"
+        ? "bg-white text-slate-900 shadow-sm"
+        : "text-slate-600 hover:text-slate-800"
+    }`}
+  >
+    Women
+    {countWomen > 0 && (
+      <span className="ml-1 text-[10px] opacity-60">({countWomen})</span>
+    )}
+  </button>
+
+  <button
+    type="button"
+    onClick={() => setTab("men")}
+    className={`px-3 py-1 rounded-full transition ${
+      tab === "men"
+        ? "bg-white text-slate-900 shadow-sm"
+        : "text-slate-600 hover:text-slate-800"
+    }`}
+  >
+    Men
+    {countMen > 0 && (
+      <span className="ml-1 text-[10px] opacity-60">({countMen})</span>
+    )}
+  </button>
+</div>
+
       </div>
 
       {filteredRows.length === 0 ? (
