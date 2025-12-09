@@ -32,7 +32,12 @@ import { getAuth, signInAnonymously } from "firebase/auth";
  */
 
 // ========================= Types =========================
-export type Player = { id: string; name: string };
+export type Player = {
+  id: string;
+  name: string;
+  // optional gender, M = Men, F = Women
+  gender?: "M" | "F";
+};
 export type Pair = [string, string];
 export type Match = {
   id: string;
@@ -920,12 +925,14 @@ function PlayerEditor({
   onAdd,
   onRemove,
   onUpdateEmoji,
+  onUpdateGender,
   disabled,
 }: {
   players: Player[];
   onAdd: (name: string) => void;
   onRemove: (id: string) => void;
   onUpdateEmoji: (id: string, emoji: string) => void;
+  onUpdateGender?: (id: string, gender: "M" | "F" | null) => void;
   disabled?: boolean;
 }) {
   const [name, setName] = useState("");
@@ -1120,6 +1127,60 @@ function PlayerEditor({
                     ))}
                   </div>
                 </div>
+
+                                {/* Gender beállítás */}
+                {onUpdateGender && (
+                  <div>
+                    <div className="mb-1 text-xs text-slate-500">
+                      Gender for{" "}
+                      <span className="font-semibold">
+                        {getBaseName(selectedPlayer.name)}
+                      </span>
+                    </div>
+                    <div className="inline-flex items-center rounded-full bg-slate-100 p-1 text-xs font-medium gap-1">
+                      <button
+                        type="button"
+                        className={`px-3 py-1 rounded-full ${
+                          !selectedPlayer.gender
+                            ? "bg-white shadow text-slate-900"
+                            : "text-slate-600"
+                        }`}
+                        onClick={() => onUpdateGender(selectedPlayer.id, null)}
+                        disabled={!!disabled}
+                      >
+                        Not set
+                      </button>
+                      <button
+                        type="button"
+                        className={`px-3 py-1 rounded-full ${
+                          selectedPlayer.gender === "F"
+                            ? "bg-white shadow text-slate-900"
+                            : "text-slate-600"
+                        }`}
+                        onClick={() => onUpdateGender(selectedPlayer.id, "F")}
+                        disabled={!!disabled}
+                      >
+                        Women
+                      </button>
+                      <button
+                        type="button"
+                        className={`px-3 py-1 rounded-full ${
+                          selectedPlayer.gender === "M"
+                            ? "bg-white shadow text-slate-900"
+                            : "text-slate-600"
+                        }`}
+                        onClick={() => onUpdateGender(selectedPlayer.id, "M")}
+                        disabled={!!disabled}
+                      >
+                        Men
+                      </button>
+                    </div>
+                    <p className="mt-1 text-[10px] text-slate-400">
+                      Used only for Men / Women standings. Optional.
+                    </p>
+                  </div>
+                )}
+
               </div>
             )}
           </div>
@@ -2170,13 +2231,83 @@ function Standings({
   })[];
   achievementsById: Map<string, Achievement[]>;
 }) {
+  const [tab, setTab] = useState<"all" | "women" | "men">("all");
+
+  const filteredRows = useMemo(() => {
+    if (tab === "all") return rows;
+    const wanted = tab === "men" ? "M" : "F";
+    return rows.filter((r) => r.gender === wanted);
+  }, [rows, tab]);
+
+  const anyGenderSet = rows.some((r) => r.gender);
+  const emptyText =
+    filteredRows.length === 0
+      ? tab === "all"
+        ? "No players recorded yet."
+        : anyGenderSet
+        ? "No players in this category yet. Set the gender under “Manage existing players”."
+        : "No players with gender set yet. Set it under “Manage existing players”."
+      : "";
+
+  const countMen = rows.filter((r) => r.gender === "M").length;
+  const countWomen = rows.filter((r) => r.gender === "F").length;
+
   return (
     <div className={card}>
       <ShuttleBg />
-      <h2 className="mb-2 text-xl font-bold">Current Standings</h2>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <h2 className="text-xl font-bold">Current Standings</h2>
 
-      {rows.length === 0 ? (
-        <p className="text-sm text-gray-500">No players recorded yet.</p>
+        {/* Tabs: All / Women / Men */}
+        <div className="inline-flex items-center rounded-full bg-slate-100 p-1 text-xs font-medium">
+          <button
+            type="button"
+            onClick={() => setTab("all")}
+            className={`px-3 py-1 rounded-full ${
+              tab === "all"
+                ? "bg-white shadow text-slate-900"
+                : "text-slate-600"
+            }`}
+          >
+            All
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("women")}
+            className={`px-3 py-1 rounded-full ${
+              tab === "women"
+                ? "bg-white shadow text-slate-900"
+                : "text-slate-600"
+            }`}
+          >
+            Women
+            {countWomen > 0 && (
+              <span className="ml-1 text-[10px] text-slate-400">
+                ({countWomen})
+              </span>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("men")}
+            className={`px-3 py-1 rounded-full ${
+              tab === "men"
+                ? "bg-white shadow text-slate-900"
+                : "text-slate-600"
+            }`}
+          >
+            Men
+            {countMen > 0 && (
+              <span className="ml-1 text-[10px] text-slate-400">
+                ({countMen})
+              </span>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {filteredRows.length === 0 ? (
+        <p className="text-sm text-gray-500">{emptyText}</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-slate-200 text-sm">
@@ -2234,7 +2365,7 @@ function Standings({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
-              {rows.map((r, i) => (
+              {filteredRows.map((r, i) => (
                 <tr
                   key={r.id}
                   className={`border-b border-slate-100 ${
@@ -2256,7 +2387,7 @@ function Standings({
                     {r.bonusPoints > 0 && (
                       <span className="ml-1 text-xs font-normal text-gray-500">
                         {" "}
-                        ({r.basePoints} + {r.bonusPoints}{" "}
+                        ({r.basePoints} + {r.bonusPoints}
                         <span className="ml-1 text-amber-500"> ⭐ </span>)
                       </span>
                     )}
@@ -2456,6 +2587,17 @@ export default function App() {
     write({ players: [...players, newPlayer] });
   };
 
+    const updatePlayerGender = (id: string, gender: "M" | "F" | null) => {
+    if (!role) return;
+
+    const nextPlayers = players.map((p) =>
+      p.id === id ? { ...p, gender: gender ?? undefined } : p
+    );
+
+    write({ players: nextPlayers });
+  };
+
+
   const removePlayer = (id: string) => {
     if (!role) return;
     if (!confirm("Delete this player permanently? This cannot be undone."))
@@ -2624,6 +2766,7 @@ export default function App() {
                     onAdd={addPlayer}
                     onRemove={removePlayer}
                     onUpdateEmoji={updatePlayerEmoji}
+                    onUpdateGender={updatePlayerGender}
                   />
                   <AdminDateJump
                     grouped={grouped}
