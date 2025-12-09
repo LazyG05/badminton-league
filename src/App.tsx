@@ -392,9 +392,14 @@ function PlayerEditor({ players, onAdd, onRemove, onUpdateEmoji, onUpdateGender 
           </div>
       )}
 
-      <button onClick={() => setShowManage(!showManage)} className={btnGhost}>
-          {showManage ? "Hide Options ⏶" : "Manage Players / Options ⏷"}
-      </button>
+   <button
+  onClick={() => setShowManage(!showManage)}
+  className={btnGhost}
+  style={{ backgroundColor: "#ffffff" }}
+>
+  {showManage ? "Hide Options ⏶" : "Manage Players / Options ⏷"}
+</button>
+
 
       {showManage && (
           <div className="border-t border-slate-100 pt-3 space-y-3">
@@ -628,23 +633,27 @@ function Standings({ rows }: any) {
       <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-3">
         <h3 className="font-bold text-slate-800 text-lg">League Standings</h3>
         
-       {/* iOS Style Pill Tabs - White Container, no dark background */}
-<div className="flex bg-white p-1 rounded-lg border border-slate-200">
+      
+{/* iOS Style Pill Tabs - világos, fekete nélkül */}
+<div className="flex p-1 rounded-lg" style={{ backgroundColor: "#f8fafc" }}>
+  {["All", "Women", "Men"].map((t) => (
+    <button
+      key={t}
+      onClick={() => setTab(t as any)}
+      className={`px-6 py-1.5 text-xs font-bold rounded-md transition-all ${
+        tab === t
+          ? "text-[#84cc16] shadow-sm scale-105"
+          : "text-slate-500 hover:text-slate-700"
+      }`}
+      style={{
+        backgroundColor: tab === t ? "#ffffff" : "#f8fafc",
+      }}
+    >
+      {t}
+    </button>
+  ))}
+</div>
 
-            {["All", "Women", "Men"].map(t => (
-                <button
-                    key={t}
-                    onClick={() => setTab(t as any)}
-                    className={`px-6 py-1.5 text-xs font-bold rounded-md transition-all ${
-                        tab === t 
-                            ? "bg-white text-[#84cc16] shadow-sm scale-105" 
-                            : "text-slate-500 hover:text-slate-700"
-                    }`}
-                >
-                    {t}
-                </button>
-            ))}
-        </div>
       </div>
 
       <div className="overflow-x-auto">
@@ -709,12 +718,14 @@ function PlayerAchievements({ players, matches, meId }: { players: Player[]; mat
         </div>
       )}
 
-        <button 
-            onClick={() => setShowLegend(!showLegend)}
-            className="w-full text-center text-xs font-bold text-slate-400 uppercase hover:text-slate-600 transition-colors border-t border-slate-100 pt-2"
-        >
-            {showLegend ? "Hide Badge Legend ⏶" : "Show Badge Legend / Meanings ⏷"}
-        </button>
+<button
+    onClick={() => setShowLegend(!showLegend)}
+    className="w-full text-center text-xs font-bold text-slate-400 uppercase hover:text-slate-600 transition-colors border-t border-slate-100 pt-2"
+    style={{ backgroundColor: "#ffffff" }}
+>
+    {showLegend ? "Hide Badge Legend ⏶" : "Show Badge Legend / Meanings ⏷"}
+</button>
+
 
         {showLegend && (
             <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
