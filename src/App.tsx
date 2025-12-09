@@ -17,10 +17,11 @@ import { getAuth, signInAnonymously } from "firebase/auth";
 /**
  * =============================================================
  * BIA-TOLLAS – Biatorbágy Badminton
- * DESIGN: "Pure Light" v5 (Linter Fixes)
- * - Fixed: getBaseName missing function
- * - Fixed: unused variables (date, backups, btnSecondary usage)
- * - Maintained Strict No-Black Policy
+ * DESIGN: "Hybrid Pro" v8
+ * - Feature 1: "Brand Stripe" on all cards (Lime->Teal Gradient)
+ * - Feature 2: "Glassmorphism" Logo container in Sidebar
+ * - Feature 3: "Deep Atmosphere" Sidebar background (Blobs)
+ * - Kept: Watermark, Light Mode buttons, No Black.
  * =============================================================
  */
 
@@ -75,27 +76,32 @@ const weekday = (dstr: string) =>
     weekday: "long",
   });
 const key = (a: string, b: string) => [a, b].sort().join("::");
-
-// FIX: Added missing function
 const getBaseName = (full: string) => full.replace(/^.+?\s/, "");
 
 // ========================= UI Tokens =========================
 
+// 🎨 DESIGN SYSTEM: COLORS & SHAPES
+
+// 1. A Sportos Csík (Brand Stripe)
+const BrandStripe = () => (
+  <div className="h-1.5 w-full bg-gradient-to-r from-[#84cc16] via-teal-500 to-slate-700" />
+);
+
+// 2. Gombok
 const btnBase =
   "inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-bold transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm";
 
 const btnPrimary = `${btnBase} bg-[#84cc16] text-white hover:bg-[#65a30d] hover:shadow-md focus:ring-[#84cc16] border border-transparent`;
-
-// FIX: Now used in AttendanceList
 const btnSecondary = `${btnBase} bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 focus:ring-slate-200`;
-
-const btnGhost =
-  "w-full py-2 text-xs font-bold text-slate-500 uppercase tracking-wider bg-white hover:text-[#84cc16] hover:bg-slate-50 rounded transition-colors border border-transparent hover:border-slate-100 cursor-pointer";
-
+const btnGhost = "w-full py-2 text-xs font-bold text-slate-500 uppercase tracking-wider bg-white hover:text-[#84cc16] hover:bg-slate-50 rounded transition-colors border border-transparent hover:border-slate-100 cursor-pointer";
 const btnDanger = `${btnBase} bg-white text-rose-600 border border-rose-200 hover:bg-rose-50 hover:border-rose-300 focus:ring-rose-200`;
 
-const card =
-  "relative overflow-hidden rounded-xl bg-white p-5 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07)] border border-slate-100";
+// 3. Kártya alap (Most már padding nélkül a külső konténeren, hogy a csík kilógjon)
+const cardContainer =
+  "relative overflow-hidden rounded-xl bg-white shadow-[0_4px_20px_-5px_rgba(0,0,0,0.05)] border border-slate-100 z-10 flex flex-col";
+
+// Kártya belső padding
+const cardContent = "p-5 flex-1";
 
 const input =
   "w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-slate-800 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#84cc16] focus:border-transparent transition-all";
@@ -234,32 +240,43 @@ function Sidebar({ role, setRole }: { role: "player" | "admin"; setRole: (r: "pl
   const [imgError, setImgError] = useState(false);
 
   return (
-    <div className="fixed left-0 top-0 h-full w-64 bg-[#1e293b] text-white flex flex-col shadow-2xl z-50 transition-transform duration-300 md:translate-x-0 -translate-x-full md:block hidden">
-      {/* Logo */}
-      <div className="p-6 flex flex-col items-center border-b border-slate-700/50">
-        <div className="w-28 h-28 mb-4 bg-slate-800 rounded-full flex items-center justify-center overflow-hidden border-4 border-slate-700 shadow-inner relative">
-            {!imgError ? (
-                <img src="/logo.png" alt="Logo" className="w-full h-full object-cover" onError={() => setImgError(true)} />
-            ) : (
-                <span className="text-4xl">🏸</span>
-            )}
+    <div className="fixed left-0 top-0 h-full w-64 bg-[#1e293b] text-white flex flex-col shadow-2xl z-50 transition-transform duration-300 md:translate-x-0 -translate-x-full md:block hidden overflow-hidden">
+      
+      {/* 🟢 DEKORÁCIÓ: Háttér "Blobs" (Deep Atmosphere) */}
+      <div className="absolute -top-20 -left-20 w-60 h-60 bg-[#84cc16] rounded-full blur-[80px] opacity-10 pointer-events-none"></div>
+      <div className="absolute bottom-0 right-0 w-60 h-60 bg-teal-500 rounded-full blur-[80px] opacity-10 pointer-events-none"></div>
+
+      {/* 🟢 LOGO: Glassmorphism Design */}
+      <div className="p-6 flex flex-col items-center border-b border-white/5 relative z-10">
+        <div className="relative w-28 h-28 mb-6 flex items-center justify-center">
+            {/* Háttérfény (Glow) */}
+            <div className="absolute inset-0 bg-[#84cc16] rounded-full blur-2xl opacity-20"></div>
+            
+            {/* Üveg Konténer */}
+            <div className="relative w-full h-full bg-white/5 backdrop-blur-md border border-white/10 rounded-full flex items-center justify-center shadow-2xl overflow-hidden p-1">
+                {!imgError ? (
+                    <img src="/logo.png" alt="Logo" className="w-full h-full object-cover rounded-full" onError={() => setImgError(true)} />
+                ) : (
+                    <span className="text-4xl">🏸</span>
+                )}
+            </div>
         </div>
-        <h1 className="text-lg font-bold tracking-wider uppercase text-slate-100">Biatorbágy</h1>
-        <p className="text-xs text-[#84cc16] font-medium uppercase tracking-widest">Badminton</p>
+        <h1 className="text-xl font-black tracking-wider uppercase text-white drop-shadow-md">Biatorbágy</h1>
+        <p className="text-xs text-[#84cc16] font-bold uppercase tracking-[0.2em] mt-1">Badminton</p>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-4 py-6 space-y-2">
+      <nav className="flex-1 px-4 py-6 space-y-2 relative z-10">
         <button
           onClick={() => setRole("player")}
-          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${role === "player" ? "bg-[#84cc16] text-white shadow-lg shadow-lime-900/20" : "text-slate-400 hover:bg-slate-800 hover:text-white"}`}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium border ${role === "player" ? "bg-[#84cc16] border-[#84cc16] text-white shadow-lg shadow-lime-900/20" : "bg-transparent border-transparent text-slate-400 hover:bg-white/5 hover:text-white"}`}
         >
           <Icons.Dashboard />
           Dashboard
         </button>
         <button
           onClick={() => setRole("admin")}
-          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${role === "admin" ? "bg-[#84cc16] text-white shadow-lg shadow-lime-900/20" : "text-slate-400 hover:bg-slate-800 hover:text-white"}`}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium border ${role === "admin" ? "bg-[#84cc16] border-[#84cc16] text-white shadow-lg shadow-lime-900/20" : "bg-transparent border-transparent text-slate-400 hover:bg-white/5 hover:text-white"}`}
         >
           <Icons.Admin />
           Admin Panel
@@ -267,9 +284,9 @@ function Sidebar({ role, setRole }: { role: "player" | "admin"; setRole: (r: "pl
       </nav>
 
       {/* Guest */}
-      <div className="p-4 border-t border-slate-700/50">
+      <div className="p-4 border-t border-white/5 relative z-10">
         <div className="flex items-center gap-3 px-2">
-            <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-xl">👤</div>
+            <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-xl border border-white/10">👤</div>
             <div>
                 <p className="text-sm font-semibold text-white">Guest User</p>
                 <p className="text-xs text-slate-400">View only mode</p>
@@ -282,12 +299,15 @@ function Sidebar({ role, setRole }: { role: "player" | "admin"; setRole: (r: "pl
 
 function MobileHeader({ role, setRole }: { role: "player" | "admin"; setRole: (r: "player" | "admin") => void }) {
     return (
-        <div className="md:hidden bg-[#1e293b] text-white p-4 flex justify-between items-center shadow-md mb-4 rounded-b-xl">
-            <div className="flex items-center gap-3">
-                 <div className="w-8 h-8 bg-[#84cc16] rounded-full flex items-center justify-center font-bold">B</div>
-                 <span className="font-bold">Biatorbágy Badminton</span>
+        <div className="md:hidden bg-[#1e293b] text-white p-4 flex justify-between items-center shadow-md mb-4 rounded-b-xl z-50 relative overflow-hidden">
+             {/* Mobile Decor */}
+             <div className="absolute top-0 right-0 w-32 h-32 bg-[#84cc16] rounded-full blur-[50px] opacity-10 pointer-events-none"></div>
+
+            <div className="flex items-center gap-3 relative z-10">
+                 <div className="w-8 h-8 bg-[#84cc16] rounded-full flex items-center justify-center font-bold shadow-lg">B</div>
+                 <span className="font-bold tracking-wide">Biatorbágy Badminton</span>
             </div>
-            <div className="flex text-xs bg-slate-700 rounded-lg p-1">
+            <div className="flex text-xs bg-slate-800/50 backdrop-blur-sm rounded-lg p-1 border border-white/5 relative z-10">
                 <button onClick={() => setRole("player")} className={`px-3 py-1 rounded ${role==="player"?"bg-[#84cc16] text-white":"text-slate-300"}`}>Player</button>
                 <button onClick={() => setRole("admin")} className={`px-3 py-1 rounded ${role==="admin"?"bg-[#84cc16] text-white":"text-slate-300"}`}>Admin</button>
             </div>
@@ -299,43 +319,47 @@ function MobileHeader({ role, setRole }: { role: "player" | "admin"; setRole: (r
 
 function DatePicker({ value, onChange }: { value: string; onChange: (val: string) => void }) {
   return (
-    <div className={card}>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-bold text-slate-800">Session Date</h2>
-          <p className="text-sm text-slate-500 font-medium mt-1">Manage matches for this day.</p>
-        </div>
-        <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-lg border border-slate-200">
-             <span className="text-xs font-bold text-[#84cc16] uppercase px-2">{weekday(value)}</span>
-             <input className="bg-transparent text-slate-700 font-bold focus:outline-none cursor-pointer" type="date" value={value} onChange={(e) => onChange(e.target.value)} />
+    <div className={cardContainer}>
+      <BrandStripe />
+      <div className={cardContent}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+            <h2 className="text-lg font-bold text-slate-800">Session Date</h2>
+            <p className="text-sm text-slate-500 font-medium mt-1">Manage matches for this day.</p>
+            </div>
+            <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-lg border border-slate-200">
+                <span className="text-xs font-bold text-[#84cc16] uppercase px-2">{weekday(value)}</span>
+                <input className="bg-transparent text-slate-700 font-bold focus:outline-none cursor-pointer" type="date" value={value} onChange={(e) => onChange(e.target.value)} />
+            </div>
         </div>
       </div>
     </div>
   );
 }
 
-// FIX: Removed unused 'date' prop, added missing type for setPresentIds
 function AttendanceList({ players, presentIds, setPresentIds }: any) {
   const isPresent = (id: string) => presentIds.includes(id);
   const toggle = (id: string) => setPresentIds(isPresent(id) ? presentIds.filter((p:string) => p !== id) : [...presentIds, id]);
   const sorted = useMemo(() => [...players].sort((a:any,b:any) => a.name.localeCompare(b.name, "hu")), [players]);
   return (
-    <div className={card}>
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="font-bold text-slate-800">Attendance ({presentIds.length})</h3>
-        <div className="flex gap-2">
-            {/* FIX: Using btnSecondary here */}
-            <button className={`${btnSecondary} text-xs py-1`} onClick={() => setPresentIds(players.map((p:any) => p.id))}>All</button>
-            <button className={`${btnSecondary} text-xs py-1`} onClick={() => setPresentIds([])}>None</button>
+    <div className={cardContainer}>
+      <BrandStripe />
+      <div className={cardContent}>
+        <div className="flex justify-between items-center mb-4">
+            <h3 className="font-bold text-slate-800">Attendance ({presentIds.length})</h3>
+            <div className="flex gap-2">
+                <button className={`${btnSecondary} text-xs py-1`} onClick={() => setPresentIds(players.map((p:any) => p.id))}>All</button>
+                <button className={`${btnSecondary} text-xs py-1`} onClick={() => setPresentIds([])}>None</button>
+            </div>
         </div>
-      </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
-        {sorted.map((p: any) => (
-          <button key={p.id} onClick={() => toggle(p.id)} className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm border transition-all ${isPresent(p.id) ? "bg-[#f0fdf4] border-[#84cc16] text-slate-800" : "bg-white border-slate-100 text-slate-400 hover:bg-slate-50"}`}>
-            <span className="truncate font-medium">{p.name}</span>
-            {isPresent(p.id) && <div className="w-2 h-2 rounded-full bg-[#84cc16]" />}
-          </button>
-        ))}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+            {sorted.map((p: any) => (
+            <button key={p.id} onClick={() => toggle(p.id)} className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm border transition-all ${isPresent(p.id) ? "bg-[#f0fdf4] border-[#84cc16] text-slate-800" : "bg-white border-slate-100 text-slate-400 hover:bg-slate-50"}`}>
+                <span className="truncate font-medium">{p.name}</span>
+                {isPresent(p.id) && <div className="w-2 h-2 rounded-full bg-[#84cc16]" />}
+            </button>
+            ))}
+        </div>
       </div>
     </div>
   );
@@ -343,27 +367,30 @@ function AttendanceList({ players, presentIds, setPresentIds }: any) {
 
 function AdminDateJump({ grouped, date, setDate }: any) {
   return (
-    <div className={card}>
-        <h3 className="font-bold text-slate-800 mb-3">Jump to Date</h3>
-        {grouped.length === 0 ? <p className="text-sm text-slate-400">No sessions yet.</p> : (
-            <ul className="space-y-2 max-h-40 overflow-y-auto pr-1">
-                {grouped.map((g:any) => (
-                    <li key={g.date}>
-                        <button 
-                            onClick={() => setDate(g.date)} 
-                            className={`w-full text-left px-3 py-2 rounded-lg text-sm flex justify-between border transition-all ${
-                                date === g.date 
-                                    ? "bg-[#f0fdf4] border-[#84cc16] text-[#65a30d] font-bold shadow-sm" 
-                                    : "bg-white border-slate-100 text-slate-600 hover:bg-slate-50 hover:border-slate-200"
-                            }`}
-                        >
-                            <span>{g.date}</span>
-                            <span className="text-xs opacity-60">{weekday(g.date)}</span>
-                        </button>
-                    </li>
-                ))}
-            </ul>
-        )}
+    <div className={cardContainer}>
+        <BrandStripe />
+        <div className={cardContent}>
+            <h3 className="font-bold text-slate-800 mb-3">Jump to Date</h3>
+            {grouped.length === 0 ? <p className="text-sm text-slate-400">No sessions yet.</p> : (
+                <ul className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                    {grouped.map((g:any) => (
+                        <li key={g.date}>
+                            <button 
+                                onClick={() => setDate(g.date)} 
+                                className={`w-full text-left px-3 py-2 rounded-lg text-sm flex justify-between border transition-all ${
+                                    date === g.date 
+                                        ? "bg-[#f0fdf4] border-[#84cc16] text-[#65a30d] font-bold shadow-sm" 
+                                        : "bg-white border-slate-100 text-slate-600 hover:bg-slate-50 hover:border-slate-200"
+                                }`}
+                            >
+                                <span>{g.date}</span>
+                                <span className="text-xs opacity-60">{weekday(g.date)}</span>
+                            </button>
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </div>
     </div>
   )
 }
@@ -379,57 +406,54 @@ function PlayerEditor({ players, onAdd, onRemove, onUpdateEmoji, onUpdateGender 
   const selectedPlayer = players.find((p:any) => p.id === selectedPlayerId);
 
   return (
-    <div className={card}>
-      <h3 className="font-bold text-slate-800 mb-4">Add Player</h3>
-      <div className="flex gap-2 mb-4">
-        <button className="text-2xl bg-slate-50 rounded-lg w-12 h-10 border border-slate-200 flex items-center justify-center" onClick={() => setShowEmoji(!showEmoji)}>{emoji}</button>
-        <input className={input} placeholder="Name..." value={name} onChange={e => setName(e.target.value)} />
-        <button className={btnPrimary} onClick={() => { if(name) { onAdd(`${emoji} ${name}`); setName(""); } }}>Add</button>
+    <div className={cardContainer}>
+      <BrandStripe />
+      <div className={cardContent}>
+        <h3 className="font-bold text-slate-800 mb-4">Add Player</h3>
+        <div className="flex gap-2 mb-4">
+            <button className="text-2xl bg-slate-50 rounded-lg w-12 h-10 border border-slate-200 flex items-center justify-center" onClick={() => setShowEmoji(!showEmoji)}>{emoji}</button>
+            <input className={input} placeholder="Name..." value={name} onChange={e => setName(e.target.value)} />
+            <button className={btnPrimary} onClick={() => { if(name) { onAdd(`${emoji} ${name}`); setName(""); } }}>Add</button>
+        </div>
+        {showEmoji && (
+            <div className="flex gap-1 overflow-x-auto pb-2 mb-2">
+                {EMOJIS.map(e => <button key={e} onClick={() => { setEmoji(e); setShowEmoji(false); }} className="text-xl hover:bg-slate-100 p-1 rounded">{e}</button>)}
+            </div>
+        )}
+
+        <button onClick={() => setShowManage(!showManage)} className={btnGhost}>
+            {showManage ? "Hide Options ⏶" : "Manage Players / Options ⏷"}
+        </button>
+
+        {showManage && (
+            <div className="border-t border-slate-100 pt-3 space-y-3">
+                <select className={input} value={selectedPlayerId} onChange={(e) => setSelectedPlayerId(e.target.value)}>
+                    {players.map((p:any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+                {selectedPlayer && (
+                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 space-y-3">
+                        <div>
+                            <div className="text-xs font-bold text-slate-400 uppercase mb-1">Gender</div>
+                            <div className="flex gap-2">
+                                {["M", "F", null].map(g => (
+                                    <button key={String(g)} onClick={() => onUpdateGender(selectedPlayer.id, g)} className={`px-3 py-1 text-xs rounded-full border ${selectedPlayer.gender === g ? "bg-[#84cc16] text-white border-[#84cc16]" : "bg-white text-slate-500 border-slate-200"}`}>
+                                        {g === "M" ? "Man" : g === "F" ? "Woman" : "Not Set"}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        <div>
+                            <div className="text-xs font-bold text-slate-400 uppercase mb-1">Change Emoji</div>
+                            <div className="flex gap-1 overflow-x-auto pb-2">
+                                {EMOJIS.slice(0,8).map(e => <button key={e} onClick={() => onUpdateEmoji(selectedPlayer.id, e)} className="text-lg hover:scale-110 transition-transform">{e}</button>)}
+                            </div>
+                        </div>
+                        <button onClick={() => onRemove(selectedPlayer.id)} className={`${btnDanger} w-full py-1 text-xs`}>Remove Player</button>
+                    </div>
+                )}
+            </div>
+        )}
       </div>
-      {showEmoji && (
-          <div className="flex gap-1 overflow-x-auto pb-2 mb-2">
-              {EMOJIS.map(e => <button key={e} onClick={() => { setEmoji(e); setShowEmoji(false); }} className="text-xl hover:bg-slate-100 p-1 rounded">{e}</button>)}
-          </div>
-      )}
-
-   <button
-  onClick={() => setShowManage(!showManage)}
-  className={btnGhost}
-  style={{ backgroundColor: "#ffffff" }}
->
-  {showManage ? "Hide Options ⏶" : "Manage Players / Options ⏷"}
-</button>
-
-
-      {showManage && (
-          <div className="border-t border-slate-100 pt-3 space-y-3">
-              <select className={input} value={selectedPlayerId} onChange={(e) => setSelectedPlayerId(e.target.value)}>
-                   {players.map((p:any) => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
-              {selectedPlayer && (
-                  <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 space-y-3">
-                      <div>
-                          <div className="text-xs font-bold text-slate-400 uppercase mb-1">Gender</div>
-                          <div className="flex gap-2">
-                              {["M", "F", null].map(g => (
-                                  <button key={String(g)} onClick={() => onUpdateGender(selectedPlayer.id, g)} className={`px-3 py-1 text-xs rounded-full border ${selectedPlayer.gender === g ? "bg-[#84cc16] text-white border-[#84cc16]" : "bg-white text-slate-500 border-slate-200"}`}>
-                                      {g === "M" ? "Man" : g === "F" ? "Woman" : "Not Set"}
-                                  </button>
-                              ))}
-                          </div>
-                      </div>
-                      <div>
-                          <div className="text-xs font-bold text-slate-400 uppercase mb-1">Change Emoji</div>
-                          <div className="flex gap-1 overflow-x-auto pb-2">
-                            {/* FIX: onUpdateEmoji is now properly used */}
-                            {EMOJIS.slice(0,8).map(e => <button key={e} onClick={() => onUpdateEmoji(selectedPlayer.id, e)} className="text-lg hover:scale-110 transition-transform">{e}</button>)}
-                          </div>
-                      </div>
-                      <button onClick={() => onRemove(selectedPlayer.id)} className={`${btnDanger} w-full py-1 text-xs`}>Remove Player</button>
-                  </div>
-              )}
-          </div>
-      )}
     </div>
   );
 }
@@ -462,25 +486,28 @@ function SelectPairs({ players, freeIds, seenTeammates, onCreate }: any) {
   );
 
   return (
-      <div className={card}>
-          <h3 className="font-bold text-slate-800 mb-3">Manual Match</h3>
-          <div className="flex gap-2 mb-2">
-              <div className={`flex-1 space-y-2 p-2 rounded-lg border ${warnA ? "bg-amber-50 border-amber-200" : "bg-slate-50 border-slate-100"}`}>
-                  <div className="flex justify-between">
-                      <div className="text-xs font-bold text-[#84cc16]">TEAM A</div>
-                      {warnA && <span className="text-[10px] text-amber-600 font-bold">⚠️ Played</span>}
-                  </div>
-                  <div className="flex gap-2">{renderSelect(a1, setA1, "P1")}{renderSelect(a2, setA2, "P2")}</div>
-              </div>
-              <div className={`flex-1 space-y-2 p-2 rounded-lg border ${warnB ? "bg-amber-50 border-amber-200" : "bg-slate-50 border-slate-100"}`}>
-                  <div className="flex justify-between">
-                      <div className="text-xs font-bold text-rose-500">TEAM B</div>
-                      {warnB && <span className="text-[10px] text-amber-600 font-bold">⚠️ Played</span>}
-                  </div>
-                  <div className="flex gap-2">{renderSelect(b1, setB1, "P1")}{renderSelect(b2, setB2, "P2")}</div>
-              </div>
+      <div className={cardContainer}>
+          <BrandStripe />
+          <div className={cardContent}>
+            <h3 className="font-bold text-slate-800 mb-3">Manual Match</h3>
+            <div className="flex gap-2 mb-2">
+                <div className={`flex-1 space-y-2 p-2 rounded-lg border ${warnA ? "bg-amber-50 border-amber-200" : "bg-slate-50 border-slate-100"}`}>
+                    <div className="flex justify-between">
+                        <div className="text-xs font-bold text-[#84cc16]">TEAM A</div>
+                        {warnA && <span className="text-[10px] text-amber-600 font-bold">⚠️ Played</span>}
+                    </div>
+                    <div className="flex gap-2">{renderSelect(a1, setA1, "P1")}{renderSelect(a2, setA2, "P2")}</div>
+                </div>
+                <div className={`flex-1 space-y-2 p-2 rounded-lg border ${warnB ? "bg-amber-50 border-amber-200" : "bg-slate-50 border-slate-100"}`}>
+                    <div className="flex justify-between">
+                        <div className="text-xs font-bold text-rose-500">TEAM B</div>
+                        {warnB && <span className="text-[10px] text-amber-600 font-bold">⚠️ Played</span>}
+                    </div>
+                    <div className="flex gap-2">{renderSelect(b1, setB1, "P1")}{renderSelect(b2, setB2, "P2")}</div>
+                </div>
+            </div>
+            <button onClick={create} disabled={!isValid} className={`${btnPrimary} w-full`}>Add Match</button>
           </div>
-          <button onClick={create} disabled={!isValid} className={`${btnPrimary} w-full`}>Add Match</button>
       </div>
   )
 }
@@ -514,44 +541,50 @@ function DrawMatches({ players, presentIds, matchesForDate, date, league, write 
   };
 
   return (
-    <div className={card}>
-        <div className="flex items-center justify-between mb-2">
-            <h3 className="font-bold text-slate-800">Auto Draw</h3>
-            <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded">3 Rounds</span>
+    <div className={cardContainer}>
+        <BrandStripe />
+        <div className={cardContent}>
+            <div className="flex items-center justify-between mb-2">
+                <h3 className="font-bold text-slate-800">Auto Draw</h3>
+                <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded">3 Rounds</span>
+            </div>
+            <p className="text-xs text-slate-500 mb-4">Generate matches based on today's performance.</p>
+            <button onClick={draw} disabled={!canDraw} className={`${btnPrimary} w-full`}>
+                Generate Matches
+            </button>
         </div>
-        <p className="text-xs text-slate-500 mb-4">Generate matches based on today's performance.</p>
-        <button onClick={draw} disabled={!canDraw} className={`${btnPrimary} w-full`}>
-            Generate Matches
-        </button>
     </div>
   );
 }
 
 function MatchesList({ matches, nameOf, onPick, onDelete, onClear, isAdmin }: any) {
     return (
-        <div className={card}>
-            <h3 className="font-bold text-slate-800 mb-4">Matches ({matches.length})</h3>
-            {matches.length === 0 ? <p className="text-sm text-slate-400">No matches found.</p> : (
-                <div className="space-y-3">
-                    {matches.map((m:any) => (
-                        <div key={m.id} className="border border-slate-100 rounded-xl p-3 bg-slate-50/30">
-                            <div className="flex justify-between items-center text-sm mb-2">
-                                <span className={`font-bold ${m.winner==='A'?'text-[#84cc16]':'text-slate-700'}`}>{nameOf(m.teamA[0])} & {nameOf(m.teamA[1])}</span>
-                                <span className="text-xs text-slate-400">vs</span>
-                                <span className={`font-bold ${m.winner==='B'?'text-[#84cc16]':'text-slate-700'}`}>{nameOf(m.teamB[0])} & {nameOf(m.teamB[1])}</span>
-                            </div>
-                            {isAdmin && (
-                                <div className="flex gap-2 mt-2">
-                                    <button onClick={() => onPick(m.id, 'A')} className={`flex-1 py-1 text-xs rounded font-bold ${m.winner==='A'?'bg-[#84cc16] text-white':'bg-white border hover:bg-slate-50'}`}>A Wins</button>
-                                    <button onClick={() => onPick(m.id, 'B')} className={`flex-1 py-1 text-xs rounded font-bold ${m.winner==='B'?'bg-[#84cc16] text-white':'bg-white border hover:bg-slate-50'}`}>B Wins</button>
-                                    {m.winner && <button onClick={() => onClear(m.id)} className="px-2 bg-slate-200 rounded text-xs hover:bg-slate-300 transition">↺</button>}
-                                    <button onClick={() => onDelete(m.id)} className="px-2 text-rose-500 font-bold hover:text-rose-700 transition">✕</button>
+        <div className={cardContainer}>
+            <BrandStripe />
+            <div className={cardContent}>
+                <h3 className="font-bold text-slate-800 mb-4">Matches ({matches.length})</h3>
+                {matches.length === 0 ? <p className="text-sm text-slate-400">No matches found.</p> : (
+                    <div className="space-y-3">
+                        {matches.map((m:any) => (
+                            <div key={m.id} className="border border-slate-100 rounded-xl p-3 bg-slate-50/30">
+                                <div className="flex justify-between items-center text-sm mb-2">
+                                    <span className={`font-bold ${m.winner==='A'?'text-[#84cc16]':'text-slate-700'}`}>{nameOf(m.teamA[0])} & {nameOf(m.teamA[1])}</span>
+                                    <span className="text-xs text-slate-400">vs</span>
+                                    <span className={`font-bold ${m.winner==='B'?'text-[#84cc16]':'text-slate-700'}`}>{nameOf(m.teamB[0])} & {nameOf(m.teamB[1])}</span>
                                 </div>
-                            )}
-                        </div>
-                    ))}
-                </div>
-            )}
+                                {isAdmin && (
+                                    <div className="flex gap-2 mt-2">
+                                        <button onClick={() => onPick(m.id, 'A')} className={`flex-1 py-1 text-xs rounded font-bold ${m.winner==='A'?'bg-[#84cc16] text-white':'bg-white border hover:bg-slate-50'}`}>A Wins</button>
+                                        <button onClick={() => onPick(m.id, 'B')} className={`flex-1 py-1 text-xs rounded font-bold ${m.winner==='B'?'bg-[#84cc16] text-white':'bg-white border hover:bg-slate-50'}`}>B Wins</button>
+                                        {m.winner && <button onClick={() => onClear(m.id)} className="px-2 bg-slate-200 rounded text-xs hover:bg-slate-300 transition">↺</button>}
+                                        <button onClick={() => onDelete(m.id)} className="px-2 text-rose-500 font-bold hover:text-rose-700 transition">✕</button>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
         </div>
     )
 }
@@ -565,53 +598,56 @@ function MatchesPlayer({ grouped, nameOf }: any) {
              {grouped.map((g:any) => {
                  const isOpen = openDate === g.date;
                  return (
-                    <div key={g.date} className={card}>
-                        <button 
-                            onClick={() => setOpenDate(isOpen ? null : g.date)} 
-                            className={`w-full flex justify-between items-center p-3 rounded-lg transition-all border ${
-                                isOpen ? "bg-slate-50 border-slate-100" : "bg-white border-transparent hover:bg-slate-50"
-                            }`}
-                        >
-                            <div className="text-left">
-                                <h3 className="font-bold text-slate-800 text-lg">{g.date}</h3>
-                                <p className="text-xs text-slate-400 uppercase font-bold">{weekday(g.date)} • {g.matches.length} matches</p>
-                            </div>
-                            <span className="text-slate-400 font-bold">{isOpen ? "▲" : "▼"}</span>
-                        </button>
-                        {isOpen && (
-                            <div className="mt-4 space-y-3">
-                                {g.matches.map((m:any) => {
-                                    const winnerA = m.winner === 'A';
-                                    const winnerB = m.winner === 'B';
-                                    const played = !!m.winner;
+                    <div key={g.date} className={cardContainer}>
+                        {/* Note: BrandStripe not needed for this collapsible list, it looks cleaner without */}
+                        <div className="p-2">
+                            <button 
+                                onClick={() => setOpenDate(isOpen ? null : g.date)} 
+                                className={`w-full flex justify-between items-center p-3 rounded-lg transition-all border ${
+                                    isOpen ? "bg-slate-50 border-slate-100" : "bg-white border-transparent hover:bg-slate-50"
+                                }`}
+                            >
+                                <div className="text-left">
+                                    <h3 className="font-bold text-slate-800 text-lg">{g.date}</h3>
+                                    <p className="text-xs text-slate-400 uppercase font-bold">{weekday(g.date)} • {g.matches.length} matches</p>
+                                </div>
+                                <span className="text-slate-400 font-bold">{isOpen ? "▲" : "▼"}</span>
+                            </button>
+                            {isOpen && (
+                                <div className="mt-4 space-y-3 px-2 pb-2">
+                                    {g.matches.map((m:any) => {
+                                        const winnerA = m.winner === 'A';
+                                        const winnerB = m.winner === 'B';
+                                        const played = !!m.winner;
 
-                                    return (
-                                    <div key={m.id} className="flex flex-col sm:flex-row justify-between items-center text-sm p-3 bg-white rounded-lg border border-slate-100 shadow-sm gap-2">
-                                        
-                                        {/* TEAM A */}
-                                        <div className={`flex-1 text-center sm:text-left flex items-center gap-2 ${winnerA ? 'font-bold text-slate-800' : 'text-slate-500'}`}>
-                                            {winnerA && <span className="text-lg">🏆</span>}
-                                            <span className={winnerA ? "text-emerald-700" : ""}>
-                                                {nameOf(m.teamA[0])} & {nameOf(m.teamA[1])}
-                                            </span>
-                                        </div>
+                                        return (
+                                        <div key={m.id} className="flex flex-col sm:flex-row justify-between items-center text-sm p-3 bg-white rounded-lg border border-slate-100 shadow-sm gap-2">
+                                            
+                                            {/* TEAM A */}
+                                            <div className={`flex-1 text-center sm:text-left flex items-center gap-2 ${winnerA ? 'font-bold text-slate-800' : 'text-slate-500'}`}>
+                                                {winnerA && <span className="text-lg">🏆</span>}
+                                                <span className={winnerA ? "text-emerald-700" : ""}>
+                                                    {nameOf(m.teamA[0])} & {nameOf(m.teamA[1])}
+                                                </span>
+                                            </div>
 
-                                        {/* VS */}
-                                        <div className="px-3 py-1 bg-slate-50 rounded text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                                            {played ? "Finished" : "VS"}
-                                        </div>
+                                            {/* VS */}
+                                            <div className="px-3 py-1 bg-slate-50 rounded text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                                {played ? "Finished" : "VS"}
+                                            </div>
 
-                                        {/* TEAM B */}
-                                        <div className={`flex-1 text-center sm:text-right flex items-center justify-end gap-2 ${winnerB ? 'font-bold text-slate-800' : 'text-slate-500'}`}>
-                                            <span className={winnerB ? "text-emerald-700" : ""}>
-                                                {nameOf(m.teamB[0])} & {nameOf(m.teamB[1])}
-                                            </span>
-                                            {winnerB && <span className="text-lg">🏆</span>}
+                                            {/* TEAM B */}
+                                            <div className={`flex-1 text-center sm:text-right flex items-center justify-end gap-2 ${winnerB ? 'font-bold text-slate-800' : 'text-slate-500'}`}>
+                                                <span className={winnerB ? "text-emerald-700" : ""}>
+                                                    {nameOf(m.teamB[0])} & {nameOf(m.teamB[1])}
+                                                </span>
+                                                {winnerB && <span className="text-lg">🏆</span>}
+                                            </div>
                                         </div>
-                                    </div>
-                                )})}
-                            </div>
-                        )}
+                                    )})}
+                                </div>
+                            )}
+                        </div>
                     </div>
                  )
              })}
@@ -629,62 +665,60 @@ function Standings({ rows }: any) {
   }, [rows, tab]);
 
   return (
-    <div className={card}>
-      <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-3">
-        <h3 className="font-bold text-slate-800 text-lg">League Standings</h3>
-        
-      
-{/* iOS Style Pill Tabs - világos, fekete nélkül */}
-<div className="flex p-1 rounded-lg" style={{ backgroundColor: "#f8fafc" }}>
-  {["All", "Women", "Men"].map((t) => (
-    <button
-      key={t}
-      onClick={() => setTab(t as any)}
-      className={`px-6 py-1.5 text-xs font-bold rounded-md transition-all ${
-        tab === t
-          ? "text-[#84cc16] shadow-sm scale-105"
-          : "text-slate-500 hover:text-slate-700"
-      }`}
-      style={{
-        backgroundColor: tab === t ? "#ffffff" : "#f8fafc",
-      }}
-    >
-      {t}
-    </button>
-  ))}
-</div>
+    <div className={cardContainer}>
+      <BrandStripe />
+      <div className={cardContent}>
+        <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-3">
+            <h3 className="font-bold text-slate-800 text-lg">League Standings</h3>
+            
+            {/* iOS Style Pill Tabs - Light Gray Container, White Active Button */}
+            <div className="flex bg-slate-100 p-1 rounded-lg">
+                {["All", "Women", "Men"].map(t => (
+                    <button
+                        key={t}
+                        onClick={() => setTab(t as any)}
+                        className={`px-6 py-1.5 text-xs font-bold rounded-md transition-all ${
+                            tab === t 
+                                ? "bg-white text-[#84cc16] shadow-sm scale-105" 
+                                : "text-slate-500 hover:text-slate-700"
+                        }`}
+                    >
+                        {t}
+                    </button>
+                ))}
+            </div>
+        </div>
 
-      </div>
-
-      <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-              <thead className="text-xs text-slate-400 uppercase bg-slate-50/50 border-b border-slate-100">
-                  <tr>
-                      <th className="px-4 py-3">Rank</th>
-                      <th className="px-4 py-3">Player</th>
-                      <th className="px-4 py-3">Points</th>
-                      <th className="px-4 py-3">Win %</th>
-                      <th className="px-4 py-3">Matches</th>
-                  </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                  {filteredRows.map((r:any, i:number) => (
-                      <tr key={r.id} className={`hover:bg-slate-50/50 transition-colors ${!r.qualified ? "opacity-60" : ""}`}>
-                          <td className="px-4 py-3 font-bold text-slate-500">#{i+1}</td>
-                          <td className="px-4 py-3 font-bold text-slate-700">
-                              {r.name}
-                              {!r.qualified && <span className="ml-2 text-[10px] text-rose-400 font-normal">(qualifying)</span>}
-                          </td>
-                          <td className="px-4 py-3 font-black text-slate-800">{r.totalPoints}</td>
-                          <td className="px-4 py-3 text-[#84cc16] font-bold">{r.winRate}%</td>
-                          <td className="px-4 py-3 text-slate-500">{r.matches}</td>
-                      </tr>
-                  ))}
-                  {filteredRows.length === 0 && (
-                      <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-400 text-xs italic">No players found in this category.</td></tr>
-                  )}
-              </tbody>
-          </table>
+        <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+                <thead className="text-xs text-slate-400 uppercase bg-slate-50/50 border-b border-slate-100">
+                    <tr>
+                        <th className="px-4 py-3">Rank</th>
+                        <th className="px-4 py-3">Player</th>
+                        <th className="px-4 py-3">Points</th>
+                        <th className="px-4 py-3">Win %</th>
+                        <th className="px-4 py-3">Matches</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                    {filteredRows.map((r:any, i:number) => (
+                        <tr key={r.id} className={`hover:bg-slate-50/50 transition-colors ${!r.qualified ? "opacity-60" : ""}`}>
+                            <td className="px-4 py-3 font-bold text-slate-500">#{i+1}</td>
+                            <td className="px-4 py-3 font-bold text-slate-700">
+                                {r.name}
+                                {!r.qualified && <span className="ml-2 text-[10px] text-rose-400 font-normal">(qualifying)</span>}
+                            </td>
+                            <td className="px-4 py-3 font-black text-slate-800">{r.totalPoints}</td>
+                            <td className="px-4 py-3 text-[#84cc16] font-bold">{r.winRate}%</td>
+                            <td className="px-4 py-3 text-slate-500">{r.matches}</td>
+                        </tr>
+                    ))}
+                    {filteredRows.length === 0 && (
+                        <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-400 text-xs italic">No players found in this category.</td></tr>
+                    )}
+                </tbody>
+            </table>
+        </div>
       </div>
     </div>
   );
@@ -698,52 +732,53 @@ function PlayerAchievements({ players, matches, meId }: { players: Player[]; mat
   const [showLegend, setShowLegend] = useState(false);
 
   return (
-    <div className={card}>
-      <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-slate-400">Achievements</h3>
-      {ach.length === 0 ? (
-        <p className="text-sm text-slate-400">No badges yet.</p>
-      ) : (
-        <div className="flex flex-wrap gap-2 mb-4">
-          {ach.map((a) => {
-            const meta = BADGE_META[a.id] || { icon: "⭐", accent: "text-slate-600", bg: "bg-slate-50" };
-            return (
-              <div key={a.id} className={`flex items-center gap-2 rounded-lg px-3 py-2 ${meta.bg} border border-transparent`}>
-                <span className={`text-lg ${meta.accent}`}>{meta.icon}</span>
-                <div className="flex flex-col">
-                  <span className={`text-xs font-bold ${meta.accent}`}>{a.title}</span>
+    <div className={cardContainer}>
+      <BrandStripe />
+      <div className={cardContent}>
+        <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-slate-400">Achievements</h3>
+        {ach.length === 0 ? (
+            <p className="text-sm text-slate-400">No badges yet.</p>
+        ) : (
+            <div className="flex flex-wrap gap-2 mb-4">
+            {ach.map((a) => {
+                const meta = BADGE_META[a.id] || { icon: "⭐", accent: "text-slate-600", bg: "bg-slate-50" };
+                return (
+                <div key={a.id} className={`flex items-center gap-2 rounded-lg px-3 py-2 ${meta.bg} border border-transparent`}>
+                    <span className={`text-lg ${meta.accent}`}>{meta.icon}</span>
+                    <div className="flex flex-col">
+                    <span className={`text-xs font-bold ${meta.accent}`}>{a.title}</span>
+                    </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-<button
-    onClick={() => setShowLegend(!showLegend)}
-    className="w-full text-center text-xs font-bold text-slate-400 uppercase hover:text-slate-600 transition-colors border-t border-slate-100 pt-2"
-    style={{ backgroundColor: "#ffffff" }}
->
-    {showLegend ? "Hide Badge Legend ⏶" : "Show Badge Legend / Meanings ⏷"}
-</button>
-
-
-        {showLegend && (
-            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {ALL_BADGES.map(b => {
-                    const meta = BADGE_META[b.id];
-                    const isEarned = earnedIds.has(b.id);
-                    return (
-                        <div key={b.id} className={`flex items-center gap-2 p-2 rounded-lg border ${isEarned ? "bg-emerald-50/50 border-emerald-100" : "bg-slate-50 border-slate-100 opacity-60"}`}>
-                            <span className="text-xl">{meta?.icon}</span>
-                            <div>
-                                <div className={`text-xs font-bold ${isEarned ? "text-emerald-700" : "text-slate-600"}`}>{b.title}</div>
-                                <div className="text-[10px] text-slate-500 leading-tight">{b.description}</div>
-                            </div>
-                        </div>
-                    )
-                })}
+                );
+            })}
             </div>
         )}
+
+            <button 
+                onClick={() => setShowLegend(!showLegend)}
+                className="w-full text-center text-xs font-bold text-slate-400 uppercase hover:text-slate-600 transition-colors border-t border-slate-100 pt-2"
+            >
+                {showLegend ? "Hide Badge Legend ⏶" : "Show Badge Legend / Meanings ⏷"}
+            </button>
+
+            {showLegend && (
+                <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {ALL_BADGES.map(b => {
+                        const meta = BADGE_META[b.id];
+                        const isEarned = earnedIds.has(b.id);
+                        return (
+                            <div key={b.id} className={`flex items-center gap-2 p-2 rounded-lg border ${isEarned ? "bg-emerald-50/50 border-emerald-100" : "bg-slate-50 border-slate-100 opacity-60"}`}>
+                                <span className="text-xl">{meta?.icon}</span>
+                                <div>
+                                    <div className={`text-xs font-bold ${isEarned ? "text-emerald-700" : "text-slate-600"}`}>{b.title}</div>
+                                    <div className="text-[10px] text-slate-500 leading-tight">{b.description}</div>
+                                </div>
+                            </div>
+                        )
+                    })}
+                </div>
+            )}
+        </div>
     </div>
   );
 }
@@ -763,20 +798,23 @@ function PlayerStats({ players, matches, meId, setMeId }: any) {
   }, [meId, matches]);
 
   return (
-      <div className={card}>
-          <h3 className="font-bold text-slate-800 mb-3">My Stats</h3>
-          <div className="w-full">
-            <select className={`${input} w-full`} value={meId} onChange={e => setMeId(e.target.value)}>
-                {players.map((p:any) => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
+      <div className={cardContainer}>
+          <BrandStripe />
+          <div className={cardContent}>
+            <h3 className="font-bold text-slate-800 mb-3">My Stats</h3>
+            <div className="w-full">
+                <select className={`${input} w-full`} value={meId} onChange={e => setMeId(e.target.value)}>
+                    {players.map((p:any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+            </div>
+            {stats && (
+                <div className="grid grid-cols-3 gap-2 mt-4 text-center">
+                    <div className="bg-slate-50 p-2 rounded-lg"><div className="text-xl font-black text-slate-800">{stats.matches}</div><div className="text-xs text-slate-400">Matches</div></div>
+                    <div className="bg-[#f0fdf4] p-2 rounded-lg"><div className="text-xl font-black text-[#84cc16]">{stats.wins}</div><div className="text-xs text-lime-700">Wins</div></div>
+                    <div className="bg-slate-50 p-2 rounded-lg"><div className="text-xl font-black text-slate-800">{stats.rate}%</div><div className="text-xs text-slate-400">Rate</div></div>
+                </div>
+            )}
           </div>
-          {stats && (
-              <div className="grid grid-cols-3 gap-2 mt-4 text-center">
-                  <div className="bg-slate-50 p-2 rounded-lg"><div className="text-xl font-black text-slate-800">{stats.matches}</div><div className="text-xs text-slate-400">Matches</div></div>
-                  <div className="bg-[#f0fdf4] p-2 rounded-lg"><div className="text-xl font-black text-[#84cc16]">{stats.wins}</div><div className="text-xs text-lime-700">Wins</div></div>
-                  <div className="bg-slate-50 p-2 rounded-lg"><div className="text-xl font-black text-slate-800">{stats.rate}%</div><div className="text-xs text-slate-400">Rate</div></div>
-              </div>
-          )}
       </div>
   )
 }
@@ -839,11 +877,22 @@ export default function App() {
   matchesForDate.forEach(m => { if(m.winner) { seenTeammates.add(key(m.teamA[0], m.teamA[1])); seenTeammates.add(key(m.teamB[0], m.teamB[1])); }});
 
   return (
-    <div className="min-h-screen bg-[#f1f5f9] font-sans text-slate-900 flex flex-col md:flex-row">
+    <div className="min-h-screen bg-[#f1f5f9] font-sans text-slate-900 flex flex-col md:flex-row relative">
+      
+      {/* 🔹 Vízjel a háttérben */}
+      <div className="fixed inset-0 z-0 flex items-center justify-center pointer-events-none">
+          <img 
+            src="/logo.png" 
+            alt=""
+            className="w-[80vw] h-[80vw] max-w-[500px] max-h-[500px] object-contain opacity-[0.03] grayscale"
+            onError={(e) => { e.currentTarget.style.display = 'none'; }} 
+          />
+      </div>
+
       <Sidebar role={role} setRole={setRole} />
       <MobileHeader role={role} setRole={setRole} />
 
-      <div className="flex-1 md:ml-64 p-4 md:p-8 transition-all w-full max-w-[100vw] overflow-x-hidden">
+      <div className="flex-1 md:ml-64 p-4 md:p-8 transition-all w-full max-w-[100vw] overflow-x-hidden relative z-10">
         <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
           <div>
             <h1 className="text-2xl font-bold text-slate-800">
@@ -880,9 +929,7 @@ export default function App() {
         ) : (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="space-y-6 lg:col-span-2">
-                     {/* Dashboard: Standings legfelül */}
                      <Standings rows={standings} />
-                     {/* Alatta a meccsek */}
                      <MatchesPlayer grouped={grouped} nameOf={nameOf} />
                 </div>
                 <div className="space-y-6 min-w-0">
