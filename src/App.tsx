@@ -89,7 +89,8 @@ const btnPrimary = `${btnBase} bg-[#84cc16] text-white hover:bg-[#65a30d] hover:
 // FIX: Now used in AttendanceList
 const btnSecondary = `${btnBase} bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 focus:ring-slate-200`;
 
-const btnGhost = "w-full py-2 text-xs font-bold text-slate-500 uppercase tracking-wider hover:text-[#84cc16] hover:bg-slate-50 rounded transition-colors border border-transparent hover:border-slate-100 cursor-pointer";
+const btnGhost =
+  "w-full py-2 text-xs font-bold text-slate-500 uppercase tracking-wider bg-white hover:text-[#84cc16] hover:bg-slate-50 rounded transition-colors border border-transparent hover:border-slate-100 cursor-pointer";
 
 const btnDanger = `${btnBase} bg-white text-rose-600 border border-rose-200 hover:bg-rose-50 hover:border-rose-300 focus:ring-rose-200`;
 
@@ -627,8 +628,9 @@ function Standings({ rows }: any) {
       <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-3">
         <h3 className="font-bold text-slate-800 text-lg">League Standings</h3>
         
-        {/* iOS Style Pill Tabs - Light Gray Container, White Active Button */}
-        <div className="flex bg-slate-100 p-1 rounded-lg">
+       {/* iOS Style Pill Tabs - White Container, no dark background */}
+<div className="flex bg-white p-1 rounded-lg border border-slate-200">
+
             {["All", "Women", "Men"].map(t => (
                 <button
                     key={t}
