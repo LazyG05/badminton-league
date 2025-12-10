@@ -805,33 +805,49 @@ function PlayerStatsAndAchievements({ players, matches, meId, setMeId }: any) {
             Achievements
           </h4>
 
-          {ach.length === 0 ? (
-            <p className="text-sm text-slate-400">No badges yet.</p>
-          ) : (
-            <div className="flex flex-wrap gap-2 mb-3">
-              {ach.map((a) => {
-                const meta =
-                  BADGE_META[a.id] || {
-                    icon: "⭐",
-                    accent: "text-slate-600",
-                    bg: "bg-slate-50",
-                  };
-                return (
-                  <div
-                    key={a.id}
-                    className={`flex items-center gap-2 rounded-lg px-3 py-2 ${meta.bg} border border-transparent`}
-                  >
-                    <span className={`text-lg ${meta.accent}`}>{meta.icon}</span>
-                    <div className="flex flex-col">
-                      <span className={`text-xs font-bold ${meta.accent}`}>
-                        {a.title}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
+   {ach.length === 0 ? (
+  <p className="text-sm text-slate-400">No badges yet.</p>
+) : (
+  <div className="space-y-4 mb-4">
+    {ach.map((a) => {
+      const meta =
+        BADGE_META[a.id] || {
+          icon: "⭐",
+          accent: "text-slate-600",
+        };
+
+      return (
+        <div key={a.id} className="relative pt-4">
+          {/* Fa polc */}
+          <div
+            className="absolute inset-x-4 top-4 h-[7px] rounded-full shadow-md"
+            style={{
+              backgroundImage:
+                "linear-gradient(90deg,#92400e,#b45309,#d97706,#fbbf24,#d97706,#b45309,#92400e)",
+              backgroundSize: "200% 100%",
+            }}
+          />
+
+          {/* A badge „ül” a polcon */}
+          <div className="relative mx-4 flex items-center gap-3 rounded-xl bg-white px-3 py-2 border border-slate-100 shadow-sm">
+            <span className={`text-xl ${meta.accent}`}>{meta.icon}</span>
+            <div className="flex flex-col">
+              <span className={`text-xs font-bold ${meta.accent}`}>
+                {a.title}
+              </span>
+              {a.description && (
+                <span className="text-[10px] text-slate-500 leading-tight">
+                  {a.description}
+                </span>
+              )}
             </div>
-          )}
+          </div>
+        </div>
+      );
+    })}
+  </div>
+)}
+
 
           <button
             onClick={() => setShowLegend(!showLegend)}
