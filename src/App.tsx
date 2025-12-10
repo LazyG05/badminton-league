@@ -987,108 +987,91 @@ function PlayerStatsAndAchievements({
 function LightGarland() {
   return (
     <svg
-      viewBox="0 0 260 40"
+      viewBox="0 0 420 60"
       className="w-full h-full"
       preserveAspectRatio="none"
     >
       {/* Kábel */}
       <path
-        d="M5 28 Q 65 6 130 18 T 255 28"
+        d="M5 40 Q 120 5 210 25 T 415 40"
         stroke="#4b5563"
-        strokeWidth="2"
+        strokeWidth="3"
         fill="none"
         strokeLinecap="round"
       />
 
       {/* Izzók */}
       <g>
-        {/* Bulb 1 */}
+        {/* Bulb template (position + color + delay) */}
+
+        {/* Bulb 1 – orange */}
         <g>
-          <line x1="30" y1="22" x2="30" y2="26" stroke="#4b5563" strokeWidth="1.5" />
-          <circle cx="30" cy="30" r="4.5" fill="#f97316">
-            <animate
-              attributeName="opacity"
-              values="0.3;1;0.3"
-              dur="1.5s"
-              repeatCount="indefinite"
-              begin="0s"
-            />
+          <line x1="45" y1="32" x2="45" y2="36" stroke="#4b5563" strokeWidth="2" />
+          <circle cx="45" cy="42" r="6" fill="#f97316">
+            <animate attributeName="opacity" values="0.3;1;0.3" dur="1.6s" repeatCount="indefinite" begin="0s" />
           </circle>
         </g>
 
-        {/* Bulb 2 */}
+        {/* Bulb 2 – green */}
         <g>
-          <line x1="65" y1="16" x2="65" y2="20" stroke="#4b5563" strokeWidth="1.5" />
-          <circle cx="65" cy="24" r="4.5" fill="#22c55e">
-            <animate
-              attributeName="opacity"
-              values="0.3;1;0.3"
-              dur="1.7s"
-              repeatCount="indefinite"
-              begin="0.2s"
-            />
+          <line x1="95" y1="22" x2="95" y2="26" stroke="#4b5563" strokeWidth="2" />
+          <circle cx="95" cy="32" r="6" fill="#22c55e">
+            <animate attributeName="opacity" values="0.3;1;0.3" dur="1.7s" repeatCount="indefinite" begin="0.2s" />
           </circle>
         </g>
 
-        {/* Bulb 3 */}
+        {/* Bulb 3 – yellow */}
         <g>
-          <line x1="100" y1="10" x2="100" y2="14" stroke="#4b5563" strokeWidth="1.5" />
-          <circle cx="100" cy="18" r="4.5" fill="#eab308">
-            <animate
-              attributeName="opacity"
-              values="0.3;1;0.3"
-              dur="1.6s"
-              repeatCount="indefinite"
-              begin="0.4s"
-            />
+          <line x1="145" y1="15" x2="145" y2="20" stroke="#4b5563" strokeWidth="2" />
+          <circle cx="145" cy="28" r="6" fill="#eab308">
+            <animate attributeName="opacity" values="0.3;1;0.3" dur="1.8s" repeatCount="indefinite" begin="0.4s" />
           </circle>
         </g>
 
-        {/* Bulb 4 */}
+        {/* Bulb 4 – blue */}
         <g>
-          <line x1="135" y1="12" x2="135" y2="16" stroke="#4b5563" strokeWidth="1.5" />
-          <circle cx="135" cy="20" r="4.5" fill="#38bdf8">
-            <animate
-              attributeName="opacity"
-              values="0.3;1;0.3"
-              dur="1.8s"
-              repeatCount="indefinite"
-              begin="0.1s"
-            />
+          <line x1="195" y1="20" x2="195" y2="25" stroke="#4b5563" strokeWidth="2" />
+          <circle cx="195" cy="32" r="6" fill="#38bdf8">
+            <animate attributeName="opacity" values="0.3;1;0.3" dur="1.5s" repeatCount="indefinite" begin="0.1s" />
           </circle>
         </g>
 
-        {/* Bulb 5 */}
+        {/* Bulb 5 – orange */}
         <g>
-          <line x1="170" y1="18" x2="170" y2="22" stroke="#4b5563" strokeWidth="1.5" />
-          <circle cx="170" cy="26" r="4.5" fill="#f97316">
-            <animate
-              attributeName="opacity"
-              values="0.3;1;0.3"
-              dur="1.4s"
-              repeatCount="indefinite"
-              begin="0.5s"
-            />
+          <line x1="245" y1="25" x2="245" y2="30" stroke="#4b5563" strokeWidth="2" />
+          <circle cx="245" cy="36" r="6" fill="#f97316">
+            <animate attributeName="opacity" values="0.3;1;0.3" dur="1.4s" repeatCount="indefinite" begin="0.3s" />
           </circle>
         </g>
 
-        {/* Bulb 6 */}
+        {/* Bulb 6 – green */}
         <g>
-          <line x1="205" y1="22" x2="205" y2="26" stroke="#4b5563" strokeWidth="1.5" />
-          <circle cx="205" cy="30" r="4.5" fill="#22c55e">
-            <animate
-              attributeName="opacity"
-              values="0.3;1;0.3"
-              dur="1.9s"
-              repeatCount="indefinite"
-              begin="0.3s"
-            />
+          <line x1="295" y1="30" x2="295" y2="34" stroke="#4b5563" strokeWidth="2" />
+          <circle cx="295" cy="42" r="6" fill="#22c55e">
+            <animate attributeName="opacity" values="0.3;1;0.3" dur="1.9s" repeatCount="indefinite" begin="0.1s" />
+          </circle>
+        </g>
+
+        {/* Bulb 7 – yellow */}
+        <g>
+          <line x1="345" y1="25" x2="345" y2="30" stroke="#4b5563" strokeWidth="2" />
+          <circle cx="345" cy="38" r="6" fill="#eab308">
+            <animate attributeName="opacity" values="0.3;1;1;0.3" dur="1.7s" repeatCount="indefinite" begin="0.5s" />
+          </circle>
+        </g>
+
+        {/* Bulb 8 – blue */}
+        <g>
+          <line x1="395" y1="32" x2="395" y2="36" stroke="#4b5563" strokeWidth="2" />
+          <circle cx="395" cy="42" r="6" fill="#38bdf8">
+            <animate attributeName="opacity" values="0.3;1;0.3" dur="1.6s" repeatCount="indefinite" begin="0.25s" />
           </circle>
         </g>
       </g>
     </svg>
   );
 }
+
 
 
 function Snowfall() {
