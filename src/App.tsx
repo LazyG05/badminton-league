@@ -1272,25 +1272,27 @@ function AdminPinModal({
     if (pin === ADMIN_PIN) {
       onSuccess();
     } else {
-      setError("Hibás PIN kód.");
+      setError("Incorrect PIN code.");
     }
   };
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-xs p-6 relative">
+        
         <h2 className="text-lg font-bold text-slate-800 mb-1 flex items-center gap-2">
-          Admin mód
+          Admin Access
           <span className="text-sm bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">
             PIN
           </span>
         </h2>
+
         <p className="text-xs text-slate-500 mb-4">
-          Kérlek add meg a 4 jegyű admin PIN kódot.
+          Please enter the 4-digit admin PIN code.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* PIN input – pöttyös (password) */}
+          {/* PIN input – password dots (••••) */}
           <div className="flex justify-center">
             <input
               ref={inputRef}
@@ -1298,12 +1300,14 @@ function AdminPinModal({
               maxLength={4}
               inputMode="numeric"
               pattern="\d*"
-              className="w-32 text-center text-2xl tracking-[0.4em] bg-slate-50 border border-slate-200 rounded-xl py-2 focus:outline-none focus:ring-2 focus:ring-[#84cc16] focus:bg-white"
+              className="w-32 text-center text-2xl tracking-[0.4em] bg-slate-50 
+                         border border-slate-200 rounded-xl py-2 
+                         focus:outline-none focus:ring-2 focus:ring-[#84cc16] focus:bg-white"
               value={pin}
               onChange={(e) =>
                 setPin(e.target.value.replace(/[^0-9]/g, "").slice(0, 4))
               }
-              placeholder="••••"
+              placeholder="PIN"
             />
           </div>
 
@@ -1317,15 +1321,20 @@ function AdminPinModal({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 inline-flex items-center justify-center rounded-lg px-3 py-2 text-xs font-bold border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+              className="flex-1 inline-flex items-center justify-center rounded-lg 
+                         px-3 py-2 text-xs font-bold border border-slate-200 
+                         bg-white text-slate-600 hover:bg-slate-50"
             >
-              Mégse
+              Cancel
             </button>
+
             <button
               type="submit"
-              className="flex-1 inline-flex items-center justify-center rounded-lg px-3 py-2 text-xs font-bold bg-[#84cc16] text-white hover:bg-[#65a30d] shadow-sm"
+              className="flex-1 inline-flex items-center justify-center rounded-lg 
+                         px-3 py-2 text-xs font-bold bg-[#84cc16] text-white 
+                         hover:bg-[#65a30d] shadow-sm"
             >
-              Belépés
+              Enter
             </button>
           </div>
         </form>
@@ -1333,6 +1342,7 @@ function AdminPinModal({
     </div>
   );
 }
+
 
 
 
