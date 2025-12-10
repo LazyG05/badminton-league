@@ -199,6 +199,8 @@ function computeAttendanceStreak(playerId: string, matches: Match[]): number {
 }
 const EMOJIS = ["🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼","🐨","🐯","🦁","🐮","🐷","🐸","🐵","🐔","🐧","🐦","🐤","🦆","🦅","🦉","🐺","🦄","🐝","🐛","🦋","🐌","🐞","🐢","🐍","🦎","🐙","🦑","🦀","🐡","🐠","🐳","🐬","🐊"];
 
+const ADMIN_PIN = "2051"; // ide írd a saját 4 jegyű PIN kódod
+
 // ========================= Data Sync =========================
 function useLeague() {
   const [data, setData] = useState<LeagueDoc>({ players: [], matches: [], backups: [] });
@@ -1242,17 +1244,138 @@ function Snowfall() {
   return <canvas ref={canvasRef} className="w-full h-full" />;
 }
 
+function AdminPinModal({
+  open,
+  onClose,
+  onSuccess,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [pin, setPin] = useState("");
+  const [error, setError] = useState("");
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (open) {
+      setPin("");
+      setError("");
+      setTimeout(() => inputRef.current?.focus(), 50);
+    }
+  }, [open]);
+
+  if (!open) return null;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pin === ADMIN_PIN) {
+      onSuccess();
+    } else {
+      setError("Hibás PIN kód.");
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-xs p-6 relative">
+        <h2 className="text-lg font-bold text-slate-800 mb-1 flex items-center gap-2">
+          Admin mód
+          <span className="text-sm bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">
+            PIN
+          </span>
+        </h2>
+        <p className="text-xs text-slate-500 mb-4">
+          Kérlek add meg a 4 jegyű admin PIN kódot.
+        </p>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* PIN input – pöttyös (password) */}
+          <div className="flex justify-center">
+            <input
+              ref={inputRef}
+              type="password"
+              maxLength={4}
+              inputMode="numeric"
+              pattern="\d*"
+              className="w-32 text-center text-2xl tracking-[0.4em] bg-slate-50 border border-slate-200 rounded-xl py-2 focus:outline-none focus:ring-2 focus:ring-[#84cc16] focus:bg-white"
+              value={pin}
+              onChange={(e) =>
+                setPin(e.target.value.replace(/[^0-9]/g, "").slice(0, 4))
+              }
+              placeholder="••••"
+            />
+          </div>
+
+          {error && (
+            <p className="text-xs text-center text-rose-500 font-medium">
+              {error}
+            </p>
+          )}
+
+          <div className="flex gap-2 mt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 inline-flex items-center justify-center rounded-lg px-3 py-2 text-xs font-bold border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+            >
+              Mégse
+            </button>
+            <button
+              type="submit"
+              className="flex-1 inline-flex items-center justify-center rounded-lg px-3 py-2 text-xs font-bold bg-[#84cc16] text-white hover:bg-[#65a30d] shadow-sm"
+            >
+              Belépés
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+
 
 // ========================= MAIN APP =========================
 export default function App() {
   const [league, write] = useLeague();
   const { players, matches } = league;
+
   const [role, setRole] = useState<"player" | "admin">("player");
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [pendingRole, setPendingRole] = useState<"player" | "admin" | null>(null);
+
   const [date, setDate] = useState(fmt(nextTrainingDate()));
   const [presentIds, setPresentIds] = useState<string[]>([]);
-  const matchesForDate = useMemo(() => matches.filter(m => m.date === date), [matches, date]);
+  const matchesForDate = useMemo(
+    () => matches.filter((m) => m.date === date),
+    [matches, date]
+  );
   const [meId, setMeId] = useState("");
   const [christmasMode, setChristmasMode] = useState(false);
+  const handleRoleChange = (next: "player" | "admin") => {
+    if (next === "admin") {
+      // MINDIG kérjen PIN-t adminra váltáskor
+      setPendingRole("admin");
+      setShowPinModal(true);
+    } else {
+      setRole("player");
+    }
+  };
+
+  const handlePinSuccess = () => {
+    if (pendingRole === "admin") {
+      setRole("admin");
+    }
+    setShowPinModal(false);
+    setPendingRole(null);
+  };
+
+  const handlePinClose = () => {
+    setShowPinModal(false);
+    setPendingRole(null);
+  };
+
 
   
   const grouped = useMemo(() => {
@@ -1323,8 +1446,9 @@ export default function App() {
         </div>
       )}
 
-      <Sidebar role={role} setRole={setRole} />
-      <MobileHeader role={role} setRole={setRole} />
+      <Sidebar role={role} setRole={handleRoleChange} />
+      <MobileHeader role={role} setRole={handleRoleChange} />
+
 
       <div className="flex-1 md:ml-64 p-4 md:p-8 transition-all w-full max-w-[100vw] overflow-x-hidden relative z-10">
         <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
@@ -1390,17 +1514,24 @@ export default function App() {
   </div>
 )}
         {/* Christmas Mood toggle */}
-<div className="fixed bottom-3 left-3 md:left-72 z-[9999]">
-  <button
-    onClick={() => setChristmasMode(!christmasMode)}
-    className="px-4 py-2 rounded-full shadow-lg text-sm font-bold transition-all
-               bg-white border border-slate-300 hover:bg-slate-50"
-  >
-    {christmasMode ? "🎄 Christmas ON" : "❄️ Christmas OFF"}
-  </button>
-</div>
+        <div className="fixed bottom-3 left-3 md:left-72 z-[9999]">
+          <button
+            onClick={() => setChristmasMode(!christmasMode)}
+            className="px-4 py-2 rounded-full shadow-lg text-sm font-bold transition-all
+                       bg-white border border-slate-300 hover:bg-slate-50"
+          >
+            {christmasMode ? "🎄 Christmas ON" : "❄️ Christmas OFF"}
+          </button>
+        </div>
 
+        {/* Admin PIN modal */}
+        <AdminPinModal
+          open={showPinModal}
+          onClose={handlePinClose}
+          onSuccess={handlePinSuccess}
+        />
       </div>
     </div>
   );
 }
+
