@@ -729,102 +729,156 @@ function Standings({ rows }: any) {
   );
 }
 
-function PlayerAchievements({ players, matches, meId }: { players: Player[]; matches: Match[]; meId: string }) {
-  const me = players.find((p) => p.id === meId);
-  if (!me || !players.length) return null;
-  const ach = computeAchievementsFull(meId, matches, players);
+function PlayerStatsAndAchievements({ players, matches, meId, setMeId }: any) {
+  const stats = useMemo(() => {
+    if (!meId) return null;
+    let w = 0, l = 0, mC = 0;
+    matches.forEach((m: any) => {
+      if (!m.winner) return;
+      const inA = m.teamA.includes(meId);
+      const inB = m.teamB.includes(meId);
+      if (!inA && !inB) return;
+      mC++;
+      if ((m.winner === "A" && inA) || (m.winner === "B" && inB)) w++;
+      else l++;
+    });
+    return { wins: w, losses: l, matches: mC, rate: mC ? Math.round((w / mC) * 100) : 0 };
+  }, [meId, matches]);
+
+  const ach = useMemo(
+    () => (meId ? computeAchievementsFull(meId, matches, players) : []),
+    [meId, matches, players]
+  );
   const earnedIds = new Set(ach.map((a) => a.id));
   const [showLegend, setShowLegend] = useState(false);
+
+  if (!players.length) return null;
 
   return (
     <div className={cardContainer}>
       <BrandStripe />
       <div className={cardContent}>
-        <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-slate-400">Achievements</h3>
-        {ach.length === 0 ? (
-            <p className="text-sm text-slate-400">No badges yet.</p>
-        ) : (
-            <div className="flex flex-wrap gap-2 mb-4">
-            {ach.map((a) => {
-                const meta = BADGE_META[a.id] || { icon: "⭐", accent: "text-slate-600", bg: "bg-slate-50" };
-                return (
-                <div key={a.id} className={`flex items-center gap-2 rounded-lg px-3 py-2 ${meta.bg} border border-transparent`}>
-                    <span className={`text-lg ${meta.accent}`}>{meta.icon}</span>
-                    <div className="flex flex-col">
-                    <span className={`text-xs font-bold ${meta.accent}`}>{a.title}</span>
-                    </div>
-                </div>
-                );
-            })}
+        <h3 className="font-bold text-slate-800 mb-3">My Stats & Achievements</h3>
+
+        {/* Játékos választó */}
+        <div className="w-full mb-4">
+          <select
+            className={`${input} w-full`}
+            value={meId}
+            onChange={(e) => setMeId(e.target.value)}
+          >
+            {players.map((p: any) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Statisztika blokk */}
+        {stats && (
+          <div className="grid grid-cols-3 gap-2 mb-4 text-center">
+            <div className="bg-slate-50 p-2 rounded-lg">
+              <div className="text-xl font-black text-slate-800">
+                {stats.matches}
+              </div>
+              <div className="text-xs text-slate-400">Matches</div>
             </div>
+            <div className="bg-[#f0fdf4] p-2 rounded-lg">
+              <div className="text-xl font-black text-[#84cc16]">
+                {stats.wins}
+              </div>
+              <div className="text-xs text-lime-700">Wins</div>
+            </div>
+            <div className="bg-slate-50 p-2 rounded-lg">
+              <div className="text-xl font-black text-slate-800">
+                {stats.rate}%
+              </div>
+              <div className="text-xs text-slate-400">Rate</div>
+            </div>
+          </div>
         )}
 
-    <button
-    onClick={() => setShowLegend(!showLegend)}
-    className="w-full text-center text-xs font-bold text-slate-400 uppercase hover:text-slate-600 transition-colors border-t border-slate-100 pt-2"
-    style={{ backgroundColor: "#ffffff" }}
->
-    {showLegend ? "Hide Badge Legend ⏶" : "Show Badge Legend / Meanings ⏷"}
-</button>
+        {/* Achievements blokk egyben a kártyán belül */}
+        <div className="mt-4 border-t border-slate-100 pt-4">
+          <h4 className="mb-2 text-sm font-bold uppercase tracking-wider text-slate-400">
+            Achievements
+          </h4>
 
+          {ach.length === 0 ? (
+            <p className="text-sm text-slate-400">No badges yet.</p>
+          ) : (
+            <div className="flex flex-wrap gap-2 mb-3">
+              {ach.map((a) => {
+                const meta =
+                  BADGE_META[a.id] || {
+                    icon: "⭐",
+                    accent: "text-slate-600",
+                    bg: "bg-slate-50",
+                  };
+                return (
+                  <div
+                    key={a.id}
+                    className={`flex items-center gap-2 rounded-lg px-3 py-2 ${meta.bg} border border-transparent`}
+                  >
+                    <span className={`text-lg ${meta.accent}`}>{meta.icon}</span>
+                    <div className="flex flex-col">
+                      <span className={`text-xs font-bold ${meta.accent}`}>
+                        {a.title}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
-            {showLegend && (
-                <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {ALL_BADGES.map(b => {
-                        const meta = BADGE_META[b.id];
-                        const isEarned = earnedIds.has(b.id);
-                        return (
-                            <div key={b.id} className={`flex items-center gap-2 p-2 rounded-lg border ${isEarned ? "bg-emerald-50/50 border-emerald-100" : "bg-slate-50 border-slate-100 opacity-60"}`}>
-                                <span className="text-xl">{meta?.icon}</span>
-                                <div>
-                                    <div className={`text-xs font-bold ${isEarned ? "text-emerald-700" : "text-slate-600"}`}>{b.title}</div>
-                                    <div className="text-[10px] text-slate-500 leading-tight">{b.description}</div>
-                                </div>
-                            </div>
-                        )
-                    })}
-                </div>
-            )}
+          <button
+            onClick={() => setShowLegend(!showLegend)}
+            className="w-full text-center text-xs font-bold text-slate-400 uppercase hover:text-slate-600 transition-colors border-t border-slate-100 pt-2"
+            style={{ backgroundColor: "#ffffff" }}
+          >
+            {showLegend ? "Hide Badge Legend ⏶" : "Show Badge Legend / Meanings ⏷"}
+          </button>
+
+          {showLegend && (
+            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {ALL_BADGES.map((b) => {
+                const meta = BADGE_META[b.id];
+                const isEarned = earnedIds.has(b.id);
+                return (
+                  <div
+                    key={b.id}
+                    className={`flex items-center gap-2 p-2 rounded-lg border ${
+                      isEarned
+                        ? "bg-emerald-50/50 border-emerald-100"
+                        : "bg-slate-50 border-slate-100 opacity-60"
+                    }`}
+                  >
+                    <span className="text-xl">{meta?.icon}</span>
+                    <div>
+                      <div
+                        className={`text-xs font-bold ${
+                          isEarned ? "text-emerald-700" : "text-slate-600"
+                        }`}
+                      >
+                        {b.title}
+                      </div>
+                      <div className="text-[10px] text-slate-500 leading-tight">
+                        {b.description}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
+      </div>
     </div>
   );
 }
 
-function PlayerStats({ players, matches, meId, setMeId }: any) {
-  const stats = useMemo(() => {
-    if(!meId) return null;
-    let w=0, l=0, mC=0;
-    matches.forEach((m:any) => {
-        if(!m.winner) return;
-        const inA = m.teamA.includes(meId); const inB = m.teamB.includes(meId);
-        if(!inA && !inB) return;
-        mC++;
-        if((m.winner==="A" && inA) || (m.winner==="B" && inB)) w++; else l++;
-    });
-    return { wins:w, losses:l, matches:mC, rate: mC?Math.round(w/mC*100):0 };
-  }, [meId, matches]);
-
-  return (
-      <div className={cardContainer}>
-          <BrandStripe />
-          <div className={cardContent}>
-            <h3 className="font-bold text-slate-800 mb-3">My Stats</h3>
-            <div className="w-full">
-                <select className={`${input} w-full`} value={meId} onChange={e => setMeId(e.target.value)}>
-                    {players.map((p:any) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
-            </div>
-            {stats && (
-                <div className="grid grid-cols-3 gap-2 mt-4 text-center">
-                    <div className="bg-slate-50 p-2 rounded-lg"><div className="text-xl font-black text-slate-800">{stats.matches}</div><div className="text-xs text-slate-400">Matches</div></div>
-                    <div className="bg-[#f0fdf4] p-2 rounded-lg"><div className="text-xl font-black text-[#84cc16]">{stats.wins}</div><div className="text-xs text-lime-700">Wins</div></div>
-                    <div className="bg-slate-50 p-2 rounded-lg"><div className="text-xl font-black text-slate-800">{stats.rate}%</div><div className="text-xs text-slate-400">Rate</div></div>
-                </div>
-            )}
-          </div>
-      </div>
-  )
-}
 
 // ========================= MAIN APP =========================
 export default function App() {
@@ -934,17 +988,21 @@ export default function App() {
                 </div>
             </div>
         ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="space-y-6 lg:col-span-2">
-                     <Standings rows={standings} />
-                     <MatchesPlayer grouped={grouped} nameOf={nameOf} />
-                </div>
-                <div className="space-y-6 min-w-0">
-                     <PlayerStats players={players} matches={matches} meId={meId} setMeId={setMeId} />
-                     <PlayerAchievements players={players} matches={matches} meId={meId} />
-                </div>
-            </div>
-        )}
+  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div className="space-y-6 lg:col-span-2">
+      <Standings rows={standings} />
+      <MatchesPlayer grouped={grouped} nameOf={nameOf} />
+    </div>
+    <div className="space-y-6 min-w-0">
+      <PlayerStatsAndAchievements
+        players={players}
+        matches={matches}
+        meId={meId}
+        setMeId={setMeId}
+      />
+    </div>
+  </div>
+)}
       </div>
     </div>
   );
