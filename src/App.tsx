@@ -754,48 +754,61 @@ function Standings({ rows }: any) {
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
-            <thead className="text-xs text-slate-400 uppercase bg-slate-50/50 border-b border-slate-100">
-              <tr>
-                <th className="px-4 py-3">Rank</th>
-                <th className="px-4 py-3">Player</th>
+           <thead className="text-xs text-slate-400 uppercase bg-slate-50/50 border-b border-slate-100">
+  <tr>
+    <th className="px-4 py-3">Rank</th>
+    <th className="px-4 py-3">Player</th>
 
-                {/* Points – rendezhető */}
-                <th className="px-4 py-3">
-                  <button
-                    type="button"
-                    onClick={() => handleSort("totalPoints")}
-                    className="flex items-center gap-1 font-semibold text-slate-500 hover:text-slate-700"
-                  >
-                    Points
-                    {renderSortIcon("totalPoints")}
-                  </button>
-                </th>
+    {/* POINTS */}
+    <th className="px-4 py-3">
+      <button
+        type="button"
+        onClick={() => handleSort("totalPoints")}
+        className="
+          flex items-center gap-1 font-semibold text-slate-700
+          bg-slate-100 hover:bg-slate-200
+          px-3 py-1 rounded-md transition
+        "
+      >
+        Points
+        {renderSortIcon("totalPoints")}
+      </button>
+    </th>
 
-                {/* Win% – rendezhető */}
-                <th className="px-4 py-3">
-                  <button
-                    type="button"
-                    onClick={() => handleSort("winRate")}
-                    className="flex items-center gap-1 font-semibold text-slate-500 hover:text-slate-700"
-                  >
-                    Win %
-                    {renderSortIcon("winRate")}
-                  </button>
-                </th>
+    {/* WIN % */}
+    <th className="px-4 py-3">
+      <button
+        type="button"
+        onClick={() => handleSort("winRate")}
+        className="
+          flex items-center gap-1 font-semibold text-slate-700
+          bg-slate-100 hover:bg-slate-200
+          px-3 py-1 rounded-md transition
+        "
+      >
+        Win %
+        {renderSortIcon("winRate")}
+      </button>
+    </th>
 
-                {/* Matches – rendezhető */}
-                <th className="px-4 py-3">
-                  <button
-                    type="button"
-                    onClick={() => handleSort("matches")}
-                    className="flex items-center gap-1 font-semibold text-slate-500 hover:text-slate-700"
-                  >
-                    Matches
-                    {renderSortIcon("matches")}
-                  </button>
-                </th>
-              </tr>
-            </thead>
+    {/* MATCHES */}
+    <th className="px-4 py-3">
+      <button
+        type="button"
+        onClick={() => handleSort("matches")}
+        className="
+          flex items-center gap-1 font-semibold text-slate-700
+          bg-slate-100 hover:bg-slate-200
+          px-3 py-1 rounded-md transition
+        "
+      >
+        Matches
+        {renderSortIcon("matches")}
+      </button>
+    </th>
+  </tr>
+</thead>
+
             <tbody className="divide-y divide-slate-50">
               {filteredAndSortedRows.map((r: any, i: number) => (
                 <tr
