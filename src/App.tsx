@@ -669,78 +669,177 @@ function MatchesPlayer({ grouped, nameOf }: any) {
 }
 
 function Standings({ rows }: any) {
-  const [tab, setTab] = useState<"All"|"Women"|"Men">("All");
+  const [tab, setTab] = useState<"All" | "Women" | "Men">("All");
 
-  const filteredRows = useMemo(() => {
-      if (tab === "All") return rows;
+  type SortKey = "totalPoints" | "winRate" | "matches";
+  const [sortKey, setSortKey] = useState<SortKey>("totalPoints");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  const handleSort = (key: SortKey) => {
+    setSortKey((prevKey) => {
+      if (prevKey === key) {
+        // ugyanazt a fejlecet nyomtuk: irány váltás
+        setSortDir((prevDir) => (prevDir === "asc" ? "desc" : "asc"));
+        return prevKey;
+      } else {
+        // új oszlop: default DESC
+        setSortDir("desc");
+        return key;
+      }
+    });
+  };
+
+  const filteredAndSortedRows = useMemo(() => {
+    let filtered = rows;
+    if (tab !== "All") {
       const targetGender = tab === "Men" ? "M" : "F";
-      return rows.filter((r:any) => r.gender === targetGender);
-  }, [rows, tab]);
+      filtered = rows.filter((r: any) => r.gender === targetGender);
+    }
+
+    const sorted = [...filtered].sort((a: any, b: any) => {
+      const va = a[sortKey] ?? 0;
+      const vb = b[sortKey] ?? 0;
+
+      if (va < vb) return sortDir === "asc" ? -1 : 1;
+      if (va > vb) return sortDir === "asc" ? 1 : -1;
+      return 0;
+    });
+
+    return sorted;
+  }, [rows, tab, sortKey, sortDir]);
+
+  const renderSortIcon = (key: SortKey) => {
+    if (sortKey !== key) {
+      // halvány „semleges” ikon
+      return (
+        <span className="ml-1 text-[9px] text-slate-300">
+          ▲▼
+        </span>
+      );
+    }
+    return (
+      <span className="ml-1 text-[9px] text-slate-500">
+        {sortDir === "desc" ? "▼" : "▲"}
+      </span>
+    );
+  };
 
   return (
     <div className={cardContainer}>
       <BrandStripe />
       <div className={cardContent}>
         <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-3">
-            <h3 className="font-bold text-slate-800 text-lg">League Standings</h3>
-            
-            {/* iOS Style Pill Tabs - Light Gray Container, White Active Button */}
-   {/* iOS Style Pill Tabs - világos, fekete nélkül */}
-<div className="flex p-1 rounded-lg" style={{ backgroundColor: "#f8fafc" }}>
-  {["All", "Women", "Men"].map((t) => (
-    <button
-      key={t}
-      onClick={() => setTab(t as any)}
-      className={`px-6 py-1.5 text-xs font-bold rounded-md transition-all ${
-        tab === t
-          ? "text-[#84cc16] shadow-sm scale-105"
-          : "text-slate-500 hover:text-slate-700"
-      }`}
-      style={{
-        backgroundColor: tab === t ? "#ffffff" : "#f8fafc",
-      }}
-    >
-      {t}
-    </button>
-  ))}
-</div>
+          <h3 className="font-bold text-slate-800 text-lg">League Standings</h3>
 
+          {/* iOS-style pill tabs */}
+          <div className="flex p-1 rounded-lg" style={{ backgroundColor: "#f8fafc" }}>
+            {["All", "Women", "Men"].map((t) => (
+              <button
+                key={t}
+                onClick={() => setTab(t as any)}
+                className={`px-6 py-1.5 text-xs font-bold rounded-md transition-all ${
+                  tab === t
+                    ? "text-[#84cc16] shadow-sm scale-105"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
+                style={{
+                  backgroundColor: tab === t ? "#ffffff" : "#f8fafc",
+                }}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-                <thead className="text-xs text-slate-400 uppercase bg-slate-50/50 border-b border-slate-100">
-                    <tr>
-                        <th className="px-4 py-3">Rank</th>
-                        <th className="px-4 py-3">Player</th>
-                        <th className="px-4 py-3">Points</th>
-                        <th className="px-4 py-3">Win %</th>
-                        <th className="px-4 py-3">Matches</th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                    {filteredRows.map((r:any, i:number) => (
-                        <tr key={r.id} className={`hover:bg-slate-50/50 transition-colors ${!r.qualified ? "opacity-60" : ""}`}>
-                            <td className="px-4 py-3 font-bold text-slate-500">#{i+1}</td>
-                            <td className="px-4 py-3 font-bold text-slate-700">
-                                {r.name}
-                                {!r.qualified && <span className="ml-2 text-[10px] text-rose-400 font-normal">(qualifying)</span>}
-                            </td>
-                            <td className="px-4 py-3 font-black text-slate-800">{r.totalPoints}</td>
-                            <td className="px-4 py-3 text-[#84cc16] font-bold">{r.winRate}%</td>
-                            <td className="px-4 py-3 text-slate-500">{r.matches}</td>
-                        </tr>
-                    ))}
-                    {filteredRows.length === 0 && (
-                        <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-400 text-xs italic">No players found in this category.</td></tr>
+          <table className="w-full text-sm text-left">
+            <thead className="text-xs text-slate-400 uppercase bg-slate-50/50 border-b border-slate-100">
+              <tr>
+                <th className="px-4 py-3">Rank</th>
+                <th className="px-4 py-3">Player</th>
+
+                {/* Points – rendezhető */}
+                <th className="px-4 py-3">
+                  <button
+                    type="button"
+                    onClick={() => handleSort("totalPoints")}
+                    className="flex items-center gap-1 font-semibold text-slate-500 hover:text-slate-700"
+                  >
+                    Points
+                    {renderSortIcon("totalPoints")}
+                  </button>
+                </th>
+
+                {/* Win% – rendezhető */}
+                <th className="px-4 py-3">
+                  <button
+                    type="button"
+                    onClick={() => handleSort("winRate")}
+                    className="flex items-center gap-1 font-semibold text-slate-500 hover:text-slate-700"
+                  >
+                    Win %
+                    {renderSortIcon("winRate")}
+                  </button>
+                </th>
+
+                {/* Matches – rendezhető */}
+                <th className="px-4 py-3">
+                  <button
+                    type="button"
+                    onClick={() => handleSort("matches")}
+                    className="flex items-center gap-1 font-semibold text-slate-500 hover:text-slate-700"
+                  >
+                    Matches
+                    {renderSortIcon("matches")}
+                  </button>
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {filteredAndSortedRows.map((r: any, i: number) => (
+                <tr
+                  key={r.id}
+                  className={`hover:bg-slate-50/50 transition-colors ${
+                    !r.qualified ? "opacity-60" : ""
+                  }`}
+                >
+                  <td className="px-4 py-3 font-bold text-slate-500">#{i + 1}</td>
+                  <td className="px-4 py-3 font-bold text-slate-700">
+                    {r.name}
+                    {!r.qualified && (
+                      <span className="ml-2 text-[10px] text-rose-400 font-normal">
+                        (qualifying)
+                      </span>
                     )}
-                </tbody>
-            </table>
+                  </td>
+                  <td className="px-4 py-3 font-black text-slate-800">
+                    {r.totalPoints}
+                  </td>
+                  <td className="px-4 py-3 text-[#84cc16] font-bold">
+                    {r.winRate}%
+                  </td>
+                  <td className="px-4 py-3 text-slate-500">{r.matches}</td>
+                </tr>
+              ))}
+              {filteredAndSortedRows.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={5}
+                    className="px-4 py-8 text-center text-slate-400 text-xs italic"
+                  >
+                    No players found in this category.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
   );
 }
+
 
 function PlayerStatsAndAchievements({
   players,
