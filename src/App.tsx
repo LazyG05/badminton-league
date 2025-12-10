@@ -805,7 +805,7 @@ function PlayerStatsAndAchievements({ players, matches, meId, setMeId }: any) {
             Achievements
           </h4>
 
-   {ach.length === 0 ? (
+{ach.length === 0 ? (
   <p className="text-sm text-slate-400">No badges yet.</p>
 ) : (
   <div className="space-y-4 mb-4">
@@ -817,19 +817,25 @@ function PlayerStatsAndAchievements({ players, matches, meId, setMeId }: any) {
         };
 
       return (
-        <div key={a.id} className="relative pt-4">
-          {/* Fa polc */}
-          <div
-            className="absolute inset-x-4 top-4 h-[7px] rounded-full shadow-md"
-            style={{
-              backgroundImage:
-                "linear-gradient(90deg,#92400e,#b45309,#d97706,#fbbf24,#d97706,#b45309,#92400e)",
-              backgroundSize: "200% 100%",
-            }}
-          />
+        <div key={a.id} className="relative pt-7">
+          {/* REALISTIC WOOD SHELF */}
+          <div className="absolute inset-x-3 top-3 h-[12px] rounded-full shadow-[0_6px_10px_rgba(15,23,42,0.18)] overflow-hidden">
+            <div
+              className="w-full h-full"
+              style={{
+                backgroundImage: "url('/wood-shelf.png')",
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+              }}
+            />
+          </div>
 
-          {/* A badge „ül” a polcon */}
-          <div className="relative mx-4 flex items-center gap-3 rounded-xl bg-white px-3 py-2 border border-slate-100 shadow-sm">
+          {/* kis „fém pöckök” a polc végén (opcionális, de prémium hatás 😄) */}
+          <div className="absolute left-5 top-[10px] w-1.5 h-1.5 rounded-full bg-slate-200 shadow-[0_0_0_1px_rgba(148,163,184,0.7)]" />
+          <div className="absolute right-5 top-[10px] w-1.5 h-1.5 rounded-full bg-slate-200 shadow-[0_0_0_1px_rgba(148,163,184,0.7)]" />
+
+          {/* BADGE, ami „ül” a polcon */}
+          <div className="relative mx-3 flex items-center gap-3 rounded-xl bg-white px-3 py-2 border border-slate-100 shadow-sm">
             <span className={`text-xl ${meta.accent}`}>{meta.icon}</span>
             <div className="flex flex-col">
               <span className={`text-xs font-bold ${meta.accent}`}>
@@ -847,6 +853,7 @@ function PlayerStatsAndAchievements({ players, matches, meId, setMeId }: any) {
     })}
   </div>
 )}
+
 
 
           <button
