@@ -984,6 +984,112 @@ function PlayerStatsAndAchievements({
   );
 }
 
+function LightGarland() {
+  return (
+    <svg
+      viewBox="0 0 260 40"
+      className="w-full h-full"
+      preserveAspectRatio="none"
+    >
+      {/* Kábel */}
+      <path
+        d="M5 28 Q 65 6 130 18 T 255 28"
+        stroke="#4b5563"
+        strokeWidth="2"
+        fill="none"
+        strokeLinecap="round"
+      />
+
+      {/* Izzók */}
+      <g>
+        {/* Bulb 1 */}
+        <g>
+          <line x1="30" y1="22" x2="30" y2="26" stroke="#4b5563" strokeWidth="1.5" />
+          <circle cx="30" cy="30" r="4.5" fill="#f97316">
+            <animate
+              attributeName="opacity"
+              values="0.3;1;0.3"
+              dur="1.5s"
+              repeatCount="indefinite"
+              begin="0s"
+            />
+          </circle>
+        </g>
+
+        {/* Bulb 2 */}
+        <g>
+          <line x1="65" y1="16" x2="65" y2="20" stroke="#4b5563" strokeWidth="1.5" />
+          <circle cx="65" cy="24" r="4.5" fill="#22c55e">
+            <animate
+              attributeName="opacity"
+              values="0.3;1;0.3"
+              dur="1.7s"
+              repeatCount="indefinite"
+              begin="0.2s"
+            />
+          </circle>
+        </g>
+
+        {/* Bulb 3 */}
+        <g>
+          <line x1="100" y1="10" x2="100" y2="14" stroke="#4b5563" strokeWidth="1.5" />
+          <circle cx="100" cy="18" r="4.5" fill="#eab308">
+            <animate
+              attributeName="opacity"
+              values="0.3;1;0.3"
+              dur="1.6s"
+              repeatCount="indefinite"
+              begin="0.4s"
+            />
+          </circle>
+        </g>
+
+        {/* Bulb 4 */}
+        <g>
+          <line x1="135" y1="12" x2="135" y2="16" stroke="#4b5563" strokeWidth="1.5" />
+          <circle cx="135" cy="20" r="4.5" fill="#38bdf8">
+            <animate
+              attributeName="opacity"
+              values="0.3;1;0.3"
+              dur="1.8s"
+              repeatCount="indefinite"
+              begin="0.1s"
+            />
+          </circle>
+        </g>
+
+        {/* Bulb 5 */}
+        <g>
+          <line x1="170" y1="18" x2="170" y2="22" stroke="#4b5563" strokeWidth="1.5" />
+          <circle cx="170" cy="26" r="4.5" fill="#f97316">
+            <animate
+              attributeName="opacity"
+              values="0.3;1;0.3"
+              dur="1.4s"
+              repeatCount="indefinite"
+              begin="0.5s"
+            />
+          </circle>
+        </g>
+
+        {/* Bulb 6 */}
+        <g>
+          <line x1="205" y1="22" x2="205" y2="26" stroke="#4b5563" strokeWidth="1.5" />
+          <circle cx="205" cy="30" r="4.5" fill="#22c55e">
+            <animate
+              attributeName="opacity"
+              values="0.3;1;0.3"
+              dur="1.9s"
+              repeatCount="indefinite"
+              begin="0.3s"
+            />
+          </circle>
+        </g>
+      </g>
+    </svg>
+  );
+}
+
 
 function Snowfall() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -1125,12 +1231,23 @@ export default function App() {
 
       <div className="flex-1 md:ml-64 p-4 md:p-8 transition-all w-full max-w-[100vw] overflow-x-hidden relative z-10">
         <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-800">
-                {role === "admin" ? "Admin Dashboard" : "Player Dashboard"}
-            </h1>
-            <p className="text-slate-500 text-sm mt-1">Biatorbágy Badminton</p>
-          </div>
+        <div className="relative">
+    <div className="relative inline-block">
+      {/* Fényfüzér – csak Player Dashboard + Christmas módban */}
+      {christmasMode && role === "player" && (
+        <div className="pointer-events-none absolute inset-x-0 -top-6 h-8">
+          <LightGarland />
+        </div>
+      )}
+
+      <h1 className="text-2xl font-bold text-slate-800 px-3 py-1 rounded-lg relative z-10">
+        {role === "admin" ? "Admin Dashboard" : "Player Dashboard"}
+      </h1>
+    </div>
+
+    <p className="text-slate-500 text-sm mt-1">Biatorbágy Badminton</p>
+  </div>
+
           <div className="flex items-center gap-4 w-full md:w-auto">
               <div className="relative w-full md:w-auto">
                   <span className="absolute left-3 top-2.5 text-slate-400"><Icons.Search /></span>
