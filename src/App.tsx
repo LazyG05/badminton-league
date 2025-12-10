@@ -302,10 +302,24 @@ function MobileHeader({ role, setRole }: { role: "player" | "admin"; setRole: (r
              {/* Mobile Decor */}
              <div className="absolute top-0 right-0 w-32 h-32 bg-[#84cc16] rounded-full blur-[50px] opacity-10 pointer-events-none"></div>
 
-            <div className="flex items-center gap-3 relative z-10">
-                 <div className="w-8 h-8 bg-[#84cc16] rounded-full flex items-center justify-center font-bold shadow-lg">B</div>
-                 <span className="font-bold tracking-wide">Biatorbágy Badminton</span>
-            </div>
+       <div className="flex items-center gap-3 relative z-10">
+  {/* Kicsi, kerek logó konténer */}
+  <div className="w-10 h-10 rounded-full bg-white/10 border border-white/20 flex items-center justify-center overflow-hidden shadow-lg">
+    <img
+      src="/logo.png"
+      alt="Biatorbágy Badminton logo"
+      className="w-full h-full object-cover"
+    />
+  </div>
+
+  {/* Szöveges rész mellette */}
+  <div className="flex flex-col">
+    <span className="font-bold tracking-wide text-sm">
+      Biatorbágy Badminton
+    </span>
+  </div>
+</div>
+
             <div className="flex text-xs bg-slate-800/50 backdrop-blur-sm rounded-lg p-1 border border-white/5 relative z-10">
                 <button onClick={() => setRole("player")} className={`px-3 py-1 rounded ${role==="player"?"bg-[#84cc16] text-white":"text-slate-300"}`}>Player</button>
                 <button onClick={() => setRole("admin")} className={`px-3 py-1 rounded ${role==="admin"?"bg-[#84cc16] text-white":"text-slate-300"}`}>Admin</button>
