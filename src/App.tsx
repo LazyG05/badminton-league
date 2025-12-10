@@ -742,7 +742,19 @@ function Standings({ rows }: any) {
   );
 }
 
-function PlayerStatsAndAchievements({ players, matches, meId, setMeId }: any) {
+function PlayerStatsAndAchievements({
+  players,
+  matches,
+  meId,
+  setMeId,
+  christmasMode,
+}: {
+  players: Player[];
+  matches: Match[];
+  meId: string;
+  setMeId: (id: string) => void;
+  christmasMode?: boolean;
+}) {
   const stats = useMemo(() => {
     if (!meId) return null;
     let w = 0, l = 0, mC = 0;
@@ -755,7 +767,12 @@ function PlayerStatsAndAchievements({ players, matches, meId, setMeId }: any) {
       if ((m.winner === "A" && inA) || (m.winner === "B" && inB)) w++;
       else l++;
     });
-    return { wins: w, losses: l, matches: mC, rate: mC ? Math.round((w / mC) * 100) : 0 };
+    return {
+      wins: w,
+      losses: l,
+      matches: mC,
+      rate: mC ? Math.round((w / mC) * 100) : 0,
+    };
   }, [meId, matches]);
 
   const ach = useMemo(
@@ -771,45 +788,67 @@ function PlayerStatsAndAchievements({ players, matches, meId, setMeId }: any) {
     <div className={cardContainer}>
       <BrandStripe />
       <div className={cardContent}>
-        <h3 className="font-bold text-slate-800 mb-3">My Stats & Achievements</h3>
+        {/* Fejléc + karácsonyi hangulat, ha be van kapcsolva */}
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="font-bold text-slate-800">
+            My Stats &amp; Achievements
+          </h3>
 
-        {/* Játékos választó */}
+          {christmasMode && (
+            <div className="flex items-center gap-1 text-[11px] font-semibold text-emerald-700">
+              <span>🎄 Christmas mode</span>
+              <span className="text-rose-500">⭐ extra cheer</span>
+            </div>
+          )}
+        </div>
+
+        {/* Játékos választó (ABC szerint, emoji nélkül) */}
         <div className="w-full mb-4">
-  <select
-  className={`${input} w-full`}
-  value={meId}
-  onChange={(e) => setMeId(e.target.value)}
->
-  {players
-    .slice()
-.sort((a: any, b: any) =>
-  getBaseName(a.name).localeCompare(getBaseName(b.name), "hu")
-)
-    .map((p: any) => (
-      <option key={p.id} value={p.id}>
-        {p.name}
-      </option>
-    ))}
-</select>
-
+          <select
+            className={`${input} w-full`}
+            value={meId}
+            onChange={(e) => setMeId(e.target.value)}
+          >
+            {players
+              .slice()
+              .sort((a, b) =>
+                getBaseName(a.name).localeCompare(getBaseName(b.name), "hu")
+              )
+              .map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+          </select>
         </div>
 
         {/* Statisztika blokk */}
         {stats && (
           <div className="grid grid-cols-3 gap-2 mb-4 text-center">
-            <div className="bg-slate-50 p-2 rounded-lg">
+            <div className="bg-slate-50 p-2 rounded-lg relative overflow-hidden">
+              {christmasMode && (
+                <span className="absolute -top-1 -left-1 text-lg">❄️</span>
+              )}
               <div className="text-xl font-black text-slate-800">
                 {stats.matches}
               </div>
               <div className="text-xs text-slate-400">Matches</div>
             </div>
-            <div className="bg-[#f0fdf4] p-2 rounded-lg">
+            <div className="bg-[#f0fdf4] p-2 rounded-lg relative overflow-hidden">
+              {christmasMode && (
+                <span className="absolute -top-1 right-1 text-lg">🎁</span>
+              )}
               <div className="text-xl font-black text-[#84cc16]">
                 {stats.wins}
               </div>
-              <div className="text-xs text-lime-700">Wins</div>
+              <div className="text-xs text-lime-700">
+                Wins {christmasMode && "• nice list ✅"}
+              </div>
             </div>
-            <div className="bg-slate-50 p-2 rounded-lg">
+            <div className="bg-slate-50 p-2 rounded-lg relative overflow-hidden">
+              {christmasMode && (
+                <span className="absolute -top-1 left-1 text-lg">🎅</span>
+              )}
               <div className="text-xl font-black text-slate-800">
                 {stats.rate}%
               </div>
@@ -818,80 +857,93 @@ function PlayerStatsAndAchievements({ players, matches, meId, setMeId }: any) {
           </div>
         )}
 
-        {/* Achievements blokk egyben a kártyán belül */}
+        {/* Achievements blokk (polc + alumínium plakettek) */}
         <div className="mt-4 border-t border-slate-100 pt-4">
-          <h4 className="mb-2 text-sm font-bold uppercase tracking-wider text-slate-400">
-            Achievements
+          <h4 className="mb-2 text-sm font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+            {christmasMode && <span>🕯️</span>}
+            <span>Achievements</span>
+            {christmasMode && <span>⭐</span>}
           </h4>
 
-{ach.length === 0 ? (
-  <p className="text-sm text-slate-400">No badges yet.</p>
-) : (
-  <div className="space-y-4 mb-4">
-    {ach.map((a) => {
-      const meta =
-        BADGE_META[a.id] || {
-          icon: "⭐",
-          accent: "text-slate-600",
-        };
+          {ach.length === 0 ? (
+            <p className="text-sm text-slate-400">No badges yet.</p>
+          ) : (
+            <div className="space-y-4 mb-4">
+              {ach.map((a) => {
+                const meta =
+                  BADGE_META[a.id] || {
+                    icon: "⭐",
+                    accent: "text-slate-600",
+                  };
 
-      return (
-        <div key={a.id} className="relative pt-2 pb-4">
-          {/* BADGE – felül, a polcon ülve */}
-<div className="relative mx-3 flex items-center gap-3 rounded-xl px-3 py-2 border shadow-sm z-10
-  bg-[linear-gradient(145deg,#f9fafb,#e5e7eb)]
-  border-slate-300
-  before:absolute before:inset-0 before:rounded-xl
-  before:bg-[linear-gradient(120deg,rgba(255,255,255,0.6),rgba(255,255,255,0))]
-  before:opacity-70 before:pointer-events-none
-  after:absolute after:inset-0 after:rounded-xl
-  after:bg-[url('/brushed-metal.png')]
-  after:mix-blend-overlay after:opacity-20 after:pointer-events-none"
->
-            <span className={`text-xl ${meta.accent}`}>{meta.icon}</span>
-            <div className="flex flex-col">
-              <span className={`text-xs font-bold ${meta.accent}`}>
-                {a.title}
-              </span>
-              {a.description && (
-                <span className="text-[10px] text-slate-500 leading-tight">
-                  {a.description}
-                </span>
-              )}
+                return (
+                  <div key={a.id} className="relative pt-2 pb-4">
+                    {/* BADGE – felül, a polcon ülve (alumínium plakett) */}
+                    <div
+                      className="
+                        relative mx-3 flex items-center gap-3 rounded-xl px-3 py-2 border shadow-sm z-10
+                        bg-[linear-gradient(145deg,#f9fafb,#e5e7eb)]
+                        border-slate-300
+                        before:absolute before:inset-0 before:rounded-xl
+                        before:bg-[linear-gradient(120deg,rgba(255,255,255,0.6),rgba(255,255,255,0))]
+                        before:opacity-70 before:pointer-events-none
+                        after:absolute after:inset-0 after:rounded-xl
+                        after:bg-[url('/brushed-metal.png')]
+                        after:mix-blend-overlay after:opacity-30 after:pointer-events-none
+                      "
+                    >
+                      {christmasMode && (
+                        <span className="absolute -top-3 right-2 text-xl">
+                          🎅
+                        </span>
+                      )}
+                      <span className={`text-xl ${meta.accent}`}>
+                        {meta.icon}
+                      </span>
+                      <div className="flex flex-col">
+                        <span
+                          className={`text-xs font-bold ${meta.accent}`}
+                        >
+                          {a.title}
+                        </span>
+                        {a.description && (
+                          <span className="text-[10px] text-slate-500 leading-tight">
+                            {a.description}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* REALISTIC WOOD SHELF – közvetlenül a kártya alatt */}
+                    <div className="absolute inset-x-3 bottom-1 h-[12px] rounded-full shadow-[0_6px_10px_rgba(15,23,42,0.18)] overflow-hidden z-0">
+                      <div
+                        className="w-full h-full"
+                        style={{
+                          backgroundImage: "url('/wood-shelf.png')",
+                          backgroundSize: "cover",
+                          backgroundPosition: "center",
+                        }}
+                      />
+                    </div>
+
+                    {/* kis fém pöckök a polc végén */}
+                    <div className="absolute left-5 bottom-[9px] w-1.5 h-1.5 rounded-full bg-slate-200 shadow-[0_0_0_1px_rgba(148,163,184,0.7)] z-10" />
+                    <div className="absolute right-5 bottom-[9px] w-1.5 h-1.5 rounded-full bg-slate-200 shadow-[0_0_0_1px_rgba(148,163,184,0.7)] z-10" />
+                  </div>
+                );
+              })}
             </div>
-          </div>
+          )}
 
-          {/* REALISTIC WOOD SHELF – közvetlenül a kártya alatt */}
-          <div className="absolute inset-x-3 bottom-1 h-[12px] rounded-full shadow-[0_6px_10px_rgba(15,23,42,0.18)] overflow-hidden z-0">
-            <div
-              className="w-full h-full"
-              style={{
-                backgroundImage: "url('/wood-shelf.png')",
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-              }}
-            />
-          </div>
-
-          {/* kis fém pöckök a polc végén */}
-          <div className="absolute left-5 bottom-[9px] w-1.5 h-1.5 rounded-full bg-slate-200 shadow-[0_0_0_1px_rgba(148,163,184,0.7)] z-10" />
-          <div className="absolute right-5 bottom-[9px] w-1.5 h-1.5 rounded-full bg-slate-200 shadow-[0_0_0_1px_rgba(148,163,184,0.7)] z-10" />
-        </div>
-      );
-    })}
-  </div>
-)}
-
-
-
-
-
+          {/* Legend gomb + lista */}
           <button
             onClick={() => setShowLegend(!showLegend)}
             className="w-full text-center text-xs font-bold text-slate-400 uppercase hover:text-slate-600 transition-colors border-t border-slate-100 pt-2"
             style={{ backgroundColor: "#ffffff" }}
           >
-            {showLegend ? "Hide Badge Legend ⏶" : "Show Badge Legend / Meanings ⏷"}
+            {showLegend
+              ? "Hide Badge Legend ⏶"
+              : "Show Badge Legend / Meanings ⏷"}
           </button>
 
           {showLegend && (
@@ -931,6 +983,7 @@ function PlayerStatsAndAchievements({ players, matches, meId, setMeId }: any) {
     </div>
   );
 }
+
 
 function Snowfall() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -1111,12 +1164,14 @@ export default function App() {
       <MatchesPlayer grouped={grouped} nameOf={nameOf} />
     </div>
     <div className="space-y-6 min-w-[260px]">
-      <PlayerStatsAndAchievements
-        players={players}
-        matches={matches}
-        meId={meId}
-        setMeId={setMeId}
-      />
+   <PlayerStatsAndAchievements
+  players={players}
+  matches={matches}
+  meId={meId}
+  setMeId={setMeId}
+  christmasMode={christmasMode}
+/>
+
     </div>
   </div>
 )}
