@@ -993,7 +993,7 @@ export default function App() {
       <Standings rows={standings} />
       <MatchesPlayer grouped={grouped} nameOf={nameOf} />
     </div>
-    <div className="space-y-6 min-w-0">
+    <div className="space-y-6 min-w-[260px]">
       <PlayerStatsAndAchievements
         players={players}
         matches={matches}
