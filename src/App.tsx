@@ -77,7 +77,6 @@ const weekday = (dstr: string) =>
   });
 const key = (a: string, b: string) => [a, b].sort().join("::");
 const getBaseName = (full: string) => full.replace(/^.+?\s/, "");
-
 // ========================= UI Tokens =========================
 
 // 🎨 DESIGN SYSTEM: COLORS & SHAPES
@@ -762,17 +761,23 @@ function PlayerStatsAndAchievements({ players, matches, meId, setMeId }: any) {
 
         {/* Játékos választó */}
         <div className="w-full mb-4">
-          <select
-            className={`${input} w-full`}
-            value={meId}
-            onChange={(e) => setMeId(e.target.value)}
-          >
-            {players.map((p: any) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+  <select
+  className={`${input} w-full`}
+  value={meId}
+  onChange={(e) => setMeId(e.target.value)}
+>
+  {players
+    .slice()
+.sort((a: any, b: any) =>
+  getBaseName(a.name).localeCompare(getBaseName(b.name), "hu")
+)
+    .map((p: any) => (
+      <option key={p.id} value={p.id}>
+        {p.name}
+      </option>
+    ))}
+</select>
+
         </div>
 
         {/* Statisztika blokk */}
