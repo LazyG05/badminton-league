@@ -932,6 +932,62 @@ function PlayerStatsAndAchievements({ players, matches, meId, setMeId }: any) {
   );
 }
 
+function Snowfall() {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    let w = (canvas.width = window.innerWidth);
+    let h = (canvas.height = window.innerHeight);
+
+    const flakes = Array.from({ length: 120 }).map(() => ({
+      x: Math.random() * w,
+      y: Math.random() * h,
+      r: Math.random() * 3 + 1,
+      d: Math.random() + 0.5,
+    }));
+
+    const draw = () => {
+      ctx.clearRect(0, 0, w, h);
+      ctx.fillStyle = "rgba(255,255,255,0.9)";
+      ctx.beginPath();
+      for (const f of flakes) {
+        ctx.moveTo(f.x, f.y);
+        ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
+      }
+      ctx.fill();
+
+      for (const f of flakes) {
+        f.y += f.d;
+        if (f.y > h + 5) {
+          f.y = -10;
+          f.x = Math.random() * w;
+        }
+      }
+
+      requestAnimationFrame(draw);
+    };
+
+    const handleResize = () => {
+      w = canvas.width = window.innerWidth;
+      h = canvas.height = window.innerHeight;
+    };
+
+    window.addEventListener("resize", handleResize);
+    draw();
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
+
+  return <canvas ref={canvasRef} className="w-full h-full" />;
+}
+
 
 // ========================= MAIN APP =========================
 export default function App() {
@@ -942,6 +998,8 @@ export default function App() {
   const [presentIds, setPresentIds] = useState<string[]>([]);
   const matchesForDate = useMemo(() => matches.filter(m => m.date === date), [matches, date]);
   const [meId, setMeId] = useState("");
+  const [christmasMode, setChristmasMode] = useState(false);
+
   
   const grouped = useMemo(() => {
       const map = new Map<string, Match[]>();
@@ -1003,6 +1061,12 @@ export default function App() {
           />
       </div>
 
+      {christmasMode && (
+        <div className="pointer-events-none fixed inset-0 z-10 overflow-hidden">
+          <Snowfall />
+        </div>
+      )}
+
       <Sidebar role={role} setRole={setRole} />
       <MobileHeader role={role} setRole={setRole} />
 
@@ -1056,6 +1120,16 @@ export default function App() {
     </div>
   </div>
 )}
+        {/* Christmas Mood toggle */}
+        <div className="fixed bottom-3 right-3 z-[9999]">
+          <button
+            onClick={() => setChristmasMode(!christmasMode)}
+            className="px-4 py-2 rounded-full shadow-lg text-xs sm:text-sm font-bold transition-all
+                       bg-white/90 border border-slate-300 hover:bg-slate-50"
+          >
+            {christmasMode ? "🎄 Christmas ON" : "❄️ Christmas OFF"}
+          </button>
+        </div>
       </div>
     </div>
   );
