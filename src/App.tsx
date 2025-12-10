@@ -1276,7 +1276,7 @@ export default function App() {
   </div>
 )}
         {/* Christmas Mood toggle */}
-        <div className="fixed bottom-3 right-3 z-[9999]">
+        <div className="fixed bottom-3 left-3 z-[9999]">
           <button
             onClick={() => setChristmasMode(!christmasMode)}
             className="px-4 py-2 rounded-full shadow-lg text-xs sm:text-sm font-bold transition-all
