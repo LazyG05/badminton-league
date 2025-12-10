@@ -817,25 +817,9 @@ function PlayerStatsAndAchievements({ players, matches, meId, setMeId }: any) {
         };
 
       return (
-        <div key={a.id} className="relative pt-6">
-          {/* REALISTIC WOOD SHELF */}
-          <div className="absolute inset-x-3 top-3 h-[12px] rounded-full shadow-[0_6px_10px_rgba(15,23,42,0.18)] overflow-hidden">
-            <div
-              className="w-full h-full"
-              style={{
-                backgroundImage: "url('/wood-shelf.png')",
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-              }}
-            />
-          </div>
-
-          {/* kis fém pöckök */}
-          <div className="absolute left-5 top-[10px] w-1.5 h-1.5 rounded-full bg-slate-200 shadow-[0_0_0_1px_rgba(148,163,184,0.7)]" />
-          <div className="absolute right-5 top-[10px] w-1.5 h-1.5 rounded-full bg-slate-200 shadow-[0_0_0_1px_rgba(148,163,184,0.7)]" />
-
-          {/* BADGE – ráültetve a polcra */}
-          <div className="relative mx-3 -mt-[4px] flex items-center gap-3 rounded-xl bg-white px-3 py-2 border border-slate-100 shadow-sm">
+        <div key={a.id} className="relative pt-2 pb-4">
+          {/* BADGE – felül, a polcon ülve */}
+          <div className="relative mx-3 flex items-center gap-3 rounded-xl bg-white px-3 py-2 border border-slate-100 shadow-sm z-10">
             <span className={`text-xl ${meta.accent}`}>{meta.icon}</span>
             <div className="flex flex-col">
               <span className={`text-xs font-bold ${meta.accent}`}>
@@ -848,11 +832,28 @@ function PlayerStatsAndAchievements({ players, matches, meId, setMeId }: any) {
               )}
             </div>
           </div>
+
+          {/* REALISTIC WOOD SHELF – közvetlenül a kártya alatt */}
+          <div className="absolute inset-x-3 bottom-1 h-[12px] rounded-full shadow-[0_6px_10px_rgba(15,23,42,0.18)] overflow-hidden z-0">
+            <div
+              className="w-full h-full"
+              style={{
+                backgroundImage: "url('/wood-shelf.png')",
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+              }}
+            />
+          </div>
+
+          {/* kis fém pöckök a polc végén */}
+          <div className="absolute left-5 bottom-[9px] w-1.5 h-1.5 rounded-full bg-slate-200 shadow-[0_0_0_1px_rgba(148,163,184,0.7)] z-10" />
+          <div className="absolute right-5 bottom-[9px] w-1.5 h-1.5 rounded-full bg-slate-200 shadow-[0_0_0_1px_rgba(148,163,184,0.7)] z-10" />
         </div>
       );
     })}
   </div>
 )}
+
 
 
 
