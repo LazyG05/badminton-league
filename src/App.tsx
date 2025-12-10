@@ -1191,8 +1191,10 @@ export default function App() {
   matchesForDate.forEach(m => { if(m.winner) { seenTeammates.add(key(m.teamA[0], m.teamA[1])); seenTeammates.add(key(m.teamB[0], m.teamB[1])); }});
 
   return (
-    <div className="min-h-screen bg-[#f1f5f9] font-sans text-slate-900 flex flex-col md:flex-row relative">
-      
+<div 
+  className={`min-h-screen font-sans text-slate-900 flex flex-col md:flex-row relative 
+    ${christmasMode ? "bg-[#55ADD5]" : "bg-[#f1f5f9]"}`}
+>      
       {/* 🔹 Vízjel a háttérben */}
       <div className="fixed inset-0 z-0 flex items-center justify-center pointer-events-none">
           <img 
