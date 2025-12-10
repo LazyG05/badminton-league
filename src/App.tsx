@@ -1276,15 +1276,16 @@ export default function App() {
   </div>
 )}
         {/* Christmas Mood toggle */}
-        <div className="fixed bottom-3 left-3 z-[9999]">
-          <button
-            onClick={() => setChristmasMode(!christmasMode)}
-            className="px-4 py-2 rounded-full shadow-lg text-xs sm:text-sm font-bold transition-all
-                       bg-white/90 border border-slate-300 hover:bg-slate-50"
-          >
-            {christmasMode ? "🎄 Christmas ON" : "❄️ Christmas OFF"}
-          </button>
-        </div>
+<div className="fixed bottom-3 left-3 md:left-72 z-[9999]">
+  <button
+    onClick={() => setChristmasMode(!christmasMode)}
+    className="px-4 py-2 rounded-full shadow-lg text-sm font-bold transition-all
+               bg-white border border-slate-300 hover:bg-slate-50"
+  >
+    {christmasMode ? "🎄 Christmas ON" : "❄️ Christmas OFF"}
+  </button>
+</div>
+
       </div>
     </div>
   );
