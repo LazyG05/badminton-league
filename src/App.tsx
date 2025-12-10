@@ -819,7 +819,16 @@ function PlayerStatsAndAchievements({ players, matches, meId, setMeId }: any) {
       return (
         <div key={a.id} className="relative pt-2 pb-4">
           {/* BADGE – felül, a polcon ülve */}
-          <div className="relative mx-3 flex items-center gap-3 rounded-xl bg-white px-3 py-2 border border-slate-100 shadow-sm z-10">
+<div className="relative mx-3 flex items-center gap-3 rounded-xl px-3 py-2 border shadow-sm z-10
+  bg-[linear-gradient(145deg,#f9fafb,#e5e7eb)]
+  border-slate-300
+  before:absolute before:inset-0 before:rounded-xl
+  before:bg-[linear-gradient(120deg,rgba(255,255,255,0.6),rgba(255,255,255,0))]
+  before:opacity-70 before:pointer-events-none
+  after:absolute after:inset-0 after:rounded-xl
+  after:bg-[url('/brushed-metal.png')]
+  after:mix-blend-overlay after:opacity-20 after:pointer-events-none"
+>
             <span className={`text-xl ${meta.accent}`}>{meta.icon}</span>
             <div className="flex flex-col">
               <span className={`text-xs font-bold ${meta.accent}`}>
