@@ -77,6 +77,8 @@ const weekday = (dstr: string) =>
   });
 const key = (a: string, b: string) => [a, b].sort().join("::");
 const getBaseName = (full: string) => full.replace(/^.+?\s/, "");
+const isHiddenFromStandings = (p: Player) =>
+  getBaseName(p.name).trim().toLowerCase() === "orsi";
 // ========================= UI Tokens =========================
 
 // 🎨 DESIGN SYSTEM: COLORS & SHAPES
@@ -1399,7 +1401,12 @@ export default function App() {
   const standings = useMemo(() => {
     const s = new Map();
     const MIN_MATCHES = 5;
-    players.forEach(p => s.set(p.id, { ...p, wins:0, matches:0, totalPoints:0, qualified: false }));
+   players
+  .filter((p) => !isHiddenFromStandings(p))
+  .forEach((p) =>
+    s.set(p.id, { ...p, wins: 0, matches: 0, totalPoints: 0, qualified: false })
+  );
+
     matches.forEach(m => {
         if(!m.winner) return;
         [...m.teamA,...m.teamB].forEach(id => { const d = s.get(id); if(d) d.matches++; });
