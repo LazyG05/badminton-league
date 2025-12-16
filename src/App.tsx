@@ -80,6 +80,8 @@ const getBaseName = (full: string) => full.replace(/^.+?\s/, "");
 const isSinglesMatch = (m: Match) => !m.teamA[1] && !m.teamB[1];
 const formatTeam = (team: Pair, nameOf: (id: string) => string) =>
   team[1] ? `${nameOf(team[0])} & ${nameOf(team[1])}` : `${nameOf(team[0])}`;
+const isHiddenFromStandings = (p: Player) =>
+  getBaseName(p.name).trim().toLowerCase() === "orsi";
 // ========================= UI Tokens =========================
 
 // 🎨 DESIGN SYSTEM: COLORS & SHAPES
@@ -1528,8 +1530,11 @@ export default function App() {
         : matches.filter((m) =>
             standingsMatchFilter === "singles" ? isSinglesMatch(m) : !isSinglesMatch(m)
           );
-    players.forEach(p => s.set(p.id, { ...p, wins:0, matches:0, totalPoints:0, qualified: false }));
-    matchesForStandings.forEach(m => {
+players
+  .filter((p) => !isHiddenFromStandings(p))
+  .forEach((p) =>
+    s.set(p.id, { ...p, wins: 0, matches: 0, totalPoints: 0, qualified: false })
+  );    matchesForStandings.forEach(m => {
         if(!m.winner) return;
         [...m.teamA,...m.teamB].forEach(id => { const d = s.get(id); if(d) d.matches++; });
         const w = m.winner==='A'?m.teamA:m.teamB;
