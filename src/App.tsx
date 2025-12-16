@@ -821,12 +821,12 @@ function Standings({ rows, matchFilter, onMatchFilterChange, showMatchFilterTogg
 
 {showMatchFilterToggle && (
   <div
-    className="relative flex p-1 rounded-lg overflow-hidden"
+    className="relative flex p-1 rounded-lg"
     style={{ backgroundColor: "#f8fafc" }}
   >
     {/* SLIDING BACKGROUND */}
     <div
-      className="absolute top-1 bottom-1 rounded-md bg-white shadow-sm transition-all duration-300 ease-out"
+      className="absolute top-1 bottom-1 rounded-md shadow-sm transition-all duration-300 ease-out"
       style={{
         width: "33.333%",
         left:
@@ -835,6 +835,7 @@ function Standings({ rows, matchFilter, onMatchFilterChange, showMatchFilterTogg
             : matchFilter === "all"
             ? "33.333%"
             : "66.666%",
+        backgroundColor: "#ffffff",
       }}
     />
 
@@ -850,11 +851,11 @@ function Standings({ rows, matchFilter, onMatchFilterChange, showMatchFilterTogg
           key={key}
           type="button"
           onClick={() => onMatchFilterChange?.(key as any)}
-          className={`relative z-10 flex-1 px-6 py-1.5 text-xs font-bold rounded-md transition-colors ${
-            active
-              ? "text-[#84cc16]"
-              : "text-slate-500 hover:text-slate-700"
-          }`}
+          className="relative z-10 flex-1 px-6 py-1.5 text-xs font-bold rounded-md transition-colors"
+          style={{
+            backgroundColor: "transparent",   // 🔥 EZ A KULCS
+            color: active ? "#84cc16" : "#64748b",
+          }}
         >
           {label}
         </button>
@@ -862,6 +863,7 @@ function Standings({ rows, matchFilter, onMatchFilterChange, showMatchFilterTogg
     })}
   </div>
 )}
+
 
 
 
