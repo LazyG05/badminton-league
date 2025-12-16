@@ -77,8 +77,9 @@ const weekday = (dstr: string) =>
   });
 const key = (a: string, b: string) => [a, b].sort().join("::");
 const getBaseName = (full: string) => full.replace(/^.+?\s/, "");
-const isHiddenFromStandings = (p: Player) =>
-  getBaseName(p.name).trim().toLowerCase() === "orsi";
+const isSinglesMatch = (m: Match) => !m.teamA[1] && !m.teamB[1];
+const formatTeam = (team: Pair, nameOf: (id: string) => string) =>
+  team[1] ? `${nameOf(team[0])} & ${nameOf(team[1])}` : `${nameOf(team[0])}`;
 // ========================= UI Tokens =========================
 
 // 🎨 DESIGN SYSTEM: COLORS & SHAPES
@@ -476,57 +477,138 @@ function PlayerEditor({ players, onAdd, onRemove, onUpdateEmoji, onUpdateGender 
 }
 
 function SelectPairs({ players, freeIds, seenTeammates, onCreate }: any) {
-  const [a1, setA1] = useState(""); const [a2, setA2] = useState("");
-  const [b1, setB1] = useState(""); const [b2, setB2] = useState("");
-  
-  const create = () => { onCreate([a1, a2], [b1, b2]); setA1(""); setA2(""); setB1(""); setB2(""); };
-  const allIds = [a1, a2, b1, b2].filter(Boolean);
-  const isValid = allIds.length === 4 && new Set(allIds).size === 4;
+  const [mode, setMode] = useState<"singles" | "doubles">("doubles");
+
+  const [a1, setA1] = useState("");
+  const [a2, setA2] = useState("");
+  const [b1, setB1] = useState("");
+  const [b2, setB2] = useState("");
+
+  const allIds = useMemo(() => {
+    const ids = mode === "singles" ? [a1, b1] : [a1, a2, b1, b2];
+    return ids.filter(Boolean);
+  }, [mode, a1, a2, b1, b2]);
+
+  const isValid =
+    mode === "singles"
+      ? allIds.length === 2 && new Set(allIds).size === 2
+      : allIds.length === 4 && new Set(allIds).size === 4;
 
   const pairA = [a1, a2].sort().join("::");
   const pairB = [b1, b2].sort().join("::");
-  const warnA = a1 && a2 && seenTeammates.has(pairA);
-  const warnB = b1 && b2 && seenTeammates.has(pairB);
-  
+  const warnA = mode === "doubles" && a1 && a2 && seenTeammates.has(pairA);
+  const warnB = mode === "doubles" && b1 && b2 && seenTeammates.has(pairB);
+
+  const reset = () => {
+    setA1(""); setA2(""); setB1(""); setB2("");
+  };
+
+  const create = () => {
+    if (!isValid) return;
+    if (mode === "singles") onCreate([a1, ""], [b1, ""]);
+    else onCreate([a1, a2], [b1, b2]);
+    reset();
+  };
+
   const renderSelect = (val: string, set: any, label: string) => (
-      <div className="flex-1">
-          <label className="text-[10px] uppercase font-bold text-slate-400">{label}</label>
-          <select className={`${input} text-sm py-1`} value={val} onChange={e => set(e.target.value)}>
-              <option value="" disabled>-</option>
-              {players.map((p:any) => (
-                  <option key={p.id} value={p.id} disabled={allIds.includes(p.id) && p.id !== val}>
-                      {p.name} {freeIds && !freeIds.includes(p.id) ? "(played)" : ""}
-                  </option>
-              ))}
-          </select>
-      </div>
+    <div className="flex-1">
+      <label className="text-[10px] uppercase font-bold text-slate-400">{label}</label>
+      <select className={`${input} text-sm py-1`} value={val} onChange={(e) => set(e.target.value)}>
+        <option value="" disabled>-</option>
+        {players.map((p: any) => (
+          <option
+            key={p.id}
+            value={p.id}
+            disabled={allIds.includes(p.id) && p.id !== val}
+          >
+            {p.name} {freeIds && !freeIds.includes(p.id) ? "(played)" : ""}
+          </option>
+        ))}
+      </select>
+    </div>
   );
 
   return (
-      <div className={cardContainer}>
-          <BrandStripe />
-          <div className={cardContent}>
-            <h3 className="font-bold text-slate-800 mb-3">Manual Match</h3>
-            <div className="flex gap-2 mb-2">
-                <div className={`flex-1 space-y-2 p-2 rounded-lg border ${warnA ? "bg-amber-50 border-amber-200" : "bg-slate-50 border-slate-100"}`}>
-                    <div className="flex justify-between">
-                        <div className="text-xs font-bold text-[#84cc16]">TEAM A</div>
-                        {warnA && <span className="text-[10px] text-amber-600 font-bold">⚠️ Played</span>}
-                    </div>
-                    <div className="flex gap-2">{renderSelect(a1, setA1, "P1")}{renderSelect(a2, setA2, "P2")}</div>
-                </div>
-                <div className={`flex-1 space-y-2 p-2 rounded-lg border ${warnB ? "bg-amber-50 border-amber-200" : "bg-slate-50 border-slate-100"}`}>
-                    <div className="flex justify-between">
-                        <div className="text-xs font-bold text-rose-500">TEAM B</div>
-                        {warnB && <span className="text-[10px] text-amber-600 font-bold">⚠️ Played</span>}
-                    </div>
-                    <div className="flex gap-2">{renderSelect(b1, setB1, "P1")}{renderSelect(b2, setB2, "P2")}</div>
-                </div>
-            </div>
-            <button onClick={create} disabled={!isValid} className={`${btnPrimary} w-full`}>Add Match</button>
+    <div className={cardContainer}>
+      <BrandStripe />
+      <div className={cardContent}>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-bold text-slate-800">Manual Match</h3>
+
+          {/* Match type toggle */}
+          <div className="flex p-1 rounded-lg border border-slate-200 bg-slate-50">
+            <button
+              type="button"
+              onClick={() => setMode("singles")}
+              className={`px-3 py-1 text-[11px] font-bold rounded-md transition-all ${
+                mode === "singles" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              1v1
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("doubles")}
+              className={`px-3 py-1 text-[11px] font-bold rounded-md transition-all ${
+                mode === "doubles" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              2v2
+            </button>
           </div>
+        </div>
+
+        {mode === "singles" ? (
+          <div className="flex gap-2 mb-2">
+            <div className="flex-1 space-y-2 p-2 rounded-lg border bg-slate-50 border-slate-100">
+              <div className="text-xs font-bold text-[#84cc16]">PLAYER A</div>
+              {renderSelect(a1, setA1, "P1")}
+            </div>
+            <div className="flex-1 space-y-2 p-2 rounded-lg border bg-slate-50 border-slate-100">
+              <div className="text-xs font-bold text-rose-500">PLAYER B</div>
+              {renderSelect(b1, setB1, "P1")}
+            </div>
+          </div>
+        ) : (
+          <div className="flex gap-2 mb-2">
+            <div
+              className={`flex-1 space-y-2 p-2 rounded-lg border ${
+                warnA ? "bg-amber-50 border-amber-200" : "bg-slate-50 border-slate-100"
+              }`}
+            >
+              <div className="flex justify-between">
+                <div className="text-xs font-bold text-[#84cc16]">TEAM A</div>
+                {warnA && <span className="text-[10px] text-amber-600 font-bold">⚠️ Played</span>}
+              </div>
+              <div className="flex gap-2">
+                {renderSelect(a1, setA1, "P1")}
+                {renderSelect(a2, setA2, "P2")}
+              </div>
+            </div>
+
+            <div
+              className={`flex-1 space-y-2 p-2 rounded-lg border ${
+                warnB ? "bg-amber-50 border-amber-200" : "bg-slate-50 border-slate-100"
+              }`}
+            >
+              <div className="flex justify-between">
+                <div className="text-xs font-bold text-rose-500">TEAM B</div>
+                {warnB && <span className="text-[10px] text-amber-600 font-bold">⚠️ Played</span>}
+              </div>
+              <div className="flex gap-2">
+                {renderSelect(b1, setB1, "P1")}
+                {renderSelect(b2, setB2, "P2")}
+              </div>
+            </div>
+          </div>
+        )}
+
+        <button onClick={create} disabled={!isValid} className={`${btnPrimary} w-full`}>
+          Add Match
+        </button>
       </div>
-  )
+    </div>
+  );
 }
 
 function DrawMatches({ players, presentIds, matchesForDate, date, league, write }: any) {
@@ -585,9 +667,9 @@ function MatchesList({ matches, nameOf, onPick, onDelete, onClear, isAdmin }: an
                         {matches.map((m:any) => (
                             <div key={m.id} className="border border-slate-100 rounded-xl p-3 bg-slate-50/30">
                                 <div className="flex justify-between items-center text-sm mb-2">
-                                    <span className={`font-bold ${m.winner==='A'?'text-[#84cc16]':'text-slate-700'}`}>{nameOf(m.teamA[0])} & {nameOf(m.teamA[1])}</span>
+                                    <span className={`font-bold ${m.winner==='A'?'text-[#84cc16]':'text-slate-700'}`}>{formatTeam(m.teamA, nameOf)}</span>
                                     <span className="text-xs text-slate-400">vs</span>
-                                    <span className={`font-bold ${m.winner==='B'?'text-[#84cc16]':'text-slate-700'}`}>{nameOf(m.teamB[0])} & {nameOf(m.teamB[1])}</span>
+                                    <span className={`font-bold ${m.winner==='B'?'text-[#84cc16]':'text-slate-700'}`}>{formatTeam(m.teamB, nameOf)}</span>
                                 </div>
                                 {isAdmin && (
                                     <div className="flex gap-2 mt-2">
@@ -644,7 +726,7 @@ function MatchesPlayer({ grouped, nameOf }: any) {
                                             <div className={`flex-1 text-center sm:text-left flex items-center gap-2 ${winnerA ? 'font-bold text-slate-800' : 'text-slate-500'}`}>
                                                 {winnerA && <span className="text-lg">🏆</span>}
                                                 <span className={winnerA ? "text-emerald-700" : ""}>
-                                                    {nameOf(m.teamA[0])} & {nameOf(m.teamA[1])}
+                                                    {formatTeam(m.teamA, nameOf)}
                                                 </span>
                                             </div>
 
@@ -656,7 +738,7 @@ function MatchesPlayer({ grouped, nameOf }: any) {
                                             {/* TEAM B */}
                                             <div className={`flex-1 text-center sm:text-right flex items-center justify-end gap-2 ${winnerB ? 'font-bold text-slate-800' : 'text-slate-500'}`}>
                                                 <span className={winnerB ? "text-emerald-700" : ""}>
-                                                    {nameOf(m.teamB[0])} & {nameOf(m.teamB[1])}
+                                                    {formatTeam(m.teamB, nameOf)}
                                                 </span>
                                                 {winnerB && <span className="text-lg">🏆</span>}
                                             </div>
@@ -672,7 +754,7 @@ function MatchesPlayer({ grouped, nameOf }: any) {
     )
 }
 
-function Standings({ rows }: any) {
+function Standings({ rows, matchFilter, onMatchFilterChange, showMatchFilterToggle }: any) {
   const [tab, setTab] = useState<"All" | "Women" | "Men">("All");
 
   type SortKey = "totalPoints" | "winRate" | "matches";
@@ -734,6 +816,44 @@ function Standings({ rows }: any) {
       <div className={cardContent}>
         <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-3">
           <h3 className="font-bold text-slate-800 text-lg">League Standings</h3>
+
+          {showMatchFilterToggle && (
+            <div className="flex p-1 rounded-lg border border-slate-200 bg-slate-50">
+              <button
+                type="button"
+                onClick={() => onMatchFilterChange?.("singles")}
+                className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
+                  matchFilter === "singles"
+                    ? "bg-white text-slate-800 shadow-sm"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                1v1
+              </button>
+              <button
+                type="button"
+                onClick={() => onMatchFilterChange?.("all")}
+                className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
+                  matchFilter === "all"
+                    ? "bg-white text-slate-800 shadow-sm"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                All
+              </button>
+              <button
+                type="button"
+                onClick={() => onMatchFilterChange?.("doubles")}
+                className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
+                  matchFilter === "doubles"
+                    ? "bg-white text-slate-800 shadow-sm"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                2v2
+              </button>
+            </div>
+          )}
 
           {/* iOS-style pill tabs */}
           <div className="flex p-1 rounded-lg" style={{ backgroundColor: "#f8fafc" }}>
@@ -1365,6 +1485,7 @@ export default function App() {
   );
   const [meId, setMeId] = useState("");
   const [christmasMode, setChristmasMode] = useState(false);
+  const [standingsMatchFilter, setStandingsMatchFilter] = useState<"singles" | "all" | "doubles">("all");
   const handleRoleChange = (next: "player" | "admin") => {
     if (next === "admin") {
       // MINDIG kérjen PIN-t adminra váltáskor
@@ -1401,13 +1522,14 @@ export default function App() {
   const standings = useMemo(() => {
     const s = new Map();
     const MIN_MATCHES = 5;
-   players
-  .filter((p) => !isHiddenFromStandings(p))
-  .forEach((p) =>
-    s.set(p.id, { ...p, wins: 0, matches: 0, totalPoints: 0, qualified: false })
-  );
-
-    matches.forEach(m => {
+    const matchesForStandings =
+      standingsMatchFilter === "all"
+        ? matches
+        : matches.filter((m) =>
+            standingsMatchFilter === "singles" ? isSinglesMatch(m) : !isSinglesMatch(m)
+          );
+    players.forEach(p => s.set(p.id, { ...p, wins:0, matches:0, totalPoints:0, qualified: false }));
+    matchesForStandings.forEach(m => {
         if(!m.winner) return;
         [...m.teamA,...m.teamB].forEach(id => { const d = s.get(id); if(d) d.matches++; });
         const w = m.winner==='A'?m.teamA:m.teamB;
@@ -1420,7 +1542,7 @@ export default function App() {
         winRate: p.matches?Math.round(p.wins/p.matches*100):0,
         qualified: p.matches >= MIN_MATCHES
     })).sort((a,b) => b.totalPoints - a.totalPoints);
-  }, [players, matches]);
+  }, [players, matches, standingsMatchFilter]);
 
   const addPlayer = (name: string) => write({ players: [...players, { id: uid(), name }] });
   const removePlayer = (id: string) => write({ players: players.filter(p => p.id !== id) });
@@ -1515,7 +1637,7 @@ export default function App() {
         ) : (
   <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
     <div className="space-y-6 lg:col-span-2">
-      <Standings rows={standings} />
+      <Standings rows={standings} showMatchFilterToggle matchFilter={standingsMatchFilter} onMatchFilterChange={setStandingsMatchFilter} />
       <MatchesPlayer grouped={grouped} nameOf={nameOf} />
     </div>
     <div className="space-y-6 min-w-[260px]">
