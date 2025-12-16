@@ -818,8 +818,8 @@ function Standings({ rows, matchFilter, onMatchFilterChange, showMatchFilterTogg
           <h3 className="font-bold text-slate-800 text-lg">League Standings</h3>
 
           {showMatchFilterToggle && (
-            <div className="flex p-1 rounded-lg border border-slate-200 bg-slate-50">
-              <button
+<div className="flex p-1 rounded-lg bg-white border border-slate-100 shadow-sm">
+                <button
                 type="button"
                 onClick={() => onMatchFilterChange?.("singles")}
                 className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
