@@ -820,44 +820,50 @@ function Standings({ rows, matchFilter, onMatchFilterChange, showMatchFilterTogg
           <h3 className="font-bold text-slate-800 text-lg">League Standings</h3>
 
 {showMatchFilterToggle && (
-  <div className="flex p-1 rounded-lg bg-white border border-slate-200 shadow-sm">
-    <button
-      type="button"
-      onClick={() => onMatchFilterChange?.("singles")}
-      className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
-        matchFilter === "singles"
-          ? "bg-slate-900 text-white shadow-sm"
-          : "bg-transparent text-slate-500 hover:text-slate-700"
-      }`}
-    >
-      1v1
-    </button>
+  <div
+    className="relative flex p-1 rounded-lg overflow-hidden"
+    style={{ backgroundColor: "#f8fafc" }}
+  >
+    {/* SLIDING BACKGROUND */}
+    <div
+      className="absolute top-1 bottom-1 rounded-md bg-white shadow-sm transition-all duration-300 ease-out"
+      style={{
+        width: "33.333%",
+        left:
+          matchFilter === "singles"
+            ? "0%"
+            : matchFilter === "all"
+            ? "33.333%"
+            : "66.666%",
+      }}
+    />
 
-    <button
-      type="button"
-      onClick={() => onMatchFilterChange?.("all")}
-      className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
-        matchFilter === "all"
-          ? "bg-slate-900 text-white shadow-sm"
-          : "bg-transparent text-slate-500 hover:text-slate-700"
-      }`}
-    >
-      All
-    </button>
+    {[
+      { key: "singles", label: "1v1" },
+      { key: "all", label: "All" },
+      { key: "doubles", label: "2v2" },
+    ].map(({ key, label }) => {
+      const active = matchFilter === key;
 
-    <button
-      type="button"
-      onClick={() => onMatchFilterChange?.("doubles")}
-      className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
-        matchFilter === "doubles"
-          ? "bg-slate-900 text-white shadow-sm"
-          : "bg-transparent text-slate-500 hover:text-slate-700"
-      }`}
-    >
-      2v2
-    </button>
+      return (
+        <button
+          key={key}
+          type="button"
+          onClick={() => onMatchFilterChange?.(key as any)}
+          className={`relative z-10 flex-1 px-6 py-1.5 text-xs font-bold rounded-md transition-colors ${
+            active
+              ? "text-[#84cc16]"
+              : "text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          {label}
+        </button>
+      );
+    })}
   </div>
 )}
+
+
 
 
           {/* iOS-style pill tabs */}
