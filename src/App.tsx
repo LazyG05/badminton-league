@@ -819,43 +819,46 @@ function Standings({ rows, matchFilter, onMatchFilterChange, showMatchFilterTogg
         <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-3">
           <h3 className="font-bold text-slate-800 text-lg">League Standings</h3>
 
-          {showMatchFilterToggle && (
-<div className="flex p-1 rounded-lg bg-white border border-slate-100 shadow-sm">
-                <button
-                type="button"
-                onClick={() => onMatchFilterChange?.("singles")}
-                className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
-                  matchFilter === "singles"
-                    ? "bg-white text-slate-800 shadow-sm"
-                    : "text-slate-500 hover:text-slate-700"
-                }`}
-              >
-                1v1
-              </button>
-              <button
-                type="button"
-                onClick={() => onMatchFilterChange?.("all")}
-                className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
-                  matchFilter === "all"
-                    ? "bg-white text-slate-800 shadow-sm"
-                    : "text-slate-500 hover:text-slate-700"
-                }`}
-              >
-                All
-              </button>
-              <button
-                type="button"
-                onClick={() => onMatchFilterChange?.("doubles")}
-                className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
-                  matchFilter === "doubles"
-                    ? "bg-white text-slate-800 shadow-sm"
-                    : "text-slate-500 hover:text-slate-700"
-                }`}
-              >
-                2v2
-              </button>
-            </div>
-          )}
+{showMatchFilterToggle && (
+  <div className="flex p-1 rounded-lg bg-white border border-slate-200 shadow-sm">
+    <button
+      type="button"
+      onClick={() => onMatchFilterChange?.("singles")}
+      className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
+        matchFilter === "singles"
+          ? "bg-slate-900 text-white shadow-sm"
+          : "bg-transparent text-slate-500 hover:text-slate-700"
+      }`}
+    >
+      1v1
+    </button>
+
+    <button
+      type="button"
+      onClick={() => onMatchFilterChange?.("all")}
+      className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
+        matchFilter === "all"
+          ? "bg-slate-900 text-white shadow-sm"
+          : "bg-transparent text-slate-500 hover:text-slate-700"
+      }`}
+    >
+      All
+    </button>
+
+    <button
+      type="button"
+      onClick={() => onMatchFilterChange?.("doubles")}
+      className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
+        matchFilter === "doubles"
+          ? "bg-slate-900 text-white shadow-sm"
+          : "bg-transparent text-slate-500 hover:text-slate-700"
+      }`}
+    >
+      2v2
+    </button>
+  </div>
+)}
+
 
           {/* iOS-style pill tabs */}
           <div className="flex p-1 rounded-lg" style={{ backgroundColor: "#f8fafc" }}>
