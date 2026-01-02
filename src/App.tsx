@@ -207,8 +207,14 @@ const EMOJIS = ["🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼","🐨","
 const ADMIN_PIN = "2051"; // ide írd a saját 4 jegyű PIN kódod
 
 // ========================= Data Sync =========================
+// ========================= Data Sync =========================
 function useLeague() {
-  const [data, setData] = useState<LeagueDoc>({ players: [], matches: [], backups: [] });
+  const [data, setData] = useState<LeagueDoc>({
+    players: [],
+    matches: [],
+    backups: [],
+  });
+
   const suppress = useRef(false);
   const tRef = useRef<number | null>(null);
 
@@ -216,29 +222,76 @@ function useLeague() {
     const ref = doc(db, "leagues", "default");
     const unsub = onSnapshot(ref, async (snap) => {
       if (snap.metadata.hasPendingWrites) return;
+
       if (snap.exists()) {
         suppress.current = true;
         setData(snap.data() as LeagueDoc);
         setTimeout(() => (suppress.current = false), 0);
       } else {
-        await setDoc(ref, { players: [], matches: [], backups: [], createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+        await setDoc(ref, {
+          players: [],
+          matches: [],
+          backups: [],
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
       }
     });
+
     return () => unsub();
   }, []);
 
+  // Patch-style write (merge), debounced
   const write = useCallback((patch: Partial<LeagueDoc>) => {
     if (tRef.current) window.clearTimeout(tRef.current);
+
     setData((prev) => {
       const next = { ...prev, ...patch };
+
       if (suppress.current) return next;
+
       tRef.current = window.setTimeout(async () => {
-        try { await setDoc(doc(db, "leagues", "default"), { ...next, updatedAt: serverTimestamp() } as LeagueDoc, { merge: true }); } catch (err) { console.error(err); }
+        try {
+          await setDoc(
+            doc(db, "leagues", "default"),
+            { ...next, updatedAt: serverTimestamp() } as LeagueDoc,
+            { merge: true }
+          );
+        } catch (err) {
+          console.error(err);
+        }
       }, 120);
+
       return next;
     });
   }, []);
-  return [data, write] as const;
+
+  // Full replace (NO merge) – for restore/import use-cases
+  const replaceAll = useCallback(async (next: LeagueDoc) => {
+    // local UI update immediately
+    suppress.current = true;
+    setData(next);
+    setTimeout(() => (suppress.current = false), 0);
+
+    const payload: LeagueDoc = {
+      players: Array.isArray(next.players) ? next.players : [],
+      matches: Array.isArray(next.matches) ? next.matches : [],
+      backups: Array.isArray(next.backups) ? next.backups : [],
+      title: next.title,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+
+    try {
+      await setDoc(doc(db, "leagues", "default"), payload as LeagueDoc, {
+        merge: false,
+      });
+    } catch (err) {
+      console.error(err);
+    }
+  }, []);
+
+  return [data, write, replaceAll] as const;
 }
 
 // ========================= Sidebar =========================
@@ -413,6 +466,175 @@ function AdminDateJump({ grouped, date, setDate }: any) {
         </div>
     </div>
   )
+}
+
+function ImportExportCard({
+  league,
+  onReplace,
+}: {
+  league: LeagueDoc;
+  onReplace: (doc: LeagueDoc) => Promise<void> | void;
+}) {
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const [status, setStatus] = useState<{ kind: "ok" | "err"; msg: string } | null>(null);
+
+  const download = (filename: string, content: string) => {
+    const blob = new Blob([content], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  const buildExport = () => {
+    const bundle = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      league: {
+        title: league.title ?? "",
+        players: league.players ?? [],
+        matches: league.matches ?? [],
+        backups: league.backups ?? [],
+      },
+    };
+    return JSON.stringify(bundle, null, 2);
+  };
+
+  const sanitizeLeague = (raw: any): LeagueDoc | null => {
+    const src = raw?.league && (raw.version || raw.exportedAt) ? raw.league : raw;
+
+    const players = Array.isArray(src?.players) ? src.players : null;
+    const matches = Array.isArray(src?.matches) ? src.matches : null;
+    if (!players || !matches) return null;
+
+    const cleanPlayers: Player[] = players
+      .filter((p: any) => p && typeof p.id === "string" && typeof p.name === "string")
+      .map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        gender: p.gender === "M" || p.gender === "F" ? p.gender : undefined,
+      }));
+
+    const cleanMatches: Match[] = matches
+      .filter(
+        (m: any) =>
+          m &&
+          typeof m.id === "string" &&
+          typeof m.date === "string" &&
+          Array.isArray(m.teamA) &&
+          Array.isArray(m.teamB)
+      )
+      .map((m: any) => ({
+        id: m.id,
+        date: m.date,
+        teamA: [String(m.teamA[0] ?? ""), String(m.teamA[1] ?? "")] as Pair,
+        teamB: [String(m.teamB[0] ?? ""), String(m.teamB[1] ?? "")] as Pair,
+        winner: m.winner === "A" || m.winner === "B" ? m.winner : undefined,
+      }));
+
+    const backups: Backup[] = Array.isArray(src?.backups)
+      ? src.backups
+          .filter((b: any) => b && typeof b.id === "string" && b.data)
+          .map((b: any) => ({
+            id: b.id,
+            createdAt: typeof b.createdAt === "string" ? b.createdAt : new Date().toISOString(),
+            note: typeof b.note === "string" ? b.note : undefined,
+            data: {
+              players: Array.isArray(b.data?.players) ? b.data.players : [],
+              matches: Array.isArray(b.data?.matches) ? b.data.matches : [],
+            },
+          }))
+      : [];
+
+    return {
+      title: typeof src?.title === "string" ? src.title : undefined,
+      players: cleanPlayers,
+      matches: cleanMatches,
+      backups,
+    };
+  };
+
+  const doExport = () => {
+    setStatus(null);
+    try {
+      const content = buildExport();
+      download(`bia-tollas-backup-${fmt(new Date())}.json`, content);
+      setStatus({ kind: "ok", msg: "Backup exported." });
+    } catch (e: any) {
+      setStatus({ kind: "err", msg: e?.message || "Export failed." });
+    }
+  };
+
+  const doImport = async (file: File) => {
+    setStatus(null);
+    try {
+      const txt = await file.text();
+      const raw = JSON.parse(txt);
+      const cleaned = sanitizeLeague(raw);
+      if (!cleaned) throw new Error("Invalid backup format (need players + matches).");
+
+      await onReplace(cleaned);
+      setStatus({ kind: "ok", msg: "Backup imported (database replaced)." });
+    } catch (e: any) {
+      setStatus({ kind: "err", msg: e?.message || "Import failed." });
+    }
+  };
+
+  return (
+    <div className={cardContainer}>
+      <BrandStripe />
+      <div className={cardContent}>
+        <h3 className="font-bold text-slate-800 mb-1">Import / Export</h3>
+        <p className="text-xs text-slate-500 mb-4">
+          Export a full JSON backup, or import one to fully restore the database.
+        </p>
+
+        <div className="grid grid-cols-1 gap-2">
+          <button className={btnSecondary} onClick={doExport}>
+            ⬇️ Export JSON backup
+          </button>
+
+          <button
+            className={btnDanger}
+            onClick={() => fileRef.current?.click()}
+            title="This will overwrite the current database"
+          >
+            ⬆️ Import JSON (overwrite)
+          </button>
+
+          <input
+            ref={fileRef}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              e.target.value = "";
+              if (f) void doImport(f);
+            }}
+          />
+        </div>
+
+        <div className="mt-3 text-[11px] text-slate-500">
+          Tip: keep a backup before importing. Import replaces <b>players</b>, <b>matches</b> (and backups, if present).
+        </div>
+
+        {status && (
+          <div
+            className={`mt-3 text-xs font-semibold ${
+              status.kind === "ok" ? "text-emerald-700" : "text-rose-600"
+            }`}
+          >
+            {status.msg}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function PlayerEditor({ players, onAdd, onRemove, onUpdateEmoji, onUpdateGender }: any) {
@@ -1483,7 +1705,7 @@ function AdminPinModal({
 
 // ========================= MAIN APP =========================
 export default function App() {
-  const [league, write] = useLeague();
+  const [league, write, replaceAll] = useLeague();
   const { players, matches } = league;
 
   const [role, setRole] = useState<"player" | "admin">("player");
@@ -1647,6 +1869,7 @@ players
                 <div className="space-y-6">
                     <PlayerEditor players={players} onAdd={addPlayer} onRemove={removePlayer} onUpdateEmoji={updatePlayerEmoji} onUpdateGender={updatePlayerGender} />
                     <AdminDateJump grouped={grouped} date={date} setDate={setDate} />
+                    <ImportExportCard league={league} onReplace={replaceAll} />
                     <Standings rows={standings} />
                 </div>
             </div>
