@@ -12,7 +12,7 @@ import {
   setDoc,
   serverTimestamp,
 } from "firebase/firestore";
-import { getAuth, signInAnonymously } from "firebase/auth";
+import { getAuth, onAuthStateChanged, signInAnonymously } from "firebase/auth";
 
 /**
  * =============================================================
@@ -65,7 +65,6 @@ const firebaseConfig = {
 };
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-signInAnonymously(auth).catch(() => {});
 const db = getFirestore(app, "default");
 
 console.log("🔥 Firebase projectId:", import.meta.env.VITE_FIREBASE_PROJECT_ID);
@@ -228,28 +227,53 @@ function useLeague() {
   const suppress = useRef(false);
   const tRef = useRef<number | null>(null);
 
-  useEffect(() => {
-    const ref = doc(db, "leagues", "default");
-    const unsub = onSnapshot(ref, async (snap) => {
-      if (snap.metadata.hasPendingWrites) return;
+useEffect(() => {
+  const ref = doc(db, "leagues", "default");
 
-      if (snap.exists()) {
-        suppress.current = true;
-        setData(snap.data() as LeagueDoc);
-        setTimeout(() => (suppress.current = false), 0);
-      } else {
-        await setDoc(ref, {
-          players: [],
-          matches: [],
-          backups: [],
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
+  // 1) Auth állapot figyelés
+  const unsubAuth = onAuthStateChanged(auth, async (user) => {
+    // ha még nincs user → beléptetünk anonként
+    if (!user) {
+      try {
+        await signInAnonymously(auth);
+      } catch (e) {
+        console.error("Anonymous sign-in failed:", e);
       }
-    });
+      return; // majd a következő auth state change-nél folytatjuk
+    }
 
-    return () => unsub();
-  }, []);
+    // 2) ✅ itt már biztosan van user → indulhat a Firestore listener
+    const unsubSnap = onSnapshot(
+      ref,
+      async (snap) => {
+        if (snap.metadata.hasPendingWrites) return;
+
+        if (snap.exists()) {
+          suppress.current = true;
+          setData(snap.data() as LeagueDoc);
+          setTimeout(() => (suppress.current = false), 0);
+        } else {
+          await setDoc(ref, {
+            players: [],
+            matches: [],
+            backups: [],
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
+        }
+      },
+      (err) => {
+        console.error("Firestore snapshot error:", err);
+      }
+    );
+
+    // ha auth state újra változik, takarítsunk
+    return () => unsubSnap();
+  });
+
+  return () => unsubAuth();
+}, []);
+
 
   // Patch-style write (merge), debounced
   const write = useCallback((patch: Partial<LeagueDoc>) => {
