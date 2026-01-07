@@ -78,6 +78,38 @@ console.log(
 
 
 // ========================= Utils =========================
+const isPlainObject = (v: any) =>
+  v !== null &&
+  typeof v === "object" &&
+  (Object.getPrototypeOf(v) === Object.prototype || Object.getPrototypeOf(v) === null);
+
+/**
+ * Firestore-safe deep clean:
+ * - object mezőből kidobja az undefined-et
+ * - array-ben az undefined elemet null-ra cseréli
+ * - FieldValue / Timestamp jellegű nem-plain objecteket békén hagy
+ */
+function stripUndefinedDeep<T>(value: T): T {
+  if (value === undefined) return undefined as any;
+  if (value === null) return value;
+
+  if (Array.isArray(value)) {
+    return value.map((v) => (v === undefined ? null : stripUndefinedDeep(v))) as any;
+  }
+
+  if (isPlainObject(value)) {
+    const out: any = {};
+    for (const [k, v] of Object.entries(value as any)) {
+      if (v === undefined) continue;
+      out[k] = stripUndefinedDeep(v);
+    }
+    return out;
+  }
+
+  // pl. serverTimestamp() FieldValue -> hagyjuk
+  return value;
+}
+
 const uid = () => Math.random().toString(36).slice(2, 10);
 const fmt = (d: Date) => d.toISOString().slice(0, 10);
 const weekday = (dstr: string) =>
@@ -286,11 +318,11 @@ useEffect(() => {
 
       tRef.current = window.setTimeout(async () => {
         try {
-          await setDoc(
-            doc(db, "leagues", "default"),
-            { ...next, updatedAt: serverTimestamp() } as LeagueDoc,
-            { merge: true }
-          );
+await setDoc(
+  doc(db, "leagues", "default"),
+  stripUndefinedDeep({ ...next, updatedAt: serverTimestamp() } as LeagueDoc),
+  { merge: true }
+);
         } catch (err) {
           console.error(err);
         }
@@ -317,9 +349,9 @@ useEffect(() => {
     };
 
     try {
-      await setDoc(doc(db, "leagues", "default"), payload as LeagueDoc, {
-        merge: false,
-      });
+await setDoc(doc(db, "leagues", "default"), stripUndefinedDeep(payload as LeagueDoc), {
+  merge: false,
+});
     } catch (err) {
       console.error(err);
     }
@@ -535,7 +567,7 @@ function ImportExportCard({
         backups: league.backups ?? [],
       },
     };
-    return JSON.stringify(bundle, null, 2);
+    return JSON.stringify(stripUndefinedDeep(bundle), null, 2);
   };
 
   const sanitizeLeague = (raw: any): LeagueDoc | null => {
@@ -547,11 +579,12 @@ function ImportExportCard({
 
     const cleanPlayers: Player[] = players
       .filter((p: any) => p && typeof p.id === "string" && typeof p.name === "string")
-      .map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        gender: p.gender === "M" || p.gender === "F" ? p.gender : undefined,
-      }));
+.map((p: any) => ({
+  id: p.id,
+  name: p.name,
+  ...(p.gender === "M" || p.gender === "F" ? { gender: p.gender } : {}),
+}));
+
 
     const cleanMatches: Match[] = matches
       .filter(
@@ -567,7 +600,8 @@ function ImportExportCard({
         date: m.date,
         teamA: [String(m.teamA[0] ?? ""), String(m.teamA[1] ?? "")] as Pair,
         teamB: [String(m.teamB[0] ?? ""), String(m.teamB[1] ?? "")] as Pair,
-        winner: m.winner === "A" || m.winner === "B" ? m.winner : undefined,
+      ...(m.winner === "A" || m.winner === "B" ? { winner: m.winner } : {}),
+
       }));
 
     const backups: Backup[] = Array.isArray(src?.backups)
@@ -576,7 +610,7 @@ function ImportExportCard({
           .map((b: any) => ({
             id: b.id,
             createdAt: typeof b.createdAt === "string" ? b.createdAt : new Date().toISOString(),
-            note: typeof b.note === "string" ? b.note : undefined,
+          ...(typeof b.note === "string" ? { note: b.note } : {}),
             data: {
               players: Array.isArray(b.data?.players) ? b.data.players : [],
               matches: Array.isArray(b.data?.matches) ? b.data.matches : [],
@@ -584,12 +618,13 @@ function ImportExportCard({
           }))
       : [];
 
-    return {
-      title: typeof src?.title === "string" ? src.title : undefined,
-      players: cleanPlayers,
-      matches: cleanMatches,
-      backups,
-    };
+return {
+  ...(typeof src?.title === "string" ? { title: src.title } : {}),
+  players: cleanPlayers,
+  matches: cleanMatches,
+  backups,
+};
+
   };
 
   const doExport = () => {
