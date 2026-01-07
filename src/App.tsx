@@ -68,6 +68,16 @@ const auth = getAuth(app);
 signInAnonymously(auth).catch(() => {});
 const db = getFirestore(app);
 
+console.log("🔥 Firebase projectId:", import.meta.env.VITE_FIREBASE_PROJECT_ID);
+
+// belső mező, csak debugra
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+console.log(
+  "🔥 Firestore databaseId:",
+  (db as any)?._databaseId?.database
+);
+
+
 // ========================= Utils =========================
 const uid = () => Math.random().toString(36).slice(2, 10);
 const fmt = (d: Date) => d.toISOString().slice(0, 10);
