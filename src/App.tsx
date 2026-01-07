@@ -66,7 +66,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 signInAnonymously(auth).catch(() => {});
-const db = getFirestore(app);
+const db = getFirestore(app, "default");
 
 console.log("🔥 Firebase projectId:", import.meta.env.VITE_FIREBASE_PROJECT_ID);
 
