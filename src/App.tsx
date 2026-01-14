@@ -473,10 +473,46 @@ function MobileHeader({ role, setRole }: { role: "player" | "admin"; setRole: (r
   </div>
 </div>
 
-            <div className="flex text-xs bg-slate-800/50 backdrop-blur-sm rounded-lg p-1 border border-white/5 relative z-10">
-                <button onClick={() => setRole("player")} className={`px-3 py-1 rounded ${role==="player"?"bg-[#84cc16] text-white":"text-slate-300"}`}>Player</button>
-                <button onClick={() => setRole("admin")} className={`px-3 py-1 rounded ${role==="admin"?"bg-[#84cc16] text-white":"text-slate-300"}`}>Admin</button>
-            </div>
+<div className="flex items-center gap-2 relative z-10">
+  {/* 🛒 Webshop ikon gomb */}
+  <a
+    href="https://ttsport.hu/partnereink-termekei/bia-sc/bia-sc-tollaslabda"
+    target="_blank"
+    rel="noopener noreferrer"
+    className="
+      inline-flex items-center justify-center
+      w-9 h-9 rounded-lg
+      bg-slate-800/50 backdrop-blur-sm
+      border border-white/5
+      text-white
+      hover:bg-white/10 transition
+    "
+    title="Webshop"
+  >
+    <Icons.Shop />
+  </a>
+
+  {/* Player/Admin toggle marad, csak köré tettünk egy konténert */}
+  <div className="flex text-xs bg-slate-800/50 backdrop-blur-sm rounded-lg p-1 border border-white/5">
+    <button
+      onClick={() => setRole("player")}
+      className={`px-3 py-1 rounded ${
+        role === "player" ? "bg-[#84cc16] text-white" : "text-slate-300"
+      }`}
+    >
+      Player
+    </button>
+    <button
+      onClick={() => setRole("admin")}
+      className={`px-3 py-1 rounded ${
+        role === "admin" ? "bg-[#84cc16] text-white" : "text-slate-300"
+      }`}
+    >
+      Admin
+    </button>
+  </div>
+</div>
+
         </div>
     )
 }
