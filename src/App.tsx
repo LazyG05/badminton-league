@@ -409,11 +409,6 @@ function Sidebar({ role, setRole }: { role: "player" | "admin"; setRole: (r: "pl
           <Icons.Dashboard />
           Dashboard
         </button>
-        <button
-          onClick={() => setRole("admin")}
-          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium border ${role === "admin" ? "bg-[#84cc16] border-[#84cc16] text-white shadow-lg shadow-lime-900/20" : "bg-transparent border-transparent text-slate-400 hover:bg-white/5 hover:text-white"}`}
-        >
-          <Icons.Admin />
 
           {/* 🛒 WEBSHOP */}
 <a
@@ -431,8 +426,12 @@ function Sidebar({ role, setRole }: { role: "player" | "admin"; setRole: (r: "pl
   BIA SC Webshop
   <span className="ml-auto text-xs text-slate-300">↗</span>
 </a>
-
-          Admin Panel
+        <button
+          onClick={() => setRole("admin")}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium border ${role === "admin" ? "bg-[#84cc16] border-[#84cc16] text-white shadow-lg shadow-lime-900/20" : "bg-transparent border-transparent text-slate-400 hover:bg-white/5 hover:text-white"}`}
+        >
+          <Icons.Admin />
+        Admin Panel
         </button>
       </nav>
 
