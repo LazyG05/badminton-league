@@ -1836,14 +1836,45 @@ players
   .filter((p) => !isHiddenFromStandings(p))
   .forEach((p) =>
     s.set(p.id, { ...p, wins: 0, matches: 0, totalPoints: 0, qualified: false })
-  );    matchesForStandings.forEach(m => {
-        if(!m.winner) return;
-        [...m.teamA,...m.teamB].forEach(id => { const d = s.get(id); if(d) d.matches++; });
-        const w = m.winner==='A'?m.teamA:m.teamB;
-        w.forEach(id => { const d = s.get(id); if(d) { d.wins++; d.totalPoints+=3; } });
-        const l = m.winner==='A'?m.teamB:m.teamA;
-        l.forEach(id => { const d = s.get(id); if(d) d.totalPoints+=1; });
+  );   
+  const melinda = players.find((p) => p.name.toLowerCase().includes("melinda"));
+const melindaId = melinda?.id;
+
+matchesForStandings.forEach((m) => {
+  if (!m.winner) return;
+
+  // matches számlálás mindenkinek, aki benne volt (üres stringeket kihagyjuk)
+  [...m.teamA, ...m.teamB].filter(Boolean).forEach((id) => {
+    const d = s.get(id);
+    if (d) d.matches++;
+  });
+
+  const winners = (m.winner === "A" ? m.teamA : m.teamB).filter(Boolean);
+  const losers = (m.winner === "A" ? m.teamB : m.teamA).filter(Boolean);
+
+  // alappontok
+  winners.forEach((id) => {
+    const d = s.get(id);
+    if (d) {
+      d.wins++;
+      d.totalPoints += 3; // ✅ győzelem = 3
+    }
+  });
+
+  losers.forEach((id) => {
+    const d = s.get(id);
+    if (d) d.totalPoints += 1; // ✅ vereség = 1
+  });
+
+  // ✅ Melinda legyőzése +1 (csak a győztes oldalon, és csak ha Melinda az ellenfél csapatában volt)
+  if (melindaId && losers.includes(melindaId)) {
+    winners.forEach((id) => {
+      const d = s.get(id);
+      if (d) d.totalPoints += 1;
     });
+  }
+});
+
     return Array.from(s.values()).map((p:any) => ({ 
         ...p, 
         winRate: p.matches?Math.round(p.wins/p.matches*100):0,
