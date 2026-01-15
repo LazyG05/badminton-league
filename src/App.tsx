@@ -167,6 +167,35 @@ function IciclesTop() {
   );
 }
 
+function IceDrips() {
+  return (
+    <>
+      <style>{`
+        @keyframes ice-drip {
+          0%   { transform: translateY(-12px); opacity: 0; }
+          15%  { opacity: .35; }
+          100% { transform: translateY(90px); opacity: 0; }
+        }
+      `}</style>
+
+      <div className="pointer-events-none fixed inset-0 z-10">
+        {Array.from({ length: 14 }).map((_, i) => (
+          <div
+            key={i}
+            className="absolute top-0 w-[2px] h-10 bg-gradient-to-b from-white/55 to-transparent"
+            style={{
+              left: `${i * 7 + 2}%`,
+              animation: "ice-drip 9s linear infinite",
+              animationDelay: `${i * 0.7}s`,
+              filter: "blur(0.2px)",
+            }}
+          />
+        ))}
+      </div>
+    </>
+  );
+}
+
 
 // 🎨 DESIGN SYSTEM: COLORS & SHAPES
 
@@ -414,12 +443,34 @@ await setDoc(doc(db, "leagues", "default"), stripUndefinedDeep(payload as League
 }
 
 // ========================= Sidebar =========================
-function Sidebar({ role, setRole }: { role: "player" | "admin"; setRole: (r: "player" | "admin") => void }) {
+function Sidebar({
+  role,
+  setRole,
+  winterMode,
+}: {
+  role: "player" | "admin";
+  setRole: (r: "player" | "admin") => void;
+  winterMode: boolean;
+}) {
   const [imgError, setImgError] = useState(false);
 
   return (
     <div className="fixed left-0 top-0 h-full w-64 bg-[#1e293b] text-white flex flex-col shadow-2xl z-50 transition-transform duration-300 md:translate-x-0 -translate-x-full md:block hidden overflow-hidden">
-      
+      {winterMode && (
+  <div className="absolute top-0 left-0 right-0 z-20 pointer-events-none">
+    <div
+      className="h-7 w-full"
+      style={{
+        background:
+          "linear-gradient(to bottom, rgba(255,255,255,0.55), rgba(255,255,255,0.03))",
+        clipPath:
+          "polygon(0 0,100% 0,100% 55%,96% 55%,94% 100%,92% 55%,88% 55%,85% 95%,82% 55%,78% 55%,74% 100%,70% 55%,66% 55%,62% 92%,58% 55%,54% 55%,50% 100%,46% 55%,42% 55%,38% 92%,34% 55%,30% 55%,26% 100%,22% 55%,18% 55%,14% 95%,12% 55%,8% 55%,6% 100%,4% 55%,0 55%)",
+        borderBottom: "1px solid rgba(255,255,255,0.18)",
+      }}
+    />
+  </div>
+)}
+
       {/* 🟢 DEKORÁCIÓ: Háttér "Blobs" (Deep Atmosphere) */}
       <div className="absolute -top-20 -left-20 w-60 h-60 bg-[#84cc16] rounded-full blur-[80px] opacity-10 pointer-events-none"></div>
       <div className="absolute bottom-0 right-0 w-60 h-60 bg-teal-500 rounded-full blur-[80px] opacity-10 pointer-events-none"></div>
@@ -1632,6 +1683,7 @@ function PlayerStatsAndAchievements({
 
 
 
+
 function Snowfall() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -1939,6 +1991,7 @@ className={`min-h-screen font-sans text-slate-900 flex flex-col md:flex-row rela
 {winterMode && (
   <>
     <IciclesTop />
+    <IceDrips />
     <div className="pointer-events-none fixed inset-0 z-10 overflow-hidden">
       <Snowfall />
     </div>
@@ -1946,7 +1999,8 @@ className={`min-h-screen font-sans text-slate-900 flex flex-col md:flex-row rela
 )}
 
 
-      <Sidebar role={role} setRole={handleRoleChange} />
+
+<Sidebar role={role} setRole={handleRoleChange} winterMode={winterMode} />
       <MobileHeader role={role} setRole={handleRoleChange} />
 
 
