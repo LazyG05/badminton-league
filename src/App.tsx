@@ -125,6 +125,49 @@ const isHiddenFromStandings = (p: Player) =>
   getBaseName(p.name).trim().toLowerCase() === "orsi";
 // ========================= UI Tokens =========================
 
+function IciclesTop() {
+  return (
+    <div className="pointer-events-none fixed top-0 left-0 right-0 z-20">
+      <style>{`
+        @keyframes icicle-sway {
+          0%, 100% { transform: translateY(0px); opacity: .95; }
+          50% { transform: translateY(2px); opacity: 1; }
+        }
+        @keyframes icicle-glint {
+          0%, 100% { opacity: .25; transform: translateX(-20%); }
+          50% { opacity: .6; transform: translateX(20%); }
+        }
+      `}</style>
+
+      {/* Icicle strip */}
+      <div
+        className="h-10 md:h-12 w-full"
+        style={{
+          background:
+            "linear-gradient(to bottom, rgba(255,255,255,0.65), rgba(255,255,255,0.05))",
+          clipPath:
+            "polygon(0 0, 100% 0, 100% 55%, 96% 55%, 94% 100%, 92% 55%, 88% 55%, 85% 95%, 82% 55%, 78% 55%, 74% 100%, 70% 55%, 66% 55%, 62% 92%, 58% 55%, 54% 55%, 50% 100%, 46% 55%, 42% 55%, 38% 92%, 34% 55%, 30% 55%, 26% 100%, 22% 55%, 18% 55%, 14% 95%, 12% 55%, 8% 55%, 6% 100%, 4% 55%, 0 55%)",
+          animation: "icicle-sway 3.5s ease-in-out infinite",
+          backdropFilter: "blur(6px)",
+          borderBottom: "1px solid rgba(255,255,255,0.25)",
+        }}
+      />
+
+      {/* Glint layer */}
+      <div
+        className="absolute top-0 left-0 right-0 h-10 md:h-12"
+        style={{
+          background:
+            "linear-gradient(110deg, rgba(255,255,255,0) 20%, rgba(255,255,255,0.45) 50%, rgba(255,255,255,0) 80%)",
+          animation: "icicle-glint 4.5s ease-in-out infinite",
+          mixBlendMode: "overlay",
+        }}
+      />
+    </div>
+  );
+}
+
+
 // 🎨 DESIGN SYSTEM: COLORS & SHAPES
 
 // 1. A Sportos Csík (Brand Stripe)
@@ -1350,13 +1393,13 @@ function PlayerStatsAndAchievements({
   matches,
   meId,
   setMeId,
-  christmasMode,
+  winterMode,
 }: {
   players: Player[];
   matches: Match[];
   meId: string;
   setMeId: (id: string) => void;
-  christmasMode?: boolean;
+  winterMode?: boolean;
 }) {
   const stats = useMemo(() => {
     if (!meId) return null;
@@ -1397,9 +1440,9 @@ function PlayerStatsAndAchievements({
             My Stats &amp; Achievements
           </h3>
 
-          {christmasMode && (
+          {winterMode && (
             <div className="flex items-center gap-1 text-[11px] font-semibold text-emerald-700">
-              <span>🎄 Christmas mode</span>
+              <span>🎄 Winter mode</span>
               <span className="text-rose-500">⭐ extra cheer</span>
             </div>
           )}
@@ -1429,7 +1472,7 @@ function PlayerStatsAndAchievements({
         {stats && (
           <div className="grid grid-cols-3 gap-2 mb-4 text-center">
             <div className="bg-slate-50 p-2 rounded-lg relative overflow-hidden">
-              {christmasMode && (
+              {winterMode && (
                 <span className="absolute -top-1 -left-1 text-lg">❄️</span>
               )}
               <div className="text-xl font-black text-slate-800">
@@ -1438,18 +1481,18 @@ function PlayerStatsAndAchievements({
               <div className="text-xs text-slate-400">Matches</div>
             </div>
             <div className="bg-[#f0fdf4] p-2 rounded-lg relative overflow-hidden">
-              {christmasMode && (
+              {winterMode && (
                 <span className="absolute -top-1 right-1 text-lg">🎁</span>
               )}
               <div className="text-xl font-black text-[#84cc16]">
                 {stats.wins}
               </div>
               <div className="text-xs text-lime-700">
-                Wins {christmasMode && "• nice list ✅"}
+                Wins {winterMode && "• nice list ✅"}
               </div>
             </div>
             <div className="bg-slate-50 p-2 rounded-lg relative overflow-hidden">
-              {christmasMode && (
+              {winterMode && (
                 <span className="absolute -top-1 left-1 text-lg">🎅</span>
               )}
               <div className="text-xl font-black text-slate-800">
@@ -1463,9 +1506,9 @@ function PlayerStatsAndAchievements({
         {/* Achievements blokk (polc + alumínium plakettek) */}
         <div className="mt-4 border-t border-slate-100 pt-4">
           <h4 className="mb-2 text-sm font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
-            {christmasMode && <span>🕯️</span>}
+            {winterMode && <span>🕯️</span>}
             <span>Achievements</span>
-            {christmasMode && <span>⭐</span>}
+            {winterMode && <span>⭐</span>}
           </h4>
 
           {ach.length === 0 ? (
@@ -1495,7 +1538,7 @@ function PlayerStatsAndAchievements({
                         after:mix-blend-overlay after:opacity-30 after:pointer-events-none
                       "
                     >
-                      {christmasMode && (
+                      {winterMode && (
                         <span className="absolute -top-3 right-2 text-xl">
                           🎅
                         </span>
@@ -1584,94 +1627,6 @@ function PlayerStatsAndAchievements({
         </div>
       </div>
     </div>
-  );
-}
-
-function LightGarland() {
-  return (
-    <svg
-      viewBox="0 0 420 60"
-      className="w-full h-full"
-      preserveAspectRatio="none"
-    >
-      {/* Kábel */}
-      <path
-        d="M5 40 Q 120 5 210 25 T 415 40"
-        stroke="#4b5563"
-        strokeWidth="3"
-        fill="none"
-        strokeLinecap="round"
-      />
-
-      {/* Izzók */}
-      <g>
-        {/* Bulb template (position + color + delay) */}
-
-        {/* Bulb 1 – orange */}
-        <g>
-          <line x1="45" y1="32" x2="45" y2="36" stroke="#4b5563" strokeWidth="2" />
-          <circle cx="45" cy="42" r="6" fill="#f97316">
-            <animate attributeName="opacity" values="0.3;1;0.3" dur="1.6s" repeatCount="indefinite" begin="0s" />
-          </circle>
-        </g>
-
-        {/* Bulb 2 – green */}
-        <g>
-          <line x1="95" y1="22" x2="95" y2="26" stroke="#4b5563" strokeWidth="2" />
-          <circle cx="95" cy="32" r="6" fill="#22c55e">
-            <animate attributeName="opacity" values="0.3;1;0.3" dur="1.7s" repeatCount="indefinite" begin="0.2s" />
-          </circle>
-        </g>
-
-        {/* Bulb 3 – yellow */}
-        <g>
-          <line x1="145" y1="15" x2="145" y2="20" stroke="#4b5563" strokeWidth="2" />
-          <circle cx="145" cy="28" r="6" fill="#eab308">
-            <animate attributeName="opacity" values="0.3;1;0.3" dur="1.8s" repeatCount="indefinite" begin="0.4s" />
-          </circle>
-        </g>
-
-        {/* Bulb 4 – blue */}
-        <g>
-          <line x1="195" y1="20" x2="195" y2="25" stroke="#4b5563" strokeWidth="2" />
-          <circle cx="195" cy="32" r="6" fill="#38bdf8">
-            <animate attributeName="opacity" values="0.3;1;0.3" dur="1.5s" repeatCount="indefinite" begin="0.1s" />
-          </circle>
-        </g>
-
-        {/* Bulb 5 – orange */}
-        <g>
-          <line x1="245" y1="25" x2="245" y2="30" stroke="#4b5563" strokeWidth="2" />
-          <circle cx="245" cy="36" r="6" fill="#f97316">
-            <animate attributeName="opacity" values="0.3;1;0.3" dur="1.4s" repeatCount="indefinite" begin="0.3s" />
-          </circle>
-        </g>
-
-        {/* Bulb 6 – green */}
-        <g>
-          <line x1="295" y1="30" x2="295" y2="34" stroke="#4b5563" strokeWidth="2" />
-          <circle cx="295" cy="42" r="6" fill="#22c55e">
-            <animate attributeName="opacity" values="0.3;1;0.3" dur="1.9s" repeatCount="indefinite" begin="0.1s" />
-          </circle>
-        </g>
-
-        {/* Bulb 7 – yellow */}
-        <g>
-          <line x1="345" y1="25" x2="345" y2="30" stroke="#4b5563" strokeWidth="2" />
-          <circle cx="345" cy="38" r="6" fill="#eab308">
-            <animate attributeName="opacity" values="0.3;1;1;0.3" dur="1.7s" repeatCount="indefinite" begin="0.5s" />
-          </circle>
-        </g>
-
-        {/* Bulb 8 – blue */}
-        <g>
-          <line x1="395" y1="32" x2="395" y2="36" stroke="#4b5563" strokeWidth="2" />
-          <circle cx="395" cy="42" r="6" fill="#38bdf8">
-            <animate attributeName="opacity" values="0.3;1;0.3" dur="1.6s" repeatCount="indefinite" begin="0.25s" />
-          </circle>
-        </g>
-      </g>
-    </svg>
   );
 }
 
@@ -1851,7 +1806,7 @@ export default function App() {
     [matches, date]
   );
   const [meId, setMeId] = useState("");
-  const [christmasMode, setChristmasMode] = useState(false);
+ const [winterMode, setWinterMode] = useState(false);
   const [standingsMatchFilter, setStandingsMatchFilter] = useState<"singles" | "all" | "doubles">("all");
   const handleRoleChange = (next: "player" | "admin") => {
     if (next === "admin") {
@@ -1967,8 +1922,9 @@ matchesForStandings.forEach((m) => {
 
   return (
 <div 
-  className={`min-h-screen font-sans text-slate-900 flex flex-col md:flex-row relative 
-    ${christmasMode ? "bg-[#55ADD5]" : "bg-[#f1f5f9]"}`}
+className={`min-h-screen font-sans text-slate-900 flex flex-col md:flex-row relative 
+  ${winterMode ? "bg-gradient-to-b from-[#0b1220] via-[#0f172a] to-[#1e293b]" : "bg-[#f1f5f9]"}`}
+
 >      
       {/* 🔹 Vízjel a háttérben */}
       <div className="fixed inset-0 z-0 flex items-center justify-center pointer-events-none">
@@ -1980,11 +1936,15 @@ matchesForStandings.forEach((m) => {
           />
       </div>
 
-      {christmasMode && (
-        <div className="pointer-events-none fixed inset-0 z-10 overflow-hidden">
-          <Snowfall />
-        </div>
-      )}
+{winterMode && (
+  <>
+    <IciclesTop />
+    <div className="pointer-events-none fixed inset-0 z-10 overflow-hidden">
+      <Snowfall />
+    </div>
+  </>
+)}
+
 
       <Sidebar role={role} setRole={handleRoleChange} />
       <MobileHeader role={role} setRole={handleRoleChange} />
@@ -1995,11 +1955,23 @@ matchesForStandings.forEach((m) => {
         <div className="relative">
     <div className="relative inline-block">
       {/* Fényfüzér – csak Player Dashboard + Christmas módban */}
-      {christmasMode && role === "player" && (
-        <div className="pointer-events-none absolute inset-x-0 -top-6 h-8">
-          <LightGarland />
-        </div>
-      )}
+{winterMode && role === "player" && (
+  <div className="pointer-events-none absolute inset-x-0 -top-3 h-10">
+    {/* itt elég, ha csak egy “mini” icicle strip kell a cím fölé */}
+    <div className="h-6 w-full opacity-80">
+      <div
+        className="h-6 w-full"
+        style={{
+          background:
+            "linear-gradient(to bottom, rgba(255,255,255,0.55), rgba(255,255,255,0.02))",
+          clipPath:
+            "polygon(0 0, 100% 0, 100% 50%, 94% 50%, 92% 100%, 90% 50%, 84% 50%, 81% 95%, 78% 50%, 72% 50%, 69% 100%, 66% 50%, 60% 50%, 57% 92%, 54% 50%, 48% 50%, 45% 100%, 42% 50%, 36% 50%, 33% 92%, 30% 50%, 24% 50%, 21% 100%, 18% 50%, 12% 50%, 9% 95%, 6% 50%, 0 50%)",
+        }}
+      />
+    </div>
+  </div>
+)}
+
 
       <h1 className="text-2xl font-bold text-slate-800 px-3 py-1 rounded-lg relative z-10">
         {role === "admin" ? "Admin Dashboard" : "Player Dashboard"}
@@ -2048,7 +2020,7 @@ matchesForStandings.forEach((m) => {
   matches={matches}
   meId={meId}
   setMeId={setMeId}
-  christmasMode={christmasMode}
+  winterMode={winterMode}
 />
 
     </div>
@@ -2056,13 +2028,14 @@ matchesForStandings.forEach((m) => {
 )}
         {/* Christmas Mood toggle */}
         <div className="fixed bottom-3 left-3 md:left-72 z-[9999]">
-          <button
-            onClick={() => setChristmasMode(!christmasMode)}
-            className="px-4 py-2 rounded-full shadow-lg text-sm font-bold transition-all
-                       bg-white border border-slate-300 hover:bg-slate-50"
-          >
-            {christmasMode ? "🎄 Christmas ON" : "❄️ Christmas OFF"}
-          </button>
+         <button
+  onClick={() => setWinterMode(!winterMode)}
+  className="px-4 py-2 rounded-full shadow-lg text-sm font-bold transition-all
+             bg-white border border-slate-300 hover:bg-slate-50"
+>
+  {winterMode ? "🧊 Winter ON" : "❄️ Winter OFF"}
+</button>
+
         </div>
 
         {/* Admin PIN modal */}
