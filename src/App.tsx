@@ -1158,7 +1158,7 @@ function Standings({ rows, matchFilter, onMatchFilterChange, showMatchFilterTogg
 
   const renderSortIcon = (key: SortKey) => {
     if (sortKey !== key) {
-      // halvány „semleges” ikon
+      // halvány „semleges" ikon
       return (
         <span className="ml-1 text-[9px] text-slate-300">
           ▲▼
@@ -1816,13 +1816,13 @@ matchesForStandings.forEach((m) => {
 <Sidebar role={role} setRole={handleRoleChange} />
       <MobileHeader role={role} setRole={handleRoleChange} />
 
-      <div className=”flex-1 md:ml-64 p-4 md:p-8 transition-all w-full max-w-[100vw] overflow-x-hidden relative z-10”>
-        <header className=”flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4”>
+      <div className="flex-1 md:ml-64 p-4 md:p-8 transition-all w-full max-w-[100vw] overflow-x-hidden relative z-10">
+        <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
           <div>
-            <h1 className=”text-2xl font-bold text-slate-800 px-3 py-1 rounded-lg”>
-              {role === “admin” ? “Admin Dashboard” : “Player Dashboard”}
+            <h1 className="text-2xl font-bold text-slate-800 px-3 py-1 rounded-lg">
+              {role === "admin" ? "Admin Dashboard" : "Player Dashboard"}
             </h1>
-            <p className=”text-slate-500 text-sm mt-1”>Biatorbágy Badminton</p>
+            <p className="text-slate-500 text-sm mt-1">Biatorbágy Badminton</p>
           </div>
           <div className="flex items-center gap-4 w-full md:w-auto">
               <div className="relative w-full md:w-auto">
