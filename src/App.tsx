@@ -287,6 +287,13 @@ function computeAttendanceStreak(playerId: string, matches: Match[]): number {
   }
   return best;
 }
+const fmtTime = (iso: string) =>
+  new Date(iso).toLocaleTimeString("hu-HU", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Europe/Budapest",
+  });
+
 const EMOJIS = ["🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼","🐨","🐯","🦁","🐮","🐷","🐸","🐵","🐔","🐧","🐦","🐤","🦆","🦅","🦉","🐺","🦄","🐝","🐛","🦋","🐌","🐞","🐢","🐍","🦎","🐙","🦑","🦀","🐡","🐠","🐳","🐬","🐊"];
 
 const ADMIN_PIN = "2051"; // ide írd a saját 4 jegyű PIN kódod
@@ -1486,7 +1493,7 @@ function AdminAttendanceEditor({ players, date, attendance, write, checkinLog }:
                   </span>
                   {isIn && (
                     <span className="text-xs tabular-nums shrink-0 text-slate-400">
-                      {ts ? ts.slice(11, 16) : "—"}
+                      {ts ? fmtTime(ts) : "—"}
                     </span>
                   )}
                   <button
@@ -1533,7 +1540,7 @@ function CheckInHistoryCard({ checkinLog }: { checkinLog: CheckInEvent[] }) {
                 </span>
                 <span className="flex-1 truncate text-slate-700 font-medium">{e.playerName}</span>
                 <span className="text-slate-400 shrink-0">{e.trainingDate}</span>
-                <span className="text-slate-300 shrink-0 tabular-nums">{e.timestamp.slice(11, 16)}</span>
+                <span className="text-slate-300 shrink-0 tabular-nums">{fmtTime(e.timestamp)}</span>
               </li>
             ))}
           </ul>
