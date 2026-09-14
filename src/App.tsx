@@ -1405,14 +1405,24 @@ function PlayerStatsAndAchievements({
 
 
 // ========================= AdminAttendanceEditor =========================
-function AdminAttendanceEditor({ players, date, attendance, write }: {
+function AdminAttendanceEditor({ players, date, attendance, write, checkinLog }: {
   players: Player[];
   date: string;
   attendance: Record<string, string[]>;
   write: (patch: Partial<LeagueDoc>) => void;
+  checkinLog: CheckInEvent[];
 }) {
   const sessionExists = date in attendance;
   const checkedIn = attendance[date] ?? [];
+
+  const timestampMap = useMemo(() => {
+    const map = new Map<string, string>();
+    checkinLog
+      .filter(e => e.trainingDate === date && e.action === "in")
+      .sort((a, b) => a.timestamp.localeCompare(b.timestamp))
+      .forEach(e => map.set(e.playerId, e.timestamp));
+    return map;
+  }, [checkinLog, date]);
 
   const createSession = () => {
     if (!sessionExists) write({ attendance: { ...attendance, [date]: [] } });
@@ -1431,13 +1441,21 @@ function AdminAttendanceEditor({ players, date, attendance, write }: {
     [players]
   );
 
+  const sortedWithStatus = useMemo(() => {
+    const inList = sorted
+      .filter(p => checkedIn.includes(p.id))
+      .sort((a, b) => (timestampMap.get(a.id) ?? "").localeCompare(timestampMap.get(b.id) ?? ""));
+    const outList = sorted.filter(p => !checkedIn.includes(p.id));
+    return [...inList, ...outList];
+  }, [sorted, checkedIn, timestampMap]);
+
   return (
     <div className={cardContainer}>
       <BrandStripe />
       <div className={cardContent}>
         <div className="flex justify-between items-center mb-4">
           <h3 className="font-bold text-slate-800">Jelenlét szerkesztése</h3>
-          <span className="text-xs text-slate-400 bg-slate-100 px-2 py-1 rounded">{checkedIn.length} fő</span>
+          <span className="text-xs text-slate-400 bg-slate-100 px-2 py-1 rounded">{checkedIn.length} / {players.length} fő</span>
         </div>
 
         {!sessionExists ? (
@@ -1448,23 +1466,40 @@ function AdminAttendanceEditor({ players, date, attendance, write }: {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
-            {sorted.map((p) => {
+          <ul className="space-y-1.5 max-h-96 overflow-y-auto pr-1 custom-scrollbar">
+            {sortedWithStatus.map((p) => {
               const isIn = checkedIn.includes(p.id);
+              const ts = timestampMap.get(p.id);
               return (
-                <button
+                <li
                   key={p.id}
-                  onClick={() => toggle(p.id)}
-                  className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm border transition-all ${
-                    isIn ? "bg-[#f0fdf4] border-[#84cc16] text-slate-800" : "bg-white border-slate-100 text-slate-400 hover:bg-slate-50"
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-colors ${
+                    isIn ? "bg-[#f0fdf4] border-[#84cc16]/30" : "bg-white border-slate-100"
                   }`}
                 >
-                  <span className="truncate font-medium">{p.name}</span>
-                  {isIn && <div className="w-2 h-2 rounded-full bg-[#84cc16] shrink-0 ml-1" />}
-                </button>
+                  <div className={`w-2 h-2 rounded-full shrink-0 ${isIn ? "bg-[#84cc16]" : "bg-slate-200"}`} />
+                  <span className={`flex-1 text-sm font-medium truncate ${isIn ? "text-slate-800" : "text-slate-400"}`}>
+                    {p.name}
+                  </span>
+                  {isIn && (
+                    <span className="text-xs tabular-nums shrink-0 text-slate-400">
+                      {ts ? ts.slice(11, 16) : "admin"}
+                    </span>
+                  )}
+                  <button
+                    onClick={() => toggle(p.id)}
+                    className={`text-xs px-2.5 py-1 rounded-lg border font-bold transition-all shrink-0 ${
+                      isIn
+                        ? "border-rose-200 text-rose-400 hover:bg-rose-50"
+                        : "border-[#84cc16]/60 text-[#84cc16] hover:bg-[#f0fdf4]"
+                    }`}
+                  >
+                    {isIn ? "ki" : "+ be"}
+                  </button>
+                </li>
               );
             })}
-          </div>
+          </ul>
         )}
       </div>
     </div>
@@ -1654,10 +1689,11 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
       if (diff <= 0) { setCountdown(null); return; }
       const h = Math.floor(diff / 3600000);
       const m = Math.floor((diff % 3600000) / 60000);
-      setCountdown(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
+      const s = Math.floor((diff % 60000) / 1000);
+      setCountdown(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`);
     };
     tick();
-    const id = setInterval(tick, 10000);
+    const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, [isToday]);
 
@@ -2143,7 +2179,7 @@ matchesForStandings.forEach((m) => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="space-y-6 lg:col-span-2">
                     <DatePicker value={date} onChange={setDate} />
-                    <AdminAttendanceEditor players={players} date={date} attendance={attendance} write={write} />
+                    <AdminAttendanceEditor players={players} date={date} attendance={attendance} write={write} checkinLog={checkinLog} />
                 </div>
                 <div className="space-y-6">
                     <PlayerEditor players={players} onAdd={addPlayer} onRemove={removePlayer} onUpdateEmoji={updatePlayerEmoji} onUpdateGender={updatePlayerGender} />
