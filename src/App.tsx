@@ -364,9 +364,12 @@ useEffect(() => {
 
       tRef.current = window.setTimeout(async () => {
         try {
+          // checkinLog is only ever written via arrayUnion — exclude it here to prevent overwrites
+          const { checkinLog: _cl, ...rest } = next as any;
+          void _cl;
 await setDoc(
   doc(db, "leagues", "default"),
-  stripUndefinedDeep({ ...next, updatedAt: serverTimestamp() } as LeagueDoc),
+  stripUndefinedDeep({ ...rest, updatedAt: serverTimestamp() } as LeagueDoc),
   { merge: true }
 );
         } catch (err) {
@@ -1483,7 +1486,7 @@ function AdminAttendanceEditor({ players, date, attendance, write, checkinLog }:
                   </span>
                   {isIn && (
                     <span className="text-xs tabular-nums shrink-0 text-slate-400">
-                      {ts ? ts.slice(11, 16) : "admin"}
+                      {ts ? ts.slice(11, 16) : "—"}
                     </span>
                   )}
                   <button
