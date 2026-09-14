@@ -1642,6 +1642,25 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
     setNewName("");
   };
 
+  const [countdown, setCountdown] = useState<string | null>(null);
+  const isToday = trainingDate === fmt(new Date());
+  useEffect(() => {
+    if (!isToday) return;
+    const tick = () => {
+      const now = new Date();
+      const target = new Date(now);
+      target.setHours(20, 0, 0, 0);
+      const diff = target.getTime() - now.getTime();
+      if (diff <= 0) { setCountdown(null); return; }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      setCountdown(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
+    };
+    tick();
+    const id = setInterval(tick, 10000);
+    return () => clearInterval(id);
+  }, [isToday]);
+
   return (
     <div className="min-h-screen bg-[#1e293b] flex flex-col items-center justify-center p-6 font-sans">
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
@@ -1657,6 +1676,11 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
           <h1 className="text-white text-2xl font-black tracking-wide">Biatorbágy</h1>
           <p className="text-[#84cc16] text-xs font-bold uppercase tracking-widest mt-1">Badminton – Becsekkolás</p>
           <p className="text-slate-400 text-sm mt-2">{today} • {weekday(today)}</p>
+          {countdown && (
+            <p className="text-white/60 text-xs mt-2 font-mono tracking-widest">
+              edzésig <span className="text-white font-bold text-base">{countdown}</span>
+            </p>
+          )}
         </div>
 
         {status === "done" ? (
