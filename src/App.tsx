@@ -2047,11 +2047,6 @@ function MainApp() {
   const [pendingRole, setPendingRole] = useState<"player" | "admin" | "attendance" | null>(null);
 
   const [date, setDate] = useState(fmt(nextTrainingDate()));
-  const [presentIds, setPresentIds] = useState<string[]>([]);
-  const matchesForDate = useMemo(
-    () => matches.filter((m) => m.date === date),
-    [matches, date]
-  );
   const [meId, setMeId] = useState("");
   const [standingsMatchFilter, setStandingsMatchFilter] = useState<"singles" | "all" | "doubles">("all");
   const handleRoleChange = (next: "player" | "admin" | "attendance") => {
@@ -2083,6 +2078,11 @@ function MainApp() {
       [...matches].reverse().forEach(m => { if(!map.has(m.date)) map.set(m.date, []); map.get(m.date)!.push(m); });
       return Array.from(map.entries()).map(([date, matches]) => ({ date, matches }));
   }, [matches]);
+
+  const groupedAttendance = useMemo(() =>
+    Object.keys(attendance).sort((a, b) => b.localeCompare(a)).map((date) => ({ date, matches: [] as Match[] })),
+    [attendance]
+  );
 
   useEffect(() => { if(players.length && !meId) setMeId(players[0].id); }, [players, meId]);
 
@@ -2154,16 +2154,6 @@ matchesForStandings.forEach((m) => {
       write({ players: players.map(p => p.id === id ? { ...p, gender: g??undefined } : p) });
   };
   const nameOf = (id: string) => players.find(p => p.id === id)?.name || "Unknown";
-  const pickWinner = (id: string, w: "A"|"B") => write({ matches: matches.map(m => m.id === id ? { ...m, winner: w } : m) });
-  const clearWinner = (id: string) => write({ matches: matches.map(m => { if(m.id===id) { const {winner,...rest}=m; return rest as Match; } return m; }) });
-  const deleteMatch = (id: string) => write({ matches: matches.filter(m => m.id !== id) });
-  const createMatch = (tA: Pair, tB: Pair) => write({ matches: [...matches, { id: uid(), date, teamA: tA, teamB: tB }] });
-
-  const playedToday = new Set<string>();
-  matchesForDate.forEach(m => { [...m.teamA, ...m.teamB].forEach(id => playedToday.add(id)); });
-  const freeIds = presentIds.filter(id => !playedToday.has(id));
-  const seenTeammates = new Set<string>();
-  matchesForDate.forEach(m => { if(m.winner) { seenTeammates.add(key(m.teamA[0], m.teamA[1])); seenTeammates.add(key(m.teamB[0], m.teamB[1])); }});
 
   return (
     <div className="min-h-screen font-sans text-slate-900 flex flex-col md:flex-row relative bg-[#f1f5f9]">
@@ -2200,20 +2190,13 @@ matchesForStandings.forEach((m) => {
         {role === "admin" ? (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="space-y-6 lg:col-span-2">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                        <DatePicker value={date} onChange={setDate} />
-                        <DrawMatches players={players} presentIds={presentIds} matchesForDate={matchesForDate} date={date} league={league} write={write} />
-                    </div>
-                    <AttendanceList players={players} presentIds={presentIds} setPresentIds={setPresentIds} />
+                    <DatePicker value={date} onChange={setDate} />
                     <AdminAttendanceEditor players={players} date={date} attendance={attendance} write={write} />
-                    <MatchesList matches={matchesForDate} nameOf={nameOf} onPick={pickWinner} onDelete={deleteMatch} onClear={clearWinner} isAdmin={true} />
-                    <SelectPairs players={players} freeIds={freeIds} seenTeammates={seenTeammates} onCreate={createMatch} />
                 </div>
                 <div className="space-y-6">
                     <PlayerEditor players={players} onAdd={addPlayer} onRemove={removePlayer} onUpdateEmoji={updatePlayerEmoji} onUpdateGender={updatePlayerGender} />
-                    <AdminDateJump grouped={grouped} date={date} setDate={setDate} />
+                    <AdminDateJump grouped={groupedAttendance} date={date} setDate={setDate} />
                     <ImportExportCard league={league} onReplace={replaceAll} />
-                    <Standings rows={standings} />
                 </div>
             </div>
         ) : role === "attendance" ? (
