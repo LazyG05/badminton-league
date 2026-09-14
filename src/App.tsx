@@ -1712,9 +1712,9 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
   const [countdown, setCountdown] = useState<string | null>(null);
   const [particles, setParticles] = useState<Particle[]>([]);
 
-  const triggerBurst = () => {
-    const ox = window.innerWidth / 2;
-    const oy = window.innerHeight * 0.68;
+  const triggerBurst = (el?: HTMLElement) => {
+    const ox = el ? el.getBoundingClientRect().left + el.getBoundingClientRect().width / 2 : window.innerWidth / 2;
+    const oy = el ? el.getBoundingClientRect().top + el.getBoundingClientRect().height / 2 : window.innerHeight * 0.35;
     const count = 14;
     setParticles(Array.from({ length: count }, (_, i) => ({
       id: Date.now() + i,
@@ -1765,7 +1765,10 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
 
       <div className="relative z-10 w-full max-w-sm">
         <div className="flex flex-col items-center mb-8">
-          <div className="w-20 h-20 rounded-full bg-white/10 border border-white/20 flex items-center justify-center overflow-hidden mb-4">
+          <div
+            className="w-20 h-20 rounded-full bg-white/10 border border-white/20 flex items-center justify-center overflow-hidden mb-4 cursor-pointer active:scale-95 transition-transform"
+            onClick={(e) => triggerBurst(e.currentTarget)}
+          >
             <img src="/logo.png" alt="Logo" className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
           </div>
           <h1 className="text-white text-2xl font-black tracking-wide">Biatorbágy</h1>
