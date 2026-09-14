@@ -49,7 +49,7 @@ export type Backup = {
   note?: string;
   data: { players: Player[]; matches: Match[] };
 };
-type Particle = { id: number; angle: number; distance: number; rotate: number; size: number; duration: number };
+type Particle = { id: number; angle: number; distance: number; rotate: number; size: number; duration: number; ox: number; oy: number };
 
 export type CheckInEvent = {
   playerId: string;
@@ -1713,11 +1713,14 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
   const [particles, setParticles] = useState<Particle[]>([]);
 
   const triggerBurst = () => {
+    const ox = window.innerWidth / 2;
+    const oy = window.innerHeight * 0.68;
     const count = 12;
     setParticles(Array.from({ length: count }, (_, i) => ({
       id: Date.now() + i,
+      ox, oy,
       angle: (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.4,
-      distance: 60 + Math.random() * 55,
+      distance: 70 + Math.random() * 70,
       rotate: (Math.random() - 0.5) * 540,
       size: 15 + Math.floor(Math.random() * 9),
       duration: 580 + Math.floor(Math.random() * 320),
@@ -1745,6 +1748,16 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
 
   return (
     <div className="min-h-screen w-screen overflow-x-hidden bg-[#1e293b] flex flex-col items-center justify-center p-6 font-sans">
+      {particles.length > 0 && (
+        <div style={{position:'fixed',inset:0,pointerEvents:'none',zIndex:100,overflow:'hidden'}}>
+          <style>{particles.map(p => `@keyframes sf${p.id}{0%{transform:translate(-50%,-50%) rotate(0deg);opacity:1}100%{transform:translate(-50%,-50%) translate(${Math.round(Math.cos(p.angle)*p.distance)}px,${Math.round(Math.sin(p.angle)*p.distance)}px) rotate(${Math.round(p.rotate)}deg);opacity:0}}`).join('')}</style>
+          {particles.map(p => (
+            <div key={p.id} style={{position:'absolute',left:p.ox,top:p.oy,pointerEvents:'none',animation:`sf${p.id} ${p.duration}ms ease-out forwards`} as React.CSSProperties}>
+              <ShuttlecockSVG size={p.size} />
+            </div>
+          ))}
+        </div>
+      )}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
         <div className="absolute -top-20 -left-20 w-80 h-80 bg-[#84cc16] rounded-full blur-[120px] opacity-10" />
         <div className="absolute bottom-0 right-0 w-80 h-80 bg-teal-500 rounded-full blur-[120px] opacity-10" />
@@ -1816,23 +1829,13 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
                     )}
                   </div>
                 ) : (
-                  <div className="relative">
-                    {particles.length > 0 && <>
-                      <style>{particles.map(p => `@keyframes sf${p.id}{0%{transform:translate(-50%,-50%) rotate(0deg);opacity:1}100%{transform:translate(-50%,-50%) translate(${Math.round(Math.cos(p.angle)*p.distance)}px,${Math.round(Math.sin(p.angle)*p.distance)}px) rotate(${Math.round(p.rotate)}deg);opacity:0}}`).join('')}</style>
-                      {particles.map(p => (
-                        <div key={p.id} style={{position:'absolute',left:'50%',top:'50%',pointerEvents:'none',zIndex:50,animation:`sf${p.id} ${p.duration}ms ease-out forwards`} as React.CSSProperties}>
-                          <ShuttlecockSVG size={p.size} />
-                        </div>
-                      ))}
-                    </>}
-                    <button
-                      onClick={() => { triggerBurst(); handleCheckIn(); }}
-                      disabled={!selectedId || status === "loading"}
-                      className="w-full bg-[#84cc16] hover:bg-[#65a30d] disabled:opacity-50 text-white font-black text-lg py-4 rounded-xl transition-all active:scale-95 shadow-lg shadow-lime-900/30"
-                    >
-                      {status === "loading" ? "..." : "Becsekkolok 🏸"}
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => { triggerBurst(); handleCheckIn(); }}
+                    disabled={!selectedId || status === "loading"}
+                    className="w-full bg-[#84cc16] hover:bg-[#65a30d] disabled:opacity-50 text-white font-black text-lg py-4 rounded-xl transition-all active:scale-95 shadow-lg shadow-lime-900/30"
+                  >
+                    {status === "loading" ? "..." : "Becsekkolok 🏸"}
+                  </button>
                 )}
 
                 <button
@@ -1858,15 +1861,6 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
                   <p className="text-xs text-slate-500 mt-2">Ez felkerül a játékoslistára is.</p>
                 </div>
 
-                <div className="relative">
-                  {particles.length > 0 && <>
-                    <style>{particles.map(p => `@keyframes sf${p.id}{0%{transform:translate(-50%,-50%) rotate(0deg);opacity:1}100%{transform:translate(-50%,-50%) translate(${Math.round(Math.cos(p.angle)*p.distance)}px,${Math.round(Math.sin(p.angle)*p.distance)}px) rotate(${Math.round(p.rotate)}deg);opacity:0}}`).join('')}</style>
-                    {particles.map(p => (
-                      <div key={p.id} style={{position:'absolute',left:'50%',top:'50%',pointerEvents:'none',zIndex:50,animation:`sf${p.id} ${p.duration}ms ease-out forwards`} as React.CSSProperties}>
-                        <ShuttlecockSVG size={p.size} />
-                      </div>
-                    ))}
-                  </>}
                   <button
                     onClick={() => { triggerBurst(); handleCheckIn(); }}
                     disabled={!newName.trim() || status === "loading"}
@@ -1874,7 +1868,6 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
                   >
                     {status === "loading" ? "..." : "Becsekkolok 🏸"}
                   </button>
-                </div>
 
                 <button
                   onClick={() => setMode("select")}
