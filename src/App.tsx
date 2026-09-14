@@ -1715,17 +1715,17 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
   const triggerBurst = () => {
     const ox = window.innerWidth / 2;
     const oy = window.innerHeight * 0.68;
-    const count = 12;
+    const count = 14;
     setParticles(Array.from({ length: count }, (_, i) => ({
       id: Date.now() + i,
       ox, oy,
       angle: (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.4,
-      distance: 70 + Math.random() * 70,
-      rotate: (Math.random() - 0.5) * 540,
-      size: 15 + Math.floor(Math.random() * 9),
-      duration: 580 + Math.floor(Math.random() * 320),
+      distance: 90 + Math.random() * 100,
+      rotate: (Math.random() - 0.5) * 720,
+      size: 16 + Math.floor(Math.random() * 10),
+      duration: 1200 + Math.floor(Math.random() * 800),
     })));
-    setTimeout(() => setParticles([]), 1000);
+    setTimeout(() => setParticles([]), 2200);
   };
   const isToday = trainingDate === fmt(new Date());
   useEffect(() => {
