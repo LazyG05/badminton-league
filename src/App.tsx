@@ -420,7 +420,7 @@ function Sidebar({
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium border ${role === "player" ? "bg-[#84cc16] border-[#84cc16] text-white shadow-lg shadow-lime-900/20" : "bg-transparent border-transparent text-slate-400 hover:bg-white/5 hover:text-white"}`}
         >
           <Icons.Dashboard />
-          Archived
+          Dashboard
         </button>
 
         <button
@@ -521,7 +521,7 @@ function MobileHeader({ role, setRole }: { role: "player" | "admin" | "attendanc
         role === "player" ? "bg-[#84cc16] text-white" : "text-slate-300"
       }`}
     >
-      Archived
+      Dashboard
     </button>
     <button
       onClick={() => setRole("attendance")}
@@ -2184,7 +2184,7 @@ matchesForStandings.forEach((m) => {
         <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
           <div>
             <h1 className="text-2xl font-bold text-slate-800 px-3 py-1 rounded-lg">
-              {role === "admin" ? "Admin Dashboard" : role === "attendance" ? "Jelenlét" : "Archived"}
+              {role === "admin" ? "Admin Dashboard" : role === "attendance" ? "Jelenlét" : "Dashboard"}
             </h1>
             <p className="text-slate-500 text-sm mt-1">Biatorbágy Badminton</p>
           </div>
@@ -2223,6 +2223,13 @@ matchesForStandings.forEach((m) => {
         ) : (
   <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
     <div className="space-y-6 lg:col-span-2">
+      {/* Archived banner */}
+      <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-200 bg-white/60 backdrop-blur-sm text-slate-400">
+        <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8l1 13h12l1-13M10 12h4" /></svg>
+        <p className="text-xs font-semibold uppercase tracking-widest">Archived</p>
+        <span className="text-xs text-slate-300">·</span>
+        <p className="text-xs text-slate-400">Ez az oldal archivált adatokat tartalmaz, jelenléti nyilvántartáshoz használd a <strong className="text-slate-500">Jelenlét</strong> menüpontot.</p>
+      </div>
       <Standings rows={standings} showMatchFilterToggle matchFilter={standingsMatchFilter} onMatchFilterChange={setStandingsMatchFilter} />
       <MatchesPlayer grouped={grouped} nameOf={nameOf} />
     </div>
