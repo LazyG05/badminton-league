@@ -10,8 +10,11 @@ import {
   doc,
   onSnapshot,
   setDoc,
+  updateDoc,
+  arrayUnion,
   serverTimestamp,
 } from "firebase/firestore";
+import { QRCodeSVG } from "qrcode.react";
 import { getAuth, onAuthStateChanged, signInAnonymously } from "firebase/auth";
 
 /**
@@ -52,6 +55,7 @@ export type LeagueDoc = {
   updatedAt?: any;
   title?: string;
   backups?: Backup[];
+  attendance?: Record<string, string[]>;
 };
 
 // ========================= Firebase =========================
@@ -154,6 +158,7 @@ const input =
 
 const Icons = {
   Dashboard: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>,
+  Attendance: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>,
   Admin: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /></svg>,
   Shop: () => (
   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -265,6 +270,7 @@ function useLeague() {
     players: [],
     matches: [],
     backups: [],
+    attendance: {},
   });
 
   const suppress = useRef(false);
@@ -354,6 +360,7 @@ await setDoc(
       players: Array.isArray(next.players) ? next.players : [],
       matches: Array.isArray(next.matches) ? next.matches : [],
       backups: Array.isArray(next.backups) ? next.backups : [],
+      attendance: next.attendance && typeof next.attendance === "object" ? next.attendance : {},
       title: next.title,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
@@ -376,8 +383,8 @@ function Sidebar({
   role,
   setRole,
 }: {
-  role: "player" | "admin";
-  setRole: (r: "player" | "admin") => void;
+  role: "player" | "admin" | "attendance";
+  setRole: (r: "player" | "admin" | "attendance") => void;
 }) {
   const [imgError, setImgError] = useState(false);
 
@@ -414,6 +421,14 @@ function Sidebar({
         >
           <Icons.Dashboard />
           Dashboard
+        </button>
+
+        <button
+          onClick={() => setRole("attendance")}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium border ${role === "attendance" ? "bg-[#84cc16] border-[#84cc16] text-white shadow-lg shadow-lime-900/20" : "bg-transparent border-transparent text-slate-400 hover:bg-white/5 hover:text-white"}`}
+        >
+          <Icons.Attendance />
+          Jelenlét
         </button>
 
           {/* 🛒 WEBSHOP */}
@@ -455,7 +470,7 @@ function Sidebar({
   );
 }
 
-function MobileHeader({ role, setRole }: { role: "player" | "admin"; setRole: (r: "player" | "admin") => void }) {
+function MobileHeader({ role, setRole }: { role: "player" | "admin" | "attendance"; setRole: (r: "player" | "admin" | "attendance") => void }) {
     return (
         <div className="md:hidden bg-[#1e293b] text-white p-4 flex justify-between items-center shadow-md mb-4 rounded-b-xl z-50 relative overflow-hidden">
              {/* Mobile Decor */}
@@ -507,6 +522,14 @@ function MobileHeader({ role, setRole }: { role: "player" | "admin"; setRole: (r
       }`}
     >
       Player
+    </button>
+    <button
+      onClick={() => setRole("attendance")}
+      className={`px-3 py-1 rounded ${
+        role === "attendance" ? "bg-[#84cc16] text-white" : "text-slate-300"
+      }`}
+    >
+      Jelenlét
     </button>
     <button
       onClick={() => setRole("admin")}
@@ -1570,6 +1593,288 @@ function PlayerStatsAndAchievements({
 
 
 
+// ========================= CheckInPage =========================
+function CheckInPage() {
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [attendance, setAttendance] = useState<Record<string, string[]>>({});
+  const [selectedId, setSelectedId] = useState<string>(
+    localStorage.getItem("checkin_player_id") ?? ""
+  );
+  const [mode, setMode] = useState<"select" | "new">("select");
+  const [newName, setNewName] = useState("");
+  const [status, setStatus] = useState<"idle" | "loading" | "done">("idle");
+  const [checkedInName, setCheckedInName] = useState("");
+
+  const today = fmt(new Date());
+
+  useEffect(() => {
+    const ref = doc(db, "leagues", "default");
+    const unsubAuth = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        try { await signInAnonymously(auth); } catch (e) { console.error(e); }
+        return;
+      }
+      const unsub = onSnapshot(ref, (snap) => {
+        if (snap.exists()) {
+          const d = snap.data() as LeagueDoc;
+          setPlayers(d.players ?? []);
+          setAttendance(d.attendance ?? {});
+        }
+      });
+      return () => unsub();
+    });
+    return () => unsubAuth();
+  }, []);
+
+  const sortedPlayers = useMemo(
+    () => [...players].sort((a, b) => getBaseName(a.name).localeCompare(getBaseName(b.name), "hu")),
+    [players]
+  );
+
+  useEffect(() => {
+    if (!selectedId && sortedPlayers.length) setSelectedId(sortedPlayers[0].id);
+  }, [sortedPlayers, selectedId]);
+
+  const alreadyCheckedIn = mode === "select" && selectedId
+    ? (attendance[today] ?? []).includes(selectedId)
+    : false;
+
+  const handleCheckIn = async () => {
+    if (status === "loading") return;
+    setStatus("loading");
+    try {
+      const ref = doc(db, "leagues", "default");
+      if (mode === "new") {
+        const trimmed = newName.trim();
+        if (!trimmed) { setStatus("idle"); return; }
+        const emoji = EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
+        const newPlayer: Player = { id: uid(), name: `${emoji} ${trimmed}` };
+        await updateDoc(ref, {
+          players: arrayUnion(newPlayer),
+          [`attendance.${today}`]: arrayUnion(newPlayer.id),
+        });
+        localStorage.setItem("checkin_player_id", newPlayer.id);
+        setCheckedInName(newPlayer.name);
+      } else {
+        if (!selectedId) { setStatus("idle"); return; }
+        await updateDoc(ref, { [`attendance.${today}`]: arrayUnion(selectedId) });
+        localStorage.setItem("checkin_player_id", selectedId);
+        setCheckedInName(players.find((p) => p.id === selectedId)?.name ?? "");
+      }
+      setStatus("done");
+    } catch (e) {
+      console.error(e);
+      setStatus("idle");
+    }
+  };
+
+  const resetForOther = () => {
+    setStatus("idle");
+    setMode("select");
+    setNewName("");
+  };
+
+  return (
+    <div className="min-h-screen bg-[#1e293b] flex flex-col items-center justify-center p-6 font-sans">
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+        <div className="absolute -top-20 -left-20 w-80 h-80 bg-[#84cc16] rounded-full blur-[120px] opacity-10" />
+        <div className="absolute bottom-0 right-0 w-80 h-80 bg-teal-500 rounded-full blur-[120px] opacity-10" />
+      </div>
+
+      <div className="relative z-10 w-full max-w-sm">
+        <div className="flex flex-col items-center mb-8">
+          <div className="w-20 h-20 rounded-full bg-white/10 border border-white/20 flex items-center justify-center overflow-hidden mb-4">
+            <img src="/logo.png" alt="Logo" className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+          </div>
+          <h1 className="text-white text-2xl font-black tracking-wide">Biatorbágy</h1>
+          <p className="text-[#84cc16] text-xs font-bold uppercase tracking-widest mt-1">Badminton – Becsekkolás</p>
+          <p className="text-slate-400 text-sm mt-2">{today} • {weekday(today)}</p>
+        </div>
+
+        {status === "done" ? (
+          <div className="bg-white/10 backdrop-blur border border-white/10 rounded-2xl p-8 text-center">
+            <div className="text-6xl mb-4">✅</div>
+            <p className="text-white text-xl font-bold mb-1">Becsekkolva!</p>
+            <p className="text-[#84cc16] font-medium">{checkedInName}</p>
+            <p className="text-slate-400 text-sm mt-2">{today}</p>
+            <button onClick={resetForOther} className="mt-6 text-xs text-slate-400 hover:text-white underline">
+              Más játékos
+            </button>
+          </div>
+        ) : (
+          <div className="bg-white/10 backdrop-blur border border-white/10 rounded-2xl p-6 space-y-5">
+            {mode === "select" ? (
+              <>
+                <div>
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Ki vagy te?</label>
+                  <select
+                    className="w-full bg-white/10 border border-white/20 text-white rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-[#84cc16]"
+                    value={selectedId}
+                    onChange={(e) => setSelectedId(e.target.value)}
+                  >
+                    {sortedPlayers.map((p) => (
+                      <option key={p.id} value={p.id} className="text-slate-900 bg-white">
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {alreadyCheckedIn ? (
+                  <div className="bg-[#84cc16]/20 border border-[#84cc16]/40 rounded-xl p-4 text-center">
+                    <p className="text-[#84cc16] font-bold">Ma már becsekkolva vagy ✓</p>
+                    <p className="text-slate-300 text-xs mt-1">{players.find((p) => p.id === selectedId)?.name}</p>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleCheckIn}
+                    disabled={!selectedId || status === "loading"}
+                    className="w-full bg-[#84cc16] hover:bg-[#65a30d] disabled:opacity-50 text-white font-black text-lg py-4 rounded-xl transition-all active:scale-95 shadow-lg shadow-lime-900/30"
+                  >
+                    {status === "loading" ? "..." : "Becsekkolok 🏸"}
+                  </button>
+                )}
+
+                <button
+                  onClick={() => setMode("new")}
+                  className="w-full text-center text-xs text-slate-400 hover:text-white transition-colors pt-1"
+                >
+                  Nem találom a nevem →
+                </button>
+              </>
+            ) : (
+              <>
+                <div>
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Add meg a neved</label>
+                  <input
+                    autoFocus
+                    type="text"
+                    placeholder="Pl. Kovács Péter"
+                    className="w-full bg-white/10 border border-white/20 text-white placeholder:text-slate-500 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-[#84cc16]"
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter" && newName.trim()) handleCheckIn(); }}
+                  />
+                  <p className="text-xs text-slate-500 mt-2">Ez felkerül a játékoslistára is.</p>
+                </div>
+
+                <button
+                  onClick={handleCheckIn}
+                  disabled={!newName.trim() || status === "loading"}
+                  className="w-full bg-[#84cc16] hover:bg-[#65a30d] disabled:opacity-50 text-white font-black text-lg py-4 rounded-xl transition-all active:scale-95 shadow-lg shadow-lime-900/30"
+                >
+                  {status === "loading" ? "..." : "Becsekkolok 🏸"}
+                </button>
+
+                <button
+                  onClick={() => setMode("select")}
+                  className="w-full text-center text-xs text-slate-400 hover:text-white transition-colors pt-1"
+                >
+                  ← Vissza a listához
+                </button>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ========================= AttendanceView =========================
+const CHECKIN_URL = "https://biatollas.hu/?checkin";
+
+function AttendanceView({ players, attendance }: { players: Player[]; attendance: Record<string, string[]> }) {
+  const [openDate, setOpenDate] = useState<string | null>(null);
+
+  const sortedDates = useMemo(
+    () => Object.keys(attendance).sort((a, b) => b.localeCompare(a)),
+    [attendance]
+  );
+
+  useEffect(() => {
+    if (sortedDates.length && !openDate) setOpenDate(sortedDates[0]);
+  }, [sortedDates, openDate]);
+
+  const nameOf = (id: string) => players.find((p) => p.id === id)?.name ?? "Ismeretlen";
+
+  return (
+    <div className="space-y-6">
+      {/* QR kód kártya */}
+      <div className={cardContainer}>
+        <BrandStripe />
+        <div className={`${cardContent} flex flex-col sm:flex-row items-center gap-6`}>
+          <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm shrink-0">
+            <QRCodeSVG value={CHECKIN_URL} size={140} />
+          </div>
+          <div>
+            <h3 className="font-bold text-slate-800 text-lg mb-1">Becsekkolási QR-kód</h3>
+            <p className="text-sm text-slate-500 mb-3">
+              Mutasd ezt az edzésen. A játékosok beolvassák és 1 kattintással becsekkolnak.
+            </p>
+            <a
+              href={CHECKIN_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-[#84cc16] font-bold hover:underline break-all"
+            >
+              {CHECKIN_URL}
+            </a>
+          </div>
+        </div>
+      </div>
+
+      {/* Jelenlét lista */}
+      {sortedDates.length === 0 ? (
+        <div className={cardContainer}>
+          <BrandStripe />
+          <div className={cardContent}>
+            <p className="text-slate-400 text-sm">Még senki nem csekkoltak be.</p>
+          </div>
+        </div>
+      ) : (
+        sortedDates.map((date) => {
+          const ids = attendance[date] ?? [];
+          const isOpen = openDate === date;
+          return (
+            <div key={date} className={cardContainer}>
+              <div className="p-2">
+                <button
+                  onClick={() => setOpenDate(isOpen ? null : date)}
+                  className={`w-full flex justify-between items-center p-3 rounded-lg transition-all border ${
+                    isOpen ? "bg-slate-50 border-slate-100" : "bg-white border-transparent hover:bg-slate-50"
+                  }`}
+                >
+                  <div className="text-left">
+                    <h3 className="font-bold text-slate-800 text-lg">{date}</h3>
+                    <p className="text-xs text-slate-400 uppercase font-bold">
+                      {weekday(date)} • {ids.length} fő
+                    </p>
+                  </div>
+                  <span className="text-slate-400 font-bold">{isOpen ? "▲" : "▼"}</span>
+                </button>
+                {isOpen && (
+                  <div className="mt-3 px-2 pb-2 grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {ids.map((id) => (
+                      <div
+                        key={id}
+                        className="flex items-center gap-2 bg-[#f0fdf4] border border-[#84cc16]/30 rounded-lg px-3 py-2 text-sm font-medium text-slate-700"
+                      >
+                        <div className="w-2 h-2 rounded-full bg-[#84cc16] shrink-0" />
+                        <span className="truncate">{nameOf(id)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })
+      )}
+    </div>
+  );
+}
+
 function AdminPinModal({
   open,
   onClose,
@@ -1674,12 +1979,20 @@ function AdminPinModal({
 
 // ========================= MAIN APP =========================
 export default function App() {
+  const isCheckIn = new URLSearchParams(window.location.search).has("checkin");
+  if (isCheckIn) return <CheckInPage />;
+
+  return <MainApp />;
+}
+
+function MainApp() {
   const [league, write, replaceAll] = useLeague();
   const { players, matches } = league;
+  const attendance = league.attendance ?? {};
 
-  const [role, setRole] = useState<"player" | "admin">("player");
+  const [role, setRole] = useState<"player" | "admin" | "attendance">("player");
   const [showPinModal, setShowPinModal] = useState(false);
-  const [pendingRole, setPendingRole] = useState<"player" | "admin" | null>(null);
+  const [pendingRole, setPendingRole] = useState<"player" | "admin" | "attendance" | null>(null);
 
   const [date, setDate] = useState(fmt(nextTrainingDate()));
   const [presentIds, setPresentIds] = useState<string[]>([]);
@@ -1689,13 +2002,12 @@ export default function App() {
   );
   const [meId, setMeId] = useState("");
   const [standingsMatchFilter, setStandingsMatchFilter] = useState<"singles" | "all" | "doubles">("all");
-  const handleRoleChange = (next: "player" | "admin") => {
+  const handleRoleChange = (next: "player" | "admin" | "attendance") => {
     if (next === "admin") {
-      // MINDIG kérjen PIN-t adminra váltáskor
       setPendingRole("admin");
       setShowPinModal(true);
     } else {
-      setRole("player");
+      setRole(next);
     }
   };
 
@@ -1820,7 +2132,7 @@ matchesForStandings.forEach((m) => {
         <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
           <div>
             <h1 className="text-2xl font-bold text-slate-800 px-3 py-1 rounded-lg">
-              {role === "admin" ? "Admin Dashboard" : "Player Dashboard"}
+              {role === "admin" ? "Admin Dashboard" : role === "attendance" ? "Jelenlét" : "Player Dashboard"}
             </h1>
             <p className="text-slate-500 text-sm mt-1">Biatorbágy Badminton</p>
           </div>
@@ -1851,6 +2163,10 @@ matchesForStandings.forEach((m) => {
                     <Standings rows={standings} />
                 </div>
             </div>
+        ) : role === "attendance" ? (
+          <div className="max-w-2xl">
+            <AttendanceView players={players} attendance={attendance} />
+          </div>
         ) : (
   <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
     <div className="space-y-6 lg:col-span-2">
