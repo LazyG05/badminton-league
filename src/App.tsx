@@ -12,6 +12,7 @@ import {
   setDoc,
   updateDoc,
   arrayUnion,
+  arrayRemove,
   serverTimestamp,
 } from "firebase/firestore";
 import { QRCodeSVG } from "qrcode.react";
@@ -48,6 +49,14 @@ export type Backup = {
   note?: string;
   data: { players: Player[]; matches: Match[] };
 };
+export type CheckInEvent = {
+  playerId: string;
+  playerName: string;
+  trainingDate: string;
+  timestamp: string;
+  action: "in" | "out";
+};
+
 export type LeagueDoc = {
   players: Player[];
   matches: Match[];
@@ -56,6 +65,7 @@ export type LeagueDoc = {
   title?: string;
   backups?: Backup[];
   attendance?: Record<string, string[]>;
+  checkinLog?: CheckInEvent[];
 };
 
 // ========================= Firebase =========================
@@ -289,6 +299,7 @@ function useLeague() {
     matches: [],
     backups: [],
     attendance: {},
+    checkinLog: [],
   });
 
   const suppress = useRef(false);
@@ -379,6 +390,7 @@ await setDoc(
       matches: Array.isArray(next.matches) ? next.matches : [],
       backups: Array.isArray(next.backups) ? next.backups : [],
       attendance: next.attendance && typeof next.attendance === "object" ? next.attendance : {},
+      checkinLog: Array.isArray(next.checkinLog) ? next.checkinLog : [],
       title: next.title,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
@@ -1460,6 +1472,39 @@ function AdminAttendanceEditor({ players, date, attendance, write }: {
 }
 
 // ========================= CheckInPage =========================
+// ========================= CheckInHistoryCard =========================
+function CheckInHistoryCard({ checkinLog }: { checkinLog: CheckInEvent[] }) {
+  const sorted = useMemo(
+    () => [...checkinLog].sort((a, b) => b.timestamp.localeCompare(a.timestamp)).slice(0, 50),
+    [checkinLog]
+  );
+
+  return (
+    <div className={cardContainer}>
+      <BrandStripe />
+      <div className={cardContent}>
+        <h3 className="font-bold text-slate-800 mb-3">Becsekkolási napló</h3>
+        {sorted.length === 0 ? (
+          <p className="text-sm text-slate-400">Még nincs esemény.</p>
+        ) : (
+          <ul className="space-y-1.5 max-h-64 overflow-y-auto pr-1 custom-scrollbar">
+            {sorted.map((e, i) => (
+              <li key={i} className="flex items-center gap-2 text-xs">
+                <span className={`font-bold shrink-0 w-6 text-center ${e.action === "in" ? "text-emerald-500" : "text-rose-400"}`}>
+                  {e.action === "in" ? "▲" : "▼"}
+                </span>
+                <span className="flex-1 truncate text-slate-700 font-medium">{e.playerName}</span>
+                <span className="text-slate-400 shrink-0">{e.trainingDate}</span>
+                <span className="text-slate-300 shrink-0 tabular-nums">{e.timestamp.slice(11, 16)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function CheckInPage() {
   const trainingDate = getCurrentTrainingDate();
 
@@ -1532,6 +1577,11 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
     ? (attendance[today] ?? []).includes(selectedId)
     : false;
 
+  const canDelete = (() => {
+    const now = new Date();
+    return trainingDate === fmt(now) && now.getHours() < 19;
+  })();
+
   const handleCheckIn = async () => {
     if (status === "loading") return;
     setStatus("loading");
@@ -1542,19 +1592,44 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
         if (!trimmed) { setStatus("idle"); return; }
         const emoji = EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
         const newPlayer: Player = { id: uid(), name: `${emoji} ${trimmed}` };
+        const event: CheckInEvent = { playerId: newPlayer.id, playerName: newPlayer.name, trainingDate: today, timestamp: new Date().toISOString(), action: "in" };
         await updateDoc(ref, {
           players: arrayUnion(newPlayer),
           [`attendance.${today}`]: arrayUnion(newPlayer.id),
+          checkinLog: arrayUnion(event),
         });
         localStorage.setItem("checkin_player_id", newPlayer.id);
         setCheckedInName(newPlayer.name);
       } else {
         if (!selectedId) { setStatus("idle"); return; }
-        await updateDoc(ref, { [`attendance.${today}`]: arrayUnion(selectedId) });
+        const pName = players.find((p) => p.id === selectedId)?.name ?? "";
+        const event: CheckInEvent = { playerId: selectedId, playerName: pName, trainingDate: today, timestamp: new Date().toISOString(), action: "in" };
+        await updateDoc(ref, {
+          [`attendance.${today}`]: arrayUnion(selectedId),
+          checkinLog: arrayUnion(event),
+        });
         localStorage.setItem("checkin_player_id", selectedId);
-        setCheckedInName(players.find((p) => p.id === selectedId)?.name ?? "");
+        setCheckedInName(pName);
       }
       setStatus("done");
+    } catch (e) {
+      console.error(e);
+      setStatus("idle");
+    }
+  };
+
+  const handleRemove = async () => {
+    if (!selectedId || status === "loading") return;
+    setStatus("loading");
+    try {
+      const ref = doc(db, "leagues", "default");
+      const pName = players.find((p) => p.id === selectedId)?.name ?? "";
+      const event: CheckInEvent = { playerId: selectedId, playerName: pName, trainingDate: today, timestamp: new Date().toISOString(), action: "out" };
+      await updateDoc(ref, {
+        [`attendance.${today}`]: arrayRemove(selectedId),
+        checkinLog: arrayUnion(event),
+      });
+      setStatus("idle");
     } catch (e) {
       console.error(e);
       setStatus("idle");
@@ -1614,9 +1689,20 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
                 </div>
 
                 {alreadyCheckedIn ? (
-                  <div className="bg-[#84cc16]/20 border border-[#84cc16]/40 rounded-xl p-4 text-center">
-                    <p className="text-[#84cc16] font-bold">Ma már becsekkolva vagy ✓</p>
-                    <p className="text-slate-300 text-xs mt-1">{players.find((p) => p.id === selectedId)?.name}</p>
+                  <div className="space-y-2">
+                    <div className="bg-[#84cc16]/20 border border-[#84cc16]/40 rounded-xl p-4 text-center">
+                      <p className="text-[#84cc16] font-bold">Ma már becsekkolva vagy ✓</p>
+                      <p className="text-slate-300 text-xs mt-1">{players.find((p) => p.id === selectedId)?.name}</p>
+                    </div>
+                    {canDelete && (
+                      <button
+                        onClick={handleRemove}
+                        disabled={status === "loading"}
+                        className="w-full text-center text-xs text-slate-400 hover:text-rose-400 transition-colors py-1"
+                      >
+                        Visszavonom a becsekkolást
+                      </button>
+                    )}
                   </div>
                 ) : (
                   <button
@@ -1882,6 +1968,7 @@ function MainApp() {
   const [league, write, replaceAll] = useLeague();
   const { players, matches } = league;
   const attendance = league.attendance ?? {};
+  const checkinLog = league.checkinLog ?? [];
 
   const [role, setRole] = useState<"player" | "admin" | "attendance">("attendance");
   const [showPinModal, setShowPinModal] = useState(false);
@@ -2036,6 +2123,7 @@ matchesForStandings.forEach((m) => {
                 </div>
                 <div className="space-y-6">
                     <PlayerEditor players={players} onAdd={addPlayer} onRemove={removePlayer} onUpdateEmoji={updatePlayerEmoji} onUpdateGender={updatePlayerGender} />
+                    <CheckInHistoryCard checkinLog={checkinLog} />
                     <AdminDateJump grouped={groupedAttendance} date={date} setDate={setDate} />
                     <ImportExportCard league={league} onReplace={replaceAll} />
                 </div>
