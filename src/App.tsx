@@ -239,11 +239,30 @@ export function computeAchievementsFull(playerId: string, matches: Match[], play
   return out;
 }
 
-const TRAINING_DAYS = [1, 3];
+const TRAINING_DAYS = [1, 3]; // hétfő, szerda
 function nextTrainingDate(from: Date = new Date()): Date {
   const d = new Date(from);
   while (!TRAINING_DAYS.includes(d.getDay())) d.setDate(d.getDate() + 1);
   return d;
+}
+
+// Visszaadja az aktuálisan érvényes edzés dátumát, vagy null-t ha nincs
+function getCurrentTrainingDate(): string | null {
+  const now = new Date();
+  const day = now.getDay(); // 0=vas, 1=hét, 2=kedd, 3=szer, 4=csüt, 5=pén, 6=szom
+  if (day === 1 || day === 2) {
+    // hétfő vagy kedd → az adott/előző hétfő
+    const d = new Date(now);
+    d.setDate(now.getDate() - (day - 1));
+    return fmt(d);
+  }
+  if (day === 3 || day === 4) {
+    // szerda vagy csütörtök → az adott/előző szerda
+    const d = new Date(now);
+    d.setDate(now.getDate() - (day - 3));
+    return fmt(d);
+  }
+  return null; // péntek, szombat, vasárnap
 }
 function computeAttendanceStreak(playerId: string, matches: Match[]): number {
   if (!matches.length) return 0;
@@ -548,19 +567,39 @@ function MobileHeader({ role, setRole }: { role: "player" | "admin" | "attendanc
 // ========================= Features =========================
 
 function DatePicker({ value, onChange }: { value: string; onChange: (val: string) => void }) {
+  const trainingDates = useMemo(() => {
+    const dates: string[] = [];
+    const d = new Date();
+    for (let i = 0; i < 8; i++) {
+      if (TRAINING_DAYS.includes(d.getDay())) dates.push(fmt(new Date(d)));
+      d.setDate(d.getDate() - 1);
+    }
+    return dates;
+  }, []);
+
   return (
     <div className={cardContainer}>
       <BrandStripe />
       <div className={cardContent}>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-            <h2 className="text-lg font-bold text-slate-800">Session Date</h2>
-            <p className="text-sm text-slate-500 font-medium mt-1">Manage matches for this day.</p>
-            </div>
-            <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-lg border border-slate-200">
-                <span className="text-xs font-bold text-[#84cc16] uppercase px-2">{weekday(value)}</span>
-                <input className="bg-transparent text-slate-700 font-bold focus:outline-none cursor-pointer" type="date" value={value} onChange={(e) => onChange(e.target.value)} />
-            </div>
+        <h2 className="text-lg font-bold text-slate-800 mb-3">Session dátum</h2>
+        <div className="flex flex-wrap gap-2 mb-3">
+          {trainingDates.map((d) => (
+            <button
+              key={d}
+              onClick={() => onChange(d)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                value === d
+                  ? "bg-[#84cc16] border-[#84cc16] text-white shadow-sm"
+                  : "bg-white border-slate-200 text-slate-600 hover:border-[#84cc16] hover:text-[#84cc16]"
+              }`}
+            >
+              {d} <span className="opacity-60">({weekday(d).slice(0,3)})</span>
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-lg border border-slate-200">
+          <span className="text-xs text-slate-400">Egyéb:</span>
+          <input className="bg-transparent text-slate-700 font-bold focus:outline-none cursor-pointer text-sm" type="date" value={value} onChange={(e) => onChange(e.target.value)} />
         </div>
       </div>
     </div>
@@ -1360,7 +1399,12 @@ function AdminAttendanceEditor({ players, date, attendance, write }: {
   attendance: Record<string, string[]>;
   write: (patch: Partial<LeagueDoc>) => void;
 }) {
+  const sessionExists = date in attendance;
   const checkedIn = attendance[date] ?? [];
+
+  const createSession = () => {
+    if (!sessionExists) write({ attendance: { ...attendance, [date]: [] } });
+  };
 
   const toggle = (id: string) => {
     const current = attendance[date] ?? [];
@@ -1383,23 +1427,33 @@ function AdminAttendanceEditor({ players, date, attendance, write }: {
           <h3 className="font-bold text-slate-800">Jelenlét szerkesztése</h3>
           <span className="text-xs text-slate-400 bg-slate-100 px-2 py-1 rounded">{checkedIn.length} fő</span>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
-          {sorted.map((p) => {
-            const isIn = checkedIn.includes(p.id);
-            return (
-              <button
-                key={p.id}
-                onClick={() => toggle(p.id)}
-                className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm border transition-all ${
-                  isIn ? "bg-[#f0fdf4] border-[#84cc16] text-slate-800" : "bg-white border-slate-100 text-slate-400 hover:bg-slate-50"
-                }`}
-              >
-                <span className="truncate font-medium">{p.name}</span>
-                {isIn && <div className="w-2 h-2 rounded-full bg-[#84cc16] shrink-0 ml-1" />}
-              </button>
-            );
-          })}
-        </div>
+
+        {!sessionExists ? (
+          <div className="text-center py-4">
+            <p className="text-sm text-slate-400 mb-3">Erre a dátumra még nincs edzés rögzítve.</p>
+            <button onClick={createSession} className={btnPrimary}>
+              + Session létrehozása
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+            {sorted.map((p) => {
+              const isIn = checkedIn.includes(p.id);
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => toggle(p.id)}
+                  className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm border transition-all ${
+                    isIn ? "bg-[#f0fdf4] border-[#84cc16] text-slate-800" : "bg-white border-slate-100 text-slate-400 hover:bg-slate-50"
+                  }`}
+                >
+                  <span className="truncate font-medium">{p.name}</span>
+                  {isIn && <div className="w-2 h-2 rounded-full bg-[#84cc16] shrink-0 ml-1" />}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1407,6 +1461,33 @@ function AdminAttendanceEditor({ players, date, attendance, write }: {
 
 // ========================= CheckInPage =========================
 function CheckInPage() {
+  const trainingDate = getCurrentTrainingDate();
+
+  if (!trainingDate) {
+    return (
+      <div className="min-h-screen bg-[#1e293b] flex flex-col items-center justify-center p-6 font-sans">
+        <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+          <div className="absolute -top-20 -left-20 w-80 h-80 bg-[#84cc16] rounded-full blur-[120px] opacity-10" />
+          <div className="absolute bottom-0 right-0 w-80 h-80 bg-teal-500 rounded-full blur-[120px] opacity-10" />
+        </div>
+        <div className="relative z-10 w-full max-w-sm text-center">
+          <div className="w-20 h-20 rounded-full bg-white/10 border border-white/20 flex items-center justify-center overflow-hidden mx-auto mb-6">
+            <img src="/logo.png" alt="Logo" className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+          </div>
+          <div className="bg-white/10 backdrop-blur border border-white/10 rounded-2xl p-8">
+            <div className="text-5xl mb-4">🏸</div>
+            <h2 className="text-white text-xl font-black mb-2">Jelenleg nincs edzés</h2>
+            <p className="text-slate-400 text-sm">Az edzések hétfőn és szerdán vannak.<br />Gyere vissza akkor!</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return <CheckInForm trainingDate={trainingDate} />;
+}
+
+function CheckInForm({ trainingDate }: { trainingDate: string }) {
   const [players, setPlayers] = useState<Player[]>([]);
   const [attendance, setAttendance] = useState<Record<string, string[]>>({});
   const [selectedId, setSelectedId] = useState<string>(
@@ -1417,7 +1498,7 @@ function CheckInPage() {
   const [status, setStatus] = useState<"idle" | "loading" | "done">("idle");
   const [checkedInName, setCheckedInName] = useState("");
 
-  const today = fmt(new Date());
+  const today = trainingDate;
 
   useEffect(() => {
     const ref = doc(db, "leagues", "default");
