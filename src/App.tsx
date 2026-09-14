@@ -1555,7 +1555,7 @@ function CheckInPage() {
 
   if (!trainingDate) {
     return (
-      <div className="min-h-screen bg-[#1e293b] flex flex-col items-center justify-center p-6 font-sans">
+      <div className="min-h-screen w-screen overflow-x-hidden bg-[#1e293b] flex flex-col items-center justify-center p-6 font-sans">
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
           <div className="absolute -top-20 -left-20 w-80 h-80 bg-[#84cc16] rounded-full blur-[120px] opacity-10" />
           <div className="absolute bottom-0 right-0 w-80 h-80 bg-teal-500 rounded-full blur-[120px] opacity-10" />
@@ -1708,7 +1708,7 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
   }, [isToday]);
 
   return (
-    <div className="min-h-screen bg-[#1e293b] flex flex-col items-center justify-center p-6 font-sans">
+    <div className="min-h-screen w-screen overflow-x-hidden bg-[#1e293b] flex flex-col items-center justify-center p-6 font-sans">
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
         <div className="absolute -top-20 -left-20 w-80 h-80 bg-[#84cc16] rounded-full blur-[120px] opacity-10" />
         <div className="absolute bottom-0 right-0 w-80 h-80 bg-teal-500 rounded-full blur-[120px] opacity-10" />
