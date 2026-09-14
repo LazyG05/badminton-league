@@ -1593,6 +1593,58 @@ function PlayerStatsAndAchievements({
 
 
 
+// ========================= AdminAttendanceEditor =========================
+function AdminAttendanceEditor({ players, date, attendance, write }: {
+  players: Player[];
+  date: string;
+  attendance: Record<string, string[]>;
+  write: (patch: Partial<LeagueDoc>) => void;
+}) {
+  const checkedIn = attendance[date] ?? [];
+
+  const toggle = (id: string) => {
+    const current = attendance[date] ?? [];
+    const next = current.includes(id)
+      ? current.filter((x) => x !== id)
+      : [...current, id];
+    write({ attendance: { ...attendance, [date]: next } });
+  };
+
+  const sorted = useMemo(
+    () => [...players].sort((a, b) => getBaseName(a.name).localeCompare(getBaseName(b.name), "hu")),
+    [players]
+  );
+
+  return (
+    <div className={cardContainer}>
+      <BrandStripe />
+      <div className={cardContent}>
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="font-bold text-slate-800">Jelenlét szerkesztése</h3>
+          <span className="text-xs text-slate-400 bg-slate-100 px-2 py-1 rounded">{checkedIn.length} fő</span>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+          {sorted.map((p) => {
+            const isIn = checkedIn.includes(p.id);
+            return (
+              <button
+                key={p.id}
+                onClick={() => toggle(p.id)}
+                className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm border transition-all ${
+                  isIn ? "bg-[#f0fdf4] border-[#84cc16] text-slate-800" : "bg-white border-slate-100 text-slate-400 hover:bg-slate-50"
+                }`}
+              >
+                <span className="truncate font-medium">{p.name}</span>
+                {isIn && <div className="w-2 h-2 rounded-full bg-[#84cc16] shrink-0 ml-1" />}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ========================= CheckInPage =========================
 function CheckInPage() {
   const [players, setPlayers] = useState<Player[]>([]);
@@ -2153,6 +2205,7 @@ matchesForStandings.forEach((m) => {
                         <DrawMatches players={players} presentIds={presentIds} matchesForDate={matchesForDate} date={date} league={league} write={write} />
                     </div>
                     <AttendanceList players={players} presentIds={presentIds} setPresentIds={setPresentIds} />
+                    <AdminAttendanceEditor players={players} date={date} attendance={attendance} write={write} />
                     <MatchesList matches={matchesForDate} nameOf={nameOf} onPick={pickWinner} onDelete={deleteMatch} onClear={clearWinner} isAdmin={true} />
                     <SelectPairs players={players} freeIds={freeIds} seenTeammates={seenTeammates} onCreate={createMatch} />
                 </div>
