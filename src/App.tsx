@@ -49,6 +49,8 @@ export type Backup = {
   note?: string;
   data: { players: Player[]; matches: Match[] };
 };
+type Particle = { id: number; angle: number; distance: number; rotate: number; size: number; duration: number };
+
 export type CheckInEvent = {
   playerId: string;
   playerName: string;
@@ -1550,6 +1552,26 @@ function CheckInHistoryCard({ checkinLog }: { checkinLog: CheckInEvent[] }) {
   );
 }
 
+function ShuttlecockSVG({ size }: { size: number }) {
+  return (
+    <svg viewBox="0 0 24 32" width={size} height={Math.round(size * 32 / 24)} xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 27 L2 7 Q12 4.5 22 7 Z" fill="rgba(255,255,255,0.07)"/>
+      <ellipse cx="12" cy="7" rx="10" ry="2.8" fill="rgba(255,255,255,0.1)" stroke="white" strokeWidth="1.2"/>
+      <path d="M12 27 Q1 17 2 7"     fill="none" stroke="white" strokeWidth="0.9"/>
+      <path d="M12 27 Q3 14 5.5 5"   fill="none" stroke="white" strokeWidth="0.9"/>
+      <path d="M12 27 Q7 12 9 4.7"   fill="none" stroke="white" strokeWidth="0.9"/>
+      <path d="M12 27 Q11 12 12 4.5" fill="none" stroke="white" strokeWidth="0.9"/>
+      <path d="M12 27 Q13 12 15 4.7" fill="none" stroke="white" strokeWidth="0.9"/>
+      <path d="M12 27 Q17 12 18.5 5" fill="none" stroke="white" strokeWidth="0.9"/>
+      <path d="M12 27 Q21 14 22 7"   fill="none" stroke="white" strokeWidth="0.9"/>
+      <ellipse cx="12" cy="16" rx="6" ry="1.4" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="0.8"/>
+      <ellipse cx="12" cy="26.5" rx="3.5" ry="3.8" fill="#f0cc60"/>
+      <ellipse cx="12" cy="24.5" rx="3.5" ry="1.8" fill="#c48a10" opacity="0.4"/>
+      <ellipse cx="11" cy="25.5" rx="1.5" ry="1" fill="white" opacity="0.12"/>
+    </svg>
+  );
+}
+
 function CheckInPage() {
   const trainingDate = getCurrentTrainingDate();
 
@@ -1688,6 +1710,20 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
   };
 
   const [countdown, setCountdown] = useState<string | null>(null);
+  const [particles, setParticles] = useState<Particle[]>([]);
+
+  const triggerBurst = () => {
+    const count = 12;
+    setParticles(Array.from({ length: count }, (_, i) => ({
+      id: Date.now() + i,
+      angle: (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.4,
+      distance: 60 + Math.random() * 55,
+      rotate: (Math.random() - 0.5) * 540,
+      size: 15 + Math.floor(Math.random() * 9),
+      duration: 580 + Math.floor(Math.random() * 320),
+    })));
+    setTimeout(() => setParticles([]), 1000);
+  };
   const isToday = trainingDate === fmt(new Date());
   useEffect(() => {
     if (!isToday) return;
@@ -1709,6 +1745,12 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
 
   return (
     <div className="min-h-screen w-screen overflow-x-hidden bg-[#1e293b] flex flex-col items-center justify-center p-6 font-sans">
+      <style>{`
+        @keyframes shuttlefly {
+          0%   { transform: translate(-50%,-50%) translate(0px,0px) rotate(0deg); opacity: 1; }
+          100% { transform: translate(-50%,-50%) translate(var(--tx),var(--ty)) rotate(var(--rot)); opacity: 0; }
+        }
+      `}</style>
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
         <div className="absolute -top-20 -left-20 w-80 h-80 bg-[#84cc16] rounded-full blur-[120px] opacity-10" />
         <div className="absolute bottom-0 right-0 w-80 h-80 bg-teal-500 rounded-full blur-[120px] opacity-10" />
@@ -1780,13 +1822,20 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
                     )}
                   </div>
                 ) : (
-                  <button
-                    onClick={handleCheckIn}
-                    disabled={!selectedId || status === "loading"}
-                    className="w-full bg-[#84cc16] hover:bg-[#65a30d] disabled:opacity-50 text-white font-black text-lg py-4 rounded-xl transition-all active:scale-95 shadow-lg shadow-lime-900/30"
-                  >
-                    {status === "loading" ? "..." : "Becsekkolok 🏸"}
-                  </button>
+                  <div className="relative">
+                    {particles.map(p => (
+                      <div key={p.id} style={{ position: 'absolute', left: '50%', top: '50%', pointerEvents: 'none', zIndex: 50, ['--tx' as string]: `${Math.cos(p.angle) * p.distance}px`, ['--ty' as string]: `${Math.sin(p.angle) * p.distance}px`, ['--rot' as string]: `${p.rotate}deg`, animation: `shuttlefly ${p.duration}ms ease-out forwards` } as React.CSSProperties}>
+                        <ShuttlecockSVG size={p.size} />
+                      </div>
+                    ))}
+                    <button
+                      onClick={() => { triggerBurst(); handleCheckIn(); }}
+                      disabled={!selectedId || status === "loading"}
+                      className="w-full bg-[#84cc16] hover:bg-[#65a30d] disabled:opacity-50 text-white font-black text-lg py-4 rounded-xl transition-all active:scale-95 shadow-lg shadow-lime-900/30"
+                    >
+                      {status === "loading" ? "..." : "Becsekkolok 🏸"}
+                    </button>
+                  </div>
                 )}
 
                 <button
@@ -1812,13 +1861,20 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
                   <p className="text-xs text-slate-500 mt-2">Ez felkerül a játékoslistára is.</p>
                 </div>
 
-                <button
-                  onClick={handleCheckIn}
-                  disabled={!newName.trim() || status === "loading"}
-                  className="w-full bg-[#84cc16] hover:bg-[#65a30d] disabled:opacity-50 text-white font-black text-lg py-4 rounded-xl transition-all active:scale-95 shadow-lg shadow-lime-900/30"
-                >
-                  {status === "loading" ? "..." : "Becsekkolok 🏸"}
-                </button>
+                <div className="relative">
+                  {particles.map(p => (
+                    <div key={p.id} style={{ position: 'absolute', left: '50%', top: '50%', pointerEvents: 'none', zIndex: 50, ['--tx' as string]: `${Math.cos(p.angle) * p.distance}px`, ['--ty' as string]: `${Math.sin(p.angle) * p.distance}px`, ['--rot' as string]: `${p.rotate}deg`, animation: `shuttlefly ${p.duration}ms ease-out forwards` } as React.CSSProperties}>
+                      <ShuttlecockSVG size={p.size} />
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => { triggerBurst(); handleCheckIn(); }}
+                    disabled={!newName.trim() || status === "loading"}
+                    className="w-full bg-[#84cc16] hover:bg-[#65a30d] disabled:opacity-50 text-white font-black text-lg py-4 rounded-xl transition-all active:scale-95 shadow-lg shadow-lime-900/30"
+                  >
+                    {status === "loading" ? "..." : "Becsekkolok 🏸"}
+                  </button>
+                </div>
 
                 <button
                   onClick={() => setMode("select")}
