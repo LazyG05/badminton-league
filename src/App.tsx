@@ -1745,12 +1745,6 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
 
   return (
     <div className="min-h-screen w-screen overflow-x-hidden bg-[#1e293b] flex flex-col items-center justify-center p-6 font-sans">
-      <style>{`
-        @keyframes shuttlefly {
-          0%   { transform: translate(-50%,-50%) translate(0px,0px) rotate(0deg); opacity: 1; }
-          100% { transform: translate(-50%,-50%) translate(var(--tx),var(--ty)) rotate(var(--rot)); opacity: 0; }
-        }
-      `}</style>
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
         <div className="absolute -top-20 -left-20 w-80 h-80 bg-[#84cc16] rounded-full blur-[120px] opacity-10" />
         <div className="absolute bottom-0 right-0 w-80 h-80 bg-teal-500 rounded-full blur-[120px] opacity-10" />
@@ -1823,11 +1817,14 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
                   </div>
                 ) : (
                   <div className="relative">
-                    {particles.map(p => (
-                      <div key={p.id} style={{ position: 'absolute', left: '50%', top: '50%', pointerEvents: 'none', zIndex: 50, ['--tx' as string]: `${Math.cos(p.angle) * p.distance}px`, ['--ty' as string]: `${Math.sin(p.angle) * p.distance}px`, ['--rot' as string]: `${p.rotate}deg`, animation: `shuttlefly ${p.duration}ms ease-out forwards` } as React.CSSProperties}>
-                        <ShuttlecockSVG size={p.size} />
-                      </div>
-                    ))}
+                    {particles.length > 0 && <>
+                      <style>{particles.map(p => `@keyframes sf${p.id}{0%{transform:translate(-50%,-50%) rotate(0deg);opacity:1}100%{transform:translate(-50%,-50%) translate(${Math.round(Math.cos(p.angle)*p.distance)}px,${Math.round(Math.sin(p.angle)*p.distance)}px) rotate(${Math.round(p.rotate)}deg);opacity:0}}`).join('')}</style>
+                      {particles.map(p => (
+                        <div key={p.id} style={{position:'absolute',left:'50%',top:'50%',pointerEvents:'none',zIndex:50,animation:`sf${p.id} ${p.duration}ms ease-out forwards`} as React.CSSProperties}>
+                          <ShuttlecockSVG size={p.size} />
+                        </div>
+                      ))}
+                    </>}
                     <button
                       onClick={() => { triggerBurst(); handleCheckIn(); }}
                       disabled={!selectedId || status === "loading"}
@@ -1862,11 +1859,14 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
                 </div>
 
                 <div className="relative">
-                  {particles.map(p => (
-                    <div key={p.id} style={{ position: 'absolute', left: '50%', top: '50%', pointerEvents: 'none', zIndex: 50, ['--tx' as string]: `${Math.cos(p.angle) * p.distance}px`, ['--ty' as string]: `${Math.sin(p.angle) * p.distance}px`, ['--rot' as string]: `${p.rotate}deg`, animation: `shuttlefly ${p.duration}ms ease-out forwards` } as React.CSSProperties}>
-                      <ShuttlecockSVG size={p.size} />
-                    </div>
-                  ))}
+                  {particles.length > 0 && <>
+                    <style>{particles.map(p => `@keyframes sf${p.id}{0%{transform:translate(-50%,-50%) rotate(0deg);opacity:1}100%{transform:translate(-50%,-50%) translate(${Math.round(Math.cos(p.angle)*p.distance)}px,${Math.round(Math.sin(p.angle)*p.distance)}px) rotate(${Math.round(p.rotate)}deg);opacity:0}}`).join('')}</style>
+                    {particles.map(p => (
+                      <div key={p.id} style={{position:'absolute',left:'50%',top:'50%',pointerEvents:'none',zIndex:50,animation:`sf${p.id} ${p.duration}ms ease-out forwards`} as React.CSSProperties}>
+                        <ShuttlecockSVG size={p.size} />
+                      </div>
+                    ))}
+                  </>}
                   <button
                     onClick={() => { triggerBurst(); handleCheckIn(); }}
                     disabled={!newName.trim() || status === "loading"}
