@@ -420,7 +420,7 @@ function Sidebar({
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium border ${role === "player" ? "bg-[#84cc16] border-[#84cc16] text-white shadow-lg shadow-lime-900/20" : "bg-transparent border-transparent text-slate-400 hover:bg-white/5 hover:text-white"}`}
         >
           <Icons.Dashboard />
-          Dashboard
+          Archived
         </button>
 
         <button
@@ -521,7 +521,7 @@ function MobileHeader({ role, setRole }: { role: "player" | "admin" | "attendanc
         role === "player" ? "bg-[#84cc16] text-white" : "text-slate-300"
       }`}
     >
-      Player
+      Archived
     </button>
     <button
       onClick={() => setRole("attendance")}
@@ -2042,7 +2042,7 @@ function MainApp() {
   const { players, matches } = league;
   const attendance = league.attendance ?? {};
 
-  const [role, setRole] = useState<"player" | "admin" | "attendance">("player");
+  const [role, setRole] = useState<"player" | "admin" | "attendance">("attendance");
   const [showPinModal, setShowPinModal] = useState(false);
   const [pendingRole, setPendingRole] = useState<"player" | "admin" | "attendance" | null>(null);
 
@@ -2184,7 +2184,7 @@ matchesForStandings.forEach((m) => {
         <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
           <div>
             <h1 className="text-2xl font-bold text-slate-800 px-3 py-1 rounded-lg">
-              {role === "admin" ? "Admin Dashboard" : role === "attendance" ? "Jelenlét" : "Player Dashboard"}
+              {role === "admin" ? "Admin Dashboard" : role === "attendance" ? "Jelenlét" : "Archived"}
             </h1>
             <p className="text-slate-500 text-sm mt-1">Biatorbágy Badminton</p>
           </div>
