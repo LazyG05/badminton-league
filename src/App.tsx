@@ -1723,13 +1723,18 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
         </div>
 
         {status === "done" ? (
-          <div className="bg-white/10 backdrop-blur border border-white/10 rounded-2xl p-8 text-center">
-            <div className="text-6xl mb-4">✅</div>
-            <p className="text-white text-xl font-bold mb-1">Becsekkolva!</p>
-            <p className="text-[#84cc16] font-medium">{checkedInName}</p>
-            <p className="text-slate-400 text-sm mt-2">{today}</p>
-            <button onClick={resetForOther} className="mt-6 text-xs text-slate-400 hover:text-white underline">
-              Más játékos
+          <div className="bg-white/10 backdrop-blur border border-white/10 rounded-2xl p-10 text-center flex flex-col items-center gap-3">
+            <div className="w-20 h-20 rounded-full bg-[#84cc16]/20 border-2 border-[#84cc16]/50 flex items-center justify-center text-5xl mb-2">
+              ✅
+            </div>
+            <p className="text-white text-2xl font-black">Becsekkolva!</p>
+            <p className="text-[#84cc16] text-lg font-bold">{checkedInName}</p>
+            <p className="text-slate-400 text-sm">{today} • {weekday(today)}</p>
+            <button
+              onClick={resetForOther}
+              className="mt-4 w-full py-3 rounded-xl border border-white/10 text-slate-400 hover:text-white hover:border-white/30 text-sm font-medium transition-colors"
+            >
+              Más játékos becsekkolása
             </button>
           </div>
         ) : (
