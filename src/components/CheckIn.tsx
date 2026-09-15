@@ -54,13 +54,13 @@ export function CheckInPage() {
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
           <div className="absolute -top-20 -left-20 w-80 h-80 bg-[#84cc16] rounded-full blur-[120px] opacity-10" />
           <div className="absolute bottom-0 right-0 w-80 h-80 bg-teal-500 rounded-full blur-[120px] opacity-10" />
-          <div className="absolute top-0 left-[6%]"  style={{ animation: "sc-fall1  9s linear       infinite" }}><img src="/shuttlecock.svg" width={30} height={40} alt="" /></div>
-          <div className="absolute top-0 left-[20%]" style={{ animation: "sc-fall2 12s linear  1.5s infinite" }}><img src="/shuttlecock.svg" width={22} height={29} alt="" /></div>
-          <div className="absolute top-0 left-[35%]" style={{ animation: "sc-fall3  8s linear  3.5s infinite" }}><img src="/shuttlecock.svg" width={36} height={48} alt="" /></div>
-          <div className="absolute top-0 left-[50%]" style={{ animation: "sc-fall4 11s linear  0.8s infinite" }}><img src="/shuttlecock.svg" width={26} height={35} alt="" /></div>
-          <div className="absolute top-0 left-[63%]" style={{ animation: "sc-fall5 14s linear  5s   infinite" }}><img src="/shuttlecock.svg" width={20} height={27} alt="" /></div>
-          <div className="absolute top-0 left-[77%]" style={{ animation: "sc-fall6 10s linear  2.5s infinite" }}><img src="/shuttlecock.svg" width={32} height={43} alt="" /></div>
-          <div className="absolute top-0 left-[90%]" style={{ animation: "sc-fall7 13s linear  7s   infinite" }}><img src="/shuttlecock.svg" width={24} height={32} alt="" /></div>
+          <div className="absolute top-0 left-[6%]"  style={{ animation: "sc-fall1  9s linear  -4s  infinite" }}><img src="/shuttlecock.svg" width={30} height={40} alt="" /></div>
+          <div className="absolute top-0 left-[20%]" style={{ animation: "sc-fall2 12s linear  -9s  infinite" }}><img src="/shuttlecock.svg" width={22} height={29} alt="" /></div>
+          <div className="absolute top-0 left-[35%]" style={{ animation: "sc-fall3  8s linear  -2s  infinite" }}><img src="/shuttlecock.svg" width={36} height={48} alt="" /></div>
+          <div className="absolute top-0 left-[50%]" style={{ animation: "sc-fall4 11s linear  -7s  infinite" }}><img src="/shuttlecock.svg" width={26} height={35} alt="" /></div>
+          <div className="absolute top-0 left-[63%]" style={{ animation: "sc-fall5 14s linear  -5s  infinite" }}><img src="/shuttlecock.svg" width={20} height={27} alt="" /></div>
+          <div className="absolute top-0 left-[77%]" style={{ animation: "sc-fall6 10s linear  -1s  infinite" }}><img src="/shuttlecock.svg" width={32} height={43} alt="" /></div>
+          <div className="absolute top-0 left-[90%]" style={{ animation: "sc-fall7 13s linear -11s  infinite" }}><img src="/shuttlecock.svg" width={24} height={32} alt="" /></div>
         </div>
 
         <div className="relative z-10 w-full max-w-sm text-center">
