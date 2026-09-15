@@ -65,9 +65,9 @@ export function CheckInPage() {
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
           <div className="absolute -top-20 -left-20 w-80 h-80 bg-[#84cc16] rounded-full blur-[120px] opacity-10" />
           <div className="absolute bottom-0 right-0 w-80 h-80 bg-teal-500 rounded-full blur-[120px] opacity-10" />
-          <div className="absolute bottom-10 left-[15%]"  style={{ animation: "sc-drift1 7s ease-in infinite" }}><ShuttlecockSVG size={36} /></div>
-          <div className="absolute bottom-10 left-[50%]"  style={{ animation: "sc-drift2 9s ease-in 2s infinite" }}><ShuttlecockSVG size={28} /></div>
-          <div className="absolute bottom-10 left-[78%]"  style={{ animation: "sc-drift3 11s ease-in 5s infinite" }}><ShuttlecockSVG size={32} /></div>
+          <div className="absolute bottom-10 left-[15%]"  style={{ animation: "sc-drift1 7s ease-in infinite" }}><img src="/shuttlecock.svg" width={40} height={53} alt="" /></div>
+          <div className="absolute bottom-10 left-[50%]"  style={{ animation: "sc-drift2 9s ease-in 2s infinite" }}><img src="/shuttlecock.svg" width={30} height={40} alt="" /></div>
+          <div className="absolute bottom-10 left-[78%]"  style={{ animation: "sc-drift3 11s ease-in 5s infinite" }}><img src="/shuttlecock.svg" width={34} height={45} alt="" /></div>
         </div>
 
         <div className="relative z-10 w-full max-w-sm text-center">
@@ -76,7 +76,7 @@ export function CheckInPage() {
           </div>
           <div className="bg-white/10 backdrop-blur border border-white/10 rounded-2xl p-8">
             <div className="flex justify-center mb-4" style={{ animation: "sc-float 3s ease-in-out infinite" }}>
-              <ShuttlecockSVG size={56} />
+              <img src="/shuttlecock.svg" width={72} height={96} alt="" />
             </div>
             <h2 className="text-white text-xl font-black mb-2">Mai nap nincsen edzés</h2>
             <p className="text-slate-400 text-sm">Az edzések hétfőn és szerdán vannak.<br />Gyere vissza akkor!</p>
