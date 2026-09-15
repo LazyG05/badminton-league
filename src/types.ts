@@ -39,4 +39,4 @@ export type Achievement = {
   title: string;
   description: string;
 };
-export type Role = "player" | "admin" | "attendance";
+export type Role = "admin" | "attendance";

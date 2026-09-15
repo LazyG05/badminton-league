@@ -27,20 +27,17 @@ export function Sidebar({ role, setRole }: { role: Role; setRole: (r: Role) => v
       </div>
 
       <nav className="flex-1 px-4 py-6 space-y-2 relative z-10">
-        {(["player", "attendance"] as Role[]).map((r) => (
-          <button
-            key={r}
-            onClick={() => setRole(r)}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium border ${
-              role === r
-                ? "bg-[#84cc16] border-[#84cc16] text-white shadow-lg shadow-lime-900/20"
-                : "bg-transparent border-transparent text-slate-400 hover:bg-white/5 hover:text-white"
-            }`}
-          >
-            {r === "player" ? <Icons.Dashboard /> : <Icons.Attendance />}
-            {r === "player" ? "Dashboard" : "Jelenlét"}
-          </button>
-        ))}
+        <button
+          onClick={() => setRole("attendance")}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium border ${
+            role === "attendance"
+              ? "bg-[#84cc16] border-[#84cc16] text-white shadow-lg shadow-lime-900/20"
+              : "bg-transparent border-transparent text-slate-400 hover:bg-white/5 hover:text-white"
+          }`}
+        >
+          <Icons.Attendance />
+          Jelenlét
+        </button>
 
         <a
           href="https://ttsport.hu/partnereink-termekei/bia-sc/bia-sc-tollaslabda"
@@ -104,13 +101,13 @@ export function MobileHeader({ role, setRole }: { role: Role; setRole: (r: Role)
           <Icons.Shop />
         </a>
         <div className="flex text-xs bg-slate-800/50 backdrop-blur-sm rounded-lg p-1 border border-white/5">
-          {(["player", "attendance", "admin"] as Role[]).map((r) => (
+          {(["attendance", "admin"] as Role[]).map((r) => (
             <button
               key={r}
               onClick={() => setRole(r)}
               className={`px-3 py-1 rounded ${role === r ? "bg-[#84cc16] text-white" : "text-slate-300"}`}
             >
-              {r === "player" ? "Dashboard" : r === "attendance" ? "Jelenlét" : "Admin"}
+              {r === "attendance" ? "Jelenlét" : "Admin"}
             </button>
           ))}
         </div>
