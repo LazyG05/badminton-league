@@ -1818,7 +1818,7 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
                 {alreadyCheckedIn ? (
                   <div className="space-y-2">
                     <div className="bg-[#84cc16]/20 border border-[#84cc16]/40 rounded-xl p-4 text-center">
-                      <p className="text-[#84cc16] font-bold">Ma már becsekkolva vagy ✓</p>
+                      <p className="text-[#84cc16] font-bold">Már becsekkoltál ✓</p>
                       <p className="text-slate-300 text-xs mt-1">{players.find((p) => p.id === selectedId)?.name}</p>
                     </div>
                     {canDelete && (
