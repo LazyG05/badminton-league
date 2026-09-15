@@ -42,32 +42,25 @@ export function CheckInPage() {
             0%,100% { transform: translateY(0px) rotate(-15deg); }
             50%      { transform: translateY(-18px) rotate(-10deg); }
           }
-          @keyframes sc-drift1 {
-            0%   { transform: translate(0,0) rotate(20deg); opacity: 0; }
-            10%  { opacity: 0.15; }
-            90%  { opacity: 0.15; }
-            100% { transform: translate(-30px, -80vh) rotate(-40deg); opacity: 0; }
-          }
-          @keyframes sc-drift2 {
-            0%   { transform: translate(0,0) rotate(-30deg); opacity: 0; }
-            10%  { opacity: 0.1; }
-            90%  { opacity: 0.1; }
-            100% { transform: translate(20px, -80vh) rotate(60deg); opacity: 0; }
-          }
-          @keyframes sc-drift3 {
-            0%   { transform: translate(0,0) rotate(10deg); opacity: 0; }
-            10%  { opacity: 0.12; }
-            90%  { opacity: 0.12; }
-            100% { transform: translate(-10px, -80vh) rotate(-20deg); opacity: 0; }
-          }
+          @keyframes sc-fall1 { 0%{transform:translateY(-70px) rotate(10deg);opacity:0} 8%{opacity:0.22} 92%{opacity:0.18} 100%{transform:translateY(108vh) rotate(150deg);opacity:0} }
+          @keyframes sc-fall2 { 0%{transform:translateY(-70px) rotate(-20deg);opacity:0} 8%{opacity:0.16} 92%{opacity:0.12} 100%{transform:translateY(108vh) rotate(-110deg);opacity:0} }
+          @keyframes sc-fall3 { 0%{transform:translateY(-70px) rotate(30deg);opacity:0} 8%{opacity:0.2} 92%{opacity:0.15} 100%{transform:translateY(108vh) rotate(200deg);opacity:0} }
+          @keyframes sc-fall4 { 0%{transform:translateY(-70px) rotate(-5deg);opacity:0} 8%{opacity:0.24} 92%{opacity:0.18} 100%{transform:translateY(108vh) rotate(130deg);opacity:0} }
+          @keyframes sc-fall5 { 0%{transform:translateY(-70px) rotate(25deg);opacity:0} 8%{opacity:0.18} 92%{opacity:0.13} 100%{transform:translateY(108vh) rotate(-170deg);opacity:0} }
+          @keyframes sc-fall6 { 0%{transform:translateY(-70px) rotate(-30deg);opacity:0} 8%{opacity:0.2} 92%{opacity:0.15} 100%{transform:translateY(108vh) rotate(90deg);opacity:0} }
+          @keyframes sc-fall7 { 0%{transform:translateY(-70px) rotate(15deg);opacity:0} 8%{opacity:0.17} 92%{opacity:0.12} 100%{transform:translateY(108vh) rotate(-140deg);opacity:0} }
         `}</style>
 
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
           <div className="absolute -top-20 -left-20 w-80 h-80 bg-[#84cc16] rounded-full blur-[120px] opacity-10" />
           <div className="absolute bottom-0 right-0 w-80 h-80 bg-teal-500 rounded-full blur-[120px] opacity-10" />
-          <div className="absolute bottom-10 left-[15%]"  style={{ animation: "sc-drift1 7s ease-in infinite" }}><img src="/shuttlecock.svg" width={40} height={53} alt="" /></div>
-          <div className="absolute bottom-10 left-[50%]"  style={{ animation: "sc-drift2 9s ease-in 2s infinite" }}><img src="/shuttlecock.svg" width={30} height={40} alt="" /></div>
-          <div className="absolute bottom-10 left-[78%]"  style={{ animation: "sc-drift3 11s ease-in 5s infinite" }}><img src="/shuttlecock.svg" width={34} height={45} alt="" /></div>
+          <div className="absolute top-0 left-[6%]"  style={{ animation: "sc-fall1  9s linear       infinite" }}><img src="/shuttlecock.svg" width={30} height={40} alt="" /></div>
+          <div className="absolute top-0 left-[20%]" style={{ animation: "sc-fall2 12s linear  1.5s infinite" }}><img src="/shuttlecock.svg" width={22} height={29} alt="" /></div>
+          <div className="absolute top-0 left-[35%]" style={{ animation: "sc-fall3  8s linear  3.5s infinite" }}><img src="/shuttlecock.svg" width={36} height={48} alt="" /></div>
+          <div className="absolute top-0 left-[50%]" style={{ animation: "sc-fall4 11s linear  0.8s infinite" }}><img src="/shuttlecock.svg" width={26} height={35} alt="" /></div>
+          <div className="absolute top-0 left-[63%]" style={{ animation: "sc-fall5 14s linear  5s   infinite" }}><img src="/shuttlecock.svg" width={20} height={27} alt="" /></div>
+          <div className="absolute top-0 left-[77%]" style={{ animation: "sc-fall6 10s linear  2.5s infinite" }}><img src="/shuttlecock.svg" width={32} height={43} alt="" /></div>
+          <div className="absolute top-0 left-[90%]" style={{ animation: "sc-fall7 13s linear  7s   infinite" }}><img src="/shuttlecock.svg" width={24} height={32} alt="" /></div>
         </div>
 
         <div className="relative z-10 w-full max-w-sm text-center">
