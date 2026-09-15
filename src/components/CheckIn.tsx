@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { doc, onSnapshot, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
 import { onAuthStateChanged, signInAnonymously } from "firebase/auth";
 import { db, auth } from "../firebase";
-import { EMOJIS, TRAINING_DAYS } from "../constants";
-import { fmt, fmtTime, weekday, uid, getCurrentTrainingDate, getBaseName } from "../utils";
+import { EMOJIS } from "../constants";
+import { fmt, weekday, uid, getCurrentTrainingDate, getBaseName } from "../utils";
 import type { Player, LeagueDoc, CheckInEvent } from "../types";
 
 type Particle = {
@@ -201,9 +201,6 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
 
   const resetForOther = () => { setStatus("idle"); setMode("select"); setNewName(""); };
 
-  // Suppress unused import warning for TRAINING_DAYS (used transitively via getCurrentTrainingDate)
-  void TRAINING_DAYS;
-
   return (
     <div className="min-h-screen w-screen overflow-x-hidden bg-[#1e293b] flex flex-col items-center justify-center p-6 font-sans">
       {particles.length > 0 && (
@@ -327,5 +324,3 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
   );
 }
 
-// Suppress unused fmtTime import warning — used for display via the TRAINING_DAYS reference
-void fmtTime;

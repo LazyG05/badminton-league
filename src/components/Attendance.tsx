@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { BrandStripe, cardContainer, cardContent, input } from "../design";
 import { CHECKIN_URL } from "../constants";
-import { weekday, getBaseName, fmt } from "../utils";
+import { weekday, getBaseName } from "../utils";
 import type { Player } from "../types";
 
 export function AttendanceCalendar({
@@ -95,9 +95,6 @@ export function AttendanceCalendar({
   const _today = new Date();
   const todayStr = `${_today.getFullYear()}-${String(_today.getMonth() + 1).padStart(2, "0")}-${String(_today.getDate()).padStart(2, "0")}`;
   const nameOf = (id: string) => players.find((p) => p.id === id)?.name ?? "Ismeretlen";
-
-  // Suppress unused import
-  void fmt;
 
   return (
     <div className={cardContainer}>

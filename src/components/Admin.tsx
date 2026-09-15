@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  BrandStripe, Icons, cardContainer, cardContent,
+  BrandStripe, cardContainer, cardContent,
   btnPrimary, btnSecondary, btnDanger, btnGhost, input,
 } from "../design";
 import { EMOJIS, TRAINING_DAYS } from "../constants";
@@ -47,7 +47,15 @@ export function DatePicker({ value, onChange }: { value: string; onChange: (val:
   );
 }
 
-export function AdminDateJump({ grouped, date, setDate }: any) {
+export function AdminDateJump({
+  grouped,
+  date,
+  setDate,
+}: {
+  grouped: { date: string }[];
+  date: string;
+  setDate: (d: string) => void;
+}) {
   return (
     <div className={cardContainer}>
       <BrandStripe />
@@ -57,7 +65,7 @@ export function AdminDateJump({ grouped, date, setDate }: any) {
           <p className="text-sm text-slate-400">No sessions yet.</p>
         ) : (
           <ul className="space-y-2 max-h-40 overflow-y-auto pr-1">
-            {grouped.map((g: any) => (
+            {grouped.map((g) => (
               <li key={g.date}>
                 <button
                   onClick={() => setDate(g.date)}
@@ -305,7 +313,19 @@ export function AttendanceExportCard({
   );
 }
 
-export function PlayerEditor({ players, onAdd, onRemove, onUpdateEmoji, onUpdateGender }: any) {
+export function PlayerEditor({
+  players,
+  onAdd,
+  onRemove,
+  onUpdateEmoji,
+  onUpdateGender,
+}: {
+  players: Player[];
+  onAdd: (name: string) => void;
+  onRemove: (id: string) => void;
+  onUpdateEmoji: (id: string, emoji: string) => void;
+  onUpdateGender: (id: string, g: "M" | "F" | null) => void;
+}) {
   const [name, setName] = useState("");
   const [emoji, setEmoji] = useState(EMOJIS[0]);
   const [showEmoji, setShowEmoji] = useState(false);
@@ -316,7 +336,7 @@ export function PlayerEditor({ players, onAdd, onRemove, onUpdateEmoji, onUpdate
     if (!selectedPlayerId && players.length) setSelectedPlayerId(players[0].id);
   }, [players, selectedPlayerId]);
 
-  const selectedPlayer = players.find((p: any) => p.id === selectedPlayerId);
+  const selectedPlayer = players.find((p) => p.id === selectedPlayerId);
 
   return (
     <div className={cardContainer}>
@@ -339,14 +359,14 @@ export function PlayerEditor({ players, onAdd, onRemove, onUpdateEmoji, onUpdate
         {showManage && (
           <div className="border-t border-slate-100 pt-3 space-y-3">
             <select className={input} value={selectedPlayerId} onChange={(e) => setSelectedPlayerId(e.target.value)}>
-              {players.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              {players.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
             {selectedPlayer && (
               <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 space-y-3">
                 <div>
                   <div className="text-xs font-bold text-slate-400 uppercase mb-1">Gender</div>
                   <div className="flex gap-2">
-                    {["M", "F", null].map((g) => (
+                    {(["M", "F", null] as ("M" | "F" | null)[]).map((g) => (
                       <button key={String(g)} onClick={() => onUpdateGender(selectedPlayer.id, g)} className={`px-3 py-1 text-xs rounded-full border ${selectedPlayer.gender === g ? "bg-[#84cc16] text-white border-[#84cc16]" : "bg-white text-slate-500 border-slate-200"}`}>
                         {g === "M" ? "Man" : g === "F" ? "Woman" : "Not Set"}
                       </button>
@@ -474,9 +494,6 @@ export function ImportExportCard({
       setStatus({ kind: "err", msg: e?.message || "Import failed." });
     }
   };
-
-  // Suppress unused Icons import warning
-  void Icons;
 
   return (
     <div className={cardContainer}>

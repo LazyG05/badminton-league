@@ -6,7 +6,7 @@ import "cross-fetch/polyfill";
 import { useEffect, useMemo, useState } from "react";
 import { Icons } from "./design";
 import { useLeague } from "./hooks/useLeague";
-import { fmt, nextTrainingDate, isSinglesMatch, isHiddenFromStandings, getBaseName } from "./utils";
+import { fmt, nextTrainingDate, getBaseName, uid, computeStandings } from "./utils";
 import { Sidebar, MobileHeader, AdminPinModal } from "./components/Layout";
 import { CheckInPage } from "./components/CheckIn";
 import { AttendanceView } from "./components/Attendance";
@@ -15,11 +15,7 @@ import {
   CheckInHistoryCard, AttendanceExportCard, ImportExportCard, PlayerEditor,
 } from "./components/Admin";
 import { Standings, MatchesPlayer, PlayerStatsAndAchievements } from "./components/Dashboard";
-import { ADMIN_PIN } from "./constants";
 import type { Role } from "./types";
-
-// Suppress unused import warnings for polyfills
-void ADMIN_PIN;
 
 export default function App() {
   const isCheckIn = new URLSearchParams(window.location.search).has("checkin");
@@ -78,42 +74,12 @@ function MainApp() {
     if (players.length && !meId) setMeId(players[0].id);
   }, [players, meId]);
 
-  const standings = useMemo(() => {
-    const s = new Map();
-    const MIN_MATCHES = 5;
-    const matchesForStandings =
-      standingsMatchFilter === "all"
-        ? matches
-        : matches.filter((m) => standingsMatchFilter === "singles" ? isSinglesMatch(m) : !isSinglesMatch(m));
+  const standings = useMemo(
+    () => computeStandings(players, matches, standingsMatchFilter),
+    [players, matches, standingsMatchFilter]
+  );
 
-    players
-      .filter((p) => !isHiddenFromStandings(p))
-      .forEach((p) => s.set(p.id, { ...p, wins: 0, matches: 0, totalPoints: 0, qualified: false }));
-
-    const melinda = players.find((p) => p.name.toLowerCase().includes("melinda"));
-    const melindaId = melinda?.id;
-
-    matchesForStandings.forEach((m) => {
-      if (!m.winner) return;
-      [...m.teamA, ...m.teamB].filter(Boolean).forEach((id) => {
-        const d = s.get(id);
-        if (d) d.matches++;
-      });
-      const winners = (m.winner === "A" ? m.teamA : m.teamB).filter(Boolean);
-      const losers  = (m.winner === "A" ? m.teamB : m.teamA).filter(Boolean);
-      winners.forEach((id) => { const d = s.get(id); if (d) { d.wins++; d.totalPoints += 3; } });
-      losers.forEach((id)  => { const d = s.get(id); if (d) { d.totalPoints += 1; } });
-      if (melindaId && losers.includes(melindaId)) {
-        winners.forEach((id) => { const d = s.get(id); if (d) d.totalPoints += 1; });
-      }
-    });
-
-    return Array.from(s.values())
-      .map((p: any) => ({ ...p, winRate: p.matches ? Math.round(p.wins / p.matches * 100) : 0, qualified: p.matches >= MIN_MATCHES }))
-      .sort((a, b) => b.totalPoints - a.totalPoints);
-  }, [players, matches, standingsMatchFilter]);
-
-  const addPlayer    = (name: string) => write({ players: [...players, { id: crypto.randomUUID().slice(0, 8), name }] });
+  const addPlayer    = (name: string) => write({ players: [...players, { id: uid(), name }] });
   const removePlayer = (id: string)   => write({ players: players.filter((p) => p.id !== id) });
   const updatePlayerEmoji  = (id: string, emoji: string) => write({ players: players.map((p) => p.id === id ? { ...p, name: `${emoji} ${getBaseName(p.name)}` } : p) });
   const updatePlayerGender = (id: string, g: "M" | "F" | null) => write({ players: players.map((p) => p.id === id ? { ...p, gender: g ?? undefined } : p) });

@@ -1,17 +1,24 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   BrandStripe, cardContainer, cardContent, input,
 } from "../design";
-import { getBaseName, isSinglesMatch, formatTeam, weekday, computeAchievementsFull, computeAttendanceStreak, BADGE_META, ALL_BADGES } from "../utils";
-import type { Player, Match } from "../types";
+import { getBaseName, formatTeam, weekday, computeAchievementsFull, BADGE_META, ALL_BADGES } from "../utils";
+import type { StandingsRow } from "../utils";
+import type { Player, Match, Pair } from "../types";
 
-export function MatchesPlayer({ grouped, nameOf }: any) {
+export function MatchesPlayer({
+  grouped,
+  nameOf,
+}: {
+  grouped: { date: string; matches: { id: string; teamA: Pair; teamB: Pair; winner?: "A" | "B" }[] }[];
+  nameOf: (id: string) => string;
+}) {
   const [openDate, setOpenDate] = useState<string | null>(null);
-  useMemo(() => { if (grouped.length && !openDate) setOpenDate(grouped[0].date); }, [grouped]);
+  useEffect(() => { if (grouped.length && !openDate) setOpenDate(grouped[0].date); }, [grouped]);
 
   return (
     <div className="space-y-4">
-      {grouped.map((g: any) => {
+      {grouped.map((g) => {
         const isOpen = openDate === g.date;
         return (
           <div key={g.date} className={cardContainer}>
@@ -28,7 +35,7 @@ export function MatchesPlayer({ grouped, nameOf }: any) {
               </button>
               {isOpen && (
                 <div className="mt-4 space-y-3 px-2 pb-2">
-                  {g.matches.map((m: any) => {
+                  {g.matches.map((m) => {
                     const winnerA = m.winner === "A";
                     const winnerB = m.winner === "B";
                     const played = !!m.winner;
@@ -58,7 +65,17 @@ export function MatchesPlayer({ grouped, nameOf }: any) {
   );
 }
 
-export function Standings({ rows, matchFilter, onMatchFilterChange, showMatchFilterToggle }: any) {
+export function Standings({
+  rows,
+  matchFilter,
+  onMatchFilterChange,
+  showMatchFilterToggle,
+}: {
+  rows: StandingsRow[];
+  matchFilter: "all" | "singles" | "doubles";
+  onMatchFilterChange?: (f: "all" | "singles" | "doubles") => void;
+  showMatchFilterToggle?: boolean;
+}) {
   const [tab, setTab] = useState<"All" | "Women" | "Men">("All");
   type SortKey = "totalPoints" | "winRate" | "matches";
   const [sortKey, setSortKey] = useState<SortKey>("totalPoints");
@@ -80,9 +97,9 @@ export function Standings({ rows, matchFilter, onMatchFilterChange, showMatchFil
     let filtered = rows;
     if (tab !== "All") {
       const targetGender = tab === "Men" ? "M" : "F";
-      filtered = rows.filter((r: any) => r.gender === targetGender);
+      filtered = rows.filter((r) => r.gender === targetGender);
     }
-    return [...filtered].sort((a: any, b: any) => {
+    return [...filtered].sort((a, b) => {
       const va = a[sortKey] ?? 0;
       const vb = b[sortKey] ?? 0;
       if (va < vb) return sortDir === "asc" ? -1 : 1;
@@ -95,9 +112,6 @@ export function Standings({ rows, matchFilter, onMatchFilterChange, showMatchFil
     if (sortKey !== key) return <span className="ml-1 text-[9px] text-slate-300">▲▼</span>;
     return <span className="ml-1 text-[9px] text-slate-500">{sortDir === "desc" ? "▼" : "▲"}</span>;
   };
-
-  // Suppress unused import warning
-  void isSinglesMatch;
 
   return (
     <div className={cardContainer}>
@@ -216,9 +230,6 @@ export function PlayerStatsAndAchievements({
   );
   const earnedIds = new Set(ach.map((a) => a.id));
   const [showLegend, setShowLegend] = useState(false);
-
-  // Suppress unused import
-  void computeAttendanceStreak;
 
   if (!players.length) return null;
 

@@ -110,6 +110,49 @@ export function computeAttendanceStreak(playerId: string, matches: Match[]): num
   return best;
 }
 
+// ── Standings ─────────────────────────────────────────────────────────────
+export type StandingsRow = Player & {
+  wins: number; matches: number; totalPoints: number;
+  winRate: number; qualified: boolean;
+};
+
+export function computeStandings(
+  players: Player[],
+  matches: Match[],
+  filter: "all" | "singles" | "doubles"
+): StandingsRow[] {
+  const MIN_MATCHES = 5;
+  const filtered =
+    filter === "all" ? matches
+    : filter === "singles" ? matches.filter(isSinglesMatch)
+    : matches.filter((m) => !isSinglesMatch(m));
+
+  const s = new Map<string, StandingsRow>();
+  players
+    .filter((p) => !isHiddenFromStandings(p))
+    .forEach((p) => s.set(p.id, { ...p, wins: 0, matches: 0, totalPoints: 0, qualified: false, winRate: 0 }));
+
+  const melindaId = players.find((p) => p.name.toLowerCase().includes("melinda"))?.id;
+
+  filtered.forEach((m) => {
+    if (!m.winner) return;
+    [...m.teamA, ...m.teamB].filter(Boolean).forEach((id) => {
+      const d = s.get(id); if (d) d.matches++;
+    });
+    const winners = (m.winner === "A" ? m.teamA : m.teamB).filter(Boolean);
+    const losers  = (m.winner === "A" ? m.teamB : m.teamA).filter(Boolean);
+    winners.forEach((id) => { const d = s.get(id); if (d) { d.wins++; d.totalPoints += 3; } });
+    losers.forEach((id)  => { const d = s.get(id); if (d) { d.totalPoints += 1; } });
+    if (melindaId && losers.includes(melindaId)) {
+      winners.forEach((id) => { const d = s.get(id); if (d) d.totalPoints += 1; });
+    }
+  });
+
+  return Array.from(s.values())
+    .map((p) => ({ ...p, winRate: p.matches ? Math.round(p.wins / p.matches * 100) : 0, qualified: p.matches >= MIN_MATCHES }))
+    .sort((a, b) => b.totalPoints - a.totalPoints);
+}
+
 export function computeAchievementsFull(
   playerId: string,
   matches: Match[],
