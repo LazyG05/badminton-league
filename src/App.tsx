@@ -1903,7 +1903,10 @@ function AttendanceCalendar({ players, attendance }: { players: Player[]; attend
     const days: { date: string; day: number }[] = [];
     const d = new Date(year, month, 1);
     while (d.getMonth() === month) {
-      days.push({ date: fmt(d), day: d.getDate() });
+      // Use local date parts to avoid UTC offset shifting the date string
+      const mo = String(d.getMonth() + 1).padStart(2, "0");
+      const da = String(d.getDate()).padStart(2, "0");
+      days.push({ date: `${d.getFullYear()}-${mo}-${da}`, day: d.getDate() });
       d.setDate(d.getDate() + 1);
     }
     return days;
@@ -1956,7 +1959,8 @@ function AttendanceCalendar({ players, attendance }: { players: Player[]; attend
     return idx >= 0 && idx < daysInMonth.length ? daysInMonth[idx] : null;
   });
 
-  const todayStr = fmt(new Date());
+  const _today = new Date();
+  const todayStr = `${_today.getFullYear()}-${String(_today.getMonth() + 1).padStart(2, "0")}-${String(_today.getDate()).padStart(2, "0")}`;
   const nameOf = (id: string) => players.find(p => p.id === id)?.name ?? "Ismeretlen";
 
   return (
