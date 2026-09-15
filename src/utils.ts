@@ -60,16 +60,8 @@ export function nextTrainingDate(from: Date = new Date()): Date {
 export function getCurrentTrainingDate(): string | null {
   const now = new Date();
   const day = now.getDay();
-  if (day === 1 || day === 2) {
-    const d = new Date(now);
-    d.setDate(now.getDate() - (day - 1));
-    return fmt(d);
-  }
-  if (day === 3 || day === 4) {
-    const d = new Date(now);
-    d.setDate(now.getDate() - (day - 3));
-    return fmt(d);
-  }
+  if (day === 1) return fmt(now);
+  if (day === 3) return fmt(now);
   return null;
 }
 
