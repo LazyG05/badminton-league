@@ -37,17 +37,48 @@ export function CheckInPage() {
   if (!trainingDate) {
     return (
       <div className="min-h-screen w-screen overflow-x-hidden bg-[#1e293b] flex flex-col items-center justify-center p-6 font-sans">
+        <style>{`
+          @keyframes sc-float {
+            0%,100% { transform: translateY(0px) rotate(-15deg); }
+            50%      { transform: translateY(-18px) rotate(-10deg); }
+          }
+          @keyframes sc-drift1 {
+            0%   { transform: translate(0,0) rotate(20deg); opacity: 0; }
+            10%  { opacity: 0.15; }
+            90%  { opacity: 0.15; }
+            100% { transform: translate(-30px, -80vh) rotate(-40deg); opacity: 0; }
+          }
+          @keyframes sc-drift2 {
+            0%   { transform: translate(0,0) rotate(-30deg); opacity: 0; }
+            10%  { opacity: 0.1; }
+            90%  { opacity: 0.1; }
+            100% { transform: translate(20px, -80vh) rotate(60deg); opacity: 0; }
+          }
+          @keyframes sc-drift3 {
+            0%   { transform: translate(0,0) rotate(10deg); opacity: 0; }
+            10%  { opacity: 0.12; }
+            90%  { opacity: 0.12; }
+            100% { transform: translate(-10px, -80vh) rotate(-20deg); opacity: 0; }
+          }
+        `}</style>
+
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
           <div className="absolute -top-20 -left-20 w-80 h-80 bg-[#84cc16] rounded-full blur-[120px] opacity-10" />
           <div className="absolute bottom-0 right-0 w-80 h-80 bg-teal-500 rounded-full blur-[120px] opacity-10" />
+          <div className="absolute bottom-10 left-[15%]"  style={{ animation: "sc-drift1 7s ease-in infinite" }}><ShuttlecockSVG size={36} /></div>
+          <div className="absolute bottom-10 left-[50%]"  style={{ animation: "sc-drift2 9s ease-in 2s infinite" }}><ShuttlecockSVG size={28} /></div>
+          <div className="absolute bottom-10 left-[78%]"  style={{ animation: "sc-drift3 11s ease-in 5s infinite" }}><ShuttlecockSVG size={32} /></div>
         </div>
+
         <div className="relative z-10 w-full max-w-sm text-center">
           <div className="w-20 h-20 rounded-full bg-white/10 border border-white/20 flex items-center justify-center overflow-hidden mx-auto mb-6">
             <img src="/logo.png" alt="Logo" className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
           </div>
           <div className="bg-white/10 backdrop-blur border border-white/10 rounded-2xl p-8">
-            <div className="text-5xl mb-4">🏸</div>
-            <h2 className="text-white text-xl font-black mb-2">Jelenleg nincs edzés</h2>
+            <div className="flex justify-center mb-4" style={{ animation: "sc-float 3s ease-in-out infinite" }}>
+              <ShuttlecockSVG size={56} />
+            </div>
+            <h2 className="text-white text-xl font-black mb-2">Mai nap nincsen edzés</h2>
             <p className="text-slate-400 text-sm">Az edzések hétfőn és szerdán vannak.<br />Gyere vissza akkor!</p>
           </div>
         </div>
