@@ -391,27 +391,29 @@ await setDoc(
   }, []);
 
   // Full replace (NO merge) – for restore/import use-cases
+  // attendance + checkinLog are intentionally preserved — they must never be overwritten by a backup import
   const replaceAll = useCallback(async (next: LeagueDoc) => {
-    // local UI update immediately
     suppress.current = true;
-    setData(next);
+    // Keep existing attendance/checkinLog in local state
+    setData(prev => ({
+      ...next,
+      attendance: prev.attendance ?? {},
+      checkinLog: prev.checkinLog ?? [],
+    }));
     setTimeout(() => (suppress.current = false), 0);
 
-    const payload: LeagueDoc = {
+    // Only replace players/matches/backups — never touch attendance or checkinLog
+    const payload = {
       players: Array.isArray(next.players) ? next.players : [],
       matches: Array.isArray(next.matches) ? next.matches : [],
       backups: Array.isArray(next.backups) ? next.backups : [],
-      attendance: next.attendance && typeof next.attendance === "object" ? next.attendance : {},
-      checkinLog: Array.isArray(next.checkinLog) ? next.checkinLog : [],
-      title: next.title,
+      ...(typeof next.title === "string" ? { title: next.title } : {}),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     };
 
     try {
-await setDoc(doc(db, "leagues", "default"), stripUndefinedDeep(payload as LeagueDoc), {
-  merge: false,
-});
+      await setDoc(doc(db, "leagues", "default"), stripUndefinedDeep(payload), { merge: true });
     } catch (err) {
       console.error(err);
     }
@@ -659,6 +661,114 @@ function AdminDateJump({ grouped, date, setDate }: any) {
         </div>
     </div>
   )
+}
+
+// ========================= AttendanceExportCard =========================
+function AttendanceExportCard({ players, attendance, checkinLog }: {
+  players: Player[];
+  attendance: Record<string, string[]>;
+  checkinLog: CheckInEvent[];
+}) {
+  const months = useMemo(() => {
+    const set = new Set<string>();
+    Object.keys(attendance).forEach(d => set.add(d.slice(0, 7)));
+    return [...set].sort((a, b) => b.localeCompare(a));
+  }, [attendance]);
+
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  });
+
+  const monthSessions = useMemo(
+    () => Object.entries(attendance)
+      .filter(([d]) => d.startsWith(selectedMonth))
+      .sort(([a], [b]) => a.localeCompare(b)),
+    [attendance, selectedMonth]
+  );
+
+  const totalCheckins = monthSessions.reduce((sum, [, ids]) => sum + ids.length, 0);
+  const nameOf = (id: string) => players.find(p => p.id === id)?.name ?? id;
+
+  const doExport = () => {
+    const sessions = monthSessions.map(([date, ids]) => ({
+      date,
+      weekday: weekday(date),
+      count: ids.length,
+      players: ids.map(id => ({ id, name: nameOf(id) })),
+    }));
+    const log = checkinLog
+      .filter(e => e.trainingDate.startsWith(selectedMonth))
+      .sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+
+    const content = JSON.stringify({
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      month: selectedMonth,
+      summary: {
+        sessions: sessions.length,
+        totalCheckins,
+        avgPerSession: sessions.length ? Math.round(totalCheckins / sessions.length) : 0,
+      },
+      sessions,
+      checkinLog: log,
+    }, null, 2);
+
+    const blob = new Blob([content], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `bia-jelenlét-${selectedMonth}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  return (
+    <div className={cardContainer}>
+      <BrandStripe />
+      <div className={cardContent}>
+        <h3 className="font-bold text-slate-800 mb-1">Jelenlét export</h3>
+        <p className="text-xs text-slate-500 mb-4">Havi jelenléti adatok letöltése elszámoláshoz.</p>
+
+        {months.length === 0 ? (
+          <p className="text-sm text-slate-400">Még nincs jelenlét adat.</p>
+        ) : (
+          <>
+            <select
+              className={`${input} mb-3`}
+              value={selectedMonth}
+              onChange={e => setSelectedMonth(e.target.value)}
+            >
+              {months.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+
+            <div className="flex gap-2 mb-4">
+              <div className="flex-1 bg-slate-50 rounded-lg p-3 text-center">
+                <div className="text-lg font-black text-slate-800">{monthSessions.length}</div>
+                <div className="text-xs text-slate-400">edzés</div>
+              </div>
+              <div className="flex-1 bg-[#f0fdf4] rounded-lg p-3 text-center">
+                <div className="text-lg font-black text-[#84cc16]">{totalCheckins}</div>
+                <div className="text-xs text-lime-700">becsekkolás</div>
+              </div>
+              <div className="flex-1 bg-slate-50 rounded-lg p-3 text-center">
+                <div className="text-lg font-black text-slate-800">
+                  {monthSessions.length ? Math.round(totalCheckins / monthSessions.length) : 0}
+                </div>
+                <div className="text-xs text-slate-400">átlag fő</div>
+              </div>
+            </div>
+
+            <button className={`${btnPrimary} w-full`} onClick={doExport}>
+              ⬇️ Letöltés – {selectedMonth}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function ImportExportCard({
@@ -2437,6 +2547,7 @@ matchesForStandings.forEach((m) => {
                     <PlayerEditor players={players} onAdd={addPlayer} onRemove={removePlayer} onUpdateEmoji={updatePlayerEmoji} onUpdateGender={updatePlayerGender} />
                     <CheckInHistoryCard checkinLog={checkinLog} />
                     <AdminDateJump grouped={groupedAttendance} date={date} setDate={setDate} />
+                    <AttendanceExportCard players={players} attendance={attendance} checkinLog={checkinLog} />
                     <ImportExportCard league={league} onReplace={replaceAll} />
                 </div>
             </div>
