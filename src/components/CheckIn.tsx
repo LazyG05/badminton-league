@@ -92,6 +92,7 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
   const [newName, setNewName] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "done">("idle");
   const [checkedInName, setCheckedInName] = useState("");
+  const [btnFlying, setBtnFlying] = useState(false);
   const [particles, setParticles] = useState<Particle[]>([]);
   const [countdown, setCountdown] = useState<string | null>(null);
 
@@ -169,6 +170,16 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
     setTimeout(() => setParticles([]), 2200);
   };
 
+  const handleButtonClick = (e: React.MouseEvent) => {
+    if (btnFlying || status === "loading") return;
+    setBtnFlying(true);
+    triggerBurst(e.currentTarget as HTMLElement);
+    setTimeout(() => {
+      setBtnFlying(false);
+      handleCheckIn();
+    }, 580);
+  };
+
   const handleCheckIn = async () => {
     if (status === "loading") return;
     setStatus("loading");
@@ -235,7 +246,8 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
         @keyframes sc-fall5 { 0%{transform:translateY(-70px) rotate(25deg);opacity:0} 8%{opacity:0.1} 92%{opacity:0.07} 100%{transform:translateY(108vh) rotate(-170deg);opacity:0} }
         @keyframes sc-fall6 { 0%{transform:translateY(-70px) rotate(-30deg);opacity:0} 8%{opacity:0.11} 92%{opacity:0.08} 100%{transform:translateY(108vh) rotate(90deg);opacity:0} }
         @keyframes sc-fall7 { 0%{transform:translateY(-70px) rotate(15deg);opacity:0} 8%{opacity:0.1} 92%{opacity:0.07} 100%{transform:translateY(108vh) rotate(-140deg);opacity:0} }
-        @keyframes sc-spin  { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+        @keyframes sc-btn-idle { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+        @keyframes sc-btn-fly  { 0%{transform:rotate(0deg) translateX(0);opacity:1} 100%{transform:rotate(720deg) translateX(320px);opacity:0} }
       `}</style>
 
       {particles.length > 0 && (
@@ -320,16 +332,15 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
                   </div>
                 ) : (
                   <button
-                    onClick={() => { triggerBurst(); handleCheckIn(); }}
-                    disabled={!selectedId || status === "loading"}
-                    className="w-full bg-[#84cc16] hover:bg-[#65a30d] disabled:opacity-50 text-white font-black text-lg py-4 rounded-xl transition-all active:scale-95 shadow-lg shadow-lime-900/30 flex items-center justify-center gap-3"
+                    onClick={handleButtonClick}
+                    disabled={!selectedId || status === "loading" || btnFlying}
+                    className="relative w-full bg-[#84cc16] hover:bg-[#65a30d] disabled:opacity-50 text-white font-black text-lg py-4 rounded-xl transition-all active:scale-95 shadow-lg shadow-lime-900/30 overflow-hidden pl-12"
                   >
-                    {status === "loading" ? "..." : (
-                      <>
-                        Becsekkolok
-                        <img src="/shuttlecock.svg" width={24} height={32} alt="" style={{ animation: "sc-spin 1.8s linear infinite" }} />
-                      </>
-                    )}
+                    <div className="absolute left-4 top-0 bottom-0 flex items-center pointer-events-none">
+                      <img src="/shuttlecock.svg" width={24} height={32} alt=""
+                        style={{ animation: btnFlying ? "sc-btn-fly 0.58s ease-in forwards" : "sc-btn-idle 3s linear infinite" }} />
+                    </div>
+                    {status === "loading" ? "..." : "Becsekkolok"}
                   </button>
                 )}
 
@@ -353,16 +364,15 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
                   <p className="text-xs text-slate-500 mt-2">Ez felkerül a játékoslistára is.</p>
                 </div>
                 <button
-                  onClick={() => { triggerBurst(); handleCheckIn(); }}
-                  disabled={!newName.trim() || status === "loading"}
-                  className="w-full bg-[#84cc16] hover:bg-[#65a30d] disabled:opacity-50 text-white font-black text-lg py-4 rounded-xl transition-all active:scale-95 shadow-lg shadow-lime-900/30 flex items-center justify-center gap-3"
+                  onClick={handleButtonClick}
+                  disabled={!newName.trim() || status === "loading" || btnFlying}
+                  className="relative w-full bg-[#84cc16] hover:bg-[#65a30d] disabled:opacity-50 text-white font-black text-lg py-4 rounded-xl transition-all active:scale-95 shadow-lg shadow-lime-900/30 overflow-hidden pl-12"
                 >
-                  {status === "loading" ? "..." : (
-                    <>
-                      Becsekkolok
-                      <img src="/shuttlecock.svg" width={24} height={32} alt="" style={{ animation: "sc-spin 1.8s linear infinite" }} />
-                    </>
-                  )}
+                  <div className="absolute left-4 top-0 bottom-0 flex items-center pointer-events-none">
+                    <img src="/shuttlecock.svg" width={24} height={32} alt=""
+                      style={{ animation: btnFlying ? "sc-btn-fly 0.58s ease-in forwards" : "sc-btn-idle 3s linear infinite" }} />
+                  </div>
+                  {status === "loading" ? "..." : "Becsekkolok"}
                 </button>
                 <button onClick={() => setMode("select")} className="w-full text-center text-xs text-slate-400 hover:text-white transition-colors pt-1">
                   ← Vissza a listához
