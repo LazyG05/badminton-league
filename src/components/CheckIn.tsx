@@ -3,7 +3,7 @@ import { doc, onSnapshot, updateDoc, arrayUnion, arrayRemove } from "firebase/fi
 import { onAuthStateChanged, signInAnonymously } from "firebase/auth";
 import { db, auth } from "../firebase";
 import { EMOJIS } from "../constants";
-import { fmt, fmtLocal, weekday, uid, getCurrentTrainingDate, getBaseName } from "../utils";
+import { fmtLocal, weekday, uid, getCurrentTrainingDate, getBaseName } from "../utils";
 import type { Player, LeagueDoc, CheckInEvent } from "../types";
 
 type Particle = {
