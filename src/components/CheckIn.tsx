@@ -170,7 +170,7 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
     setTimeout(() => setParticles([]), 2200);
   };
 
-  const handleButtonClick = (e: React.MouseEvent) => {
+  const handleButtonClick = () => {
     if (btnFlying || status === "loading") return;
     setBtnFlying(true);
     setTimeout(() => {
