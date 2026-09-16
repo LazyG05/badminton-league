@@ -30,6 +30,9 @@ export const uid = () => Math.random().toString(36).slice(2, 10);
 
 export const fmt = (d: Date) => d.toISOString().slice(0, 10);
 
+export const fmtLocal = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
 export const fmtTime = (iso: string) =>
   new Date(iso).toLocaleTimeString("hu-HU", {
     hour: "2-digit",
@@ -60,8 +63,7 @@ export function nextTrainingDate(from: Date = new Date()): Date {
 export function getCurrentTrainingDate(): string | null {
   const now = new Date();
   const day = now.getDay();
-  if (day === 1) return fmt(now);
-  if (day === 3) return fmt(now);
+  if (day === 1 || day === 3) return fmtLocal(now);
   return null;
 }
 

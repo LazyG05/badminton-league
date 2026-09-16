@@ -3,7 +3,7 @@ import { doc, onSnapshot, updateDoc, arrayUnion, arrayRemove } from "firebase/fi
 import { onAuthStateChanged, signInAnonymously } from "firebase/auth";
 import { db, auth } from "../firebase";
 import { EMOJIS } from "../constants";
-import { fmt, weekday, uid, getCurrentTrainingDate, getBaseName } from "../utils";
+import { fmt, fmtLocal, weekday, uid, getCurrentTrainingDate, getBaseName } from "../utils";
 import type { Player, LeagueDoc, CheckInEvent } from "../types";
 
 type Particle = {
@@ -131,10 +131,10 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
 
   const canDelete = (() => {
     const now = new Date();
-    return trainingDate === fmt(now) && now.getHours() < 19;
+    return trainingDate === fmtLocal(now) && now.getHours() < 19;
   })();
 
-  const isToday = trainingDate === fmt(new Date());
+  const isToday = trainingDate === fmtLocal(new Date());
   useEffect(() => {
     if (!isToday) return;
     const tick = () => {
