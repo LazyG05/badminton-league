@@ -173,7 +173,6 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
   const handleButtonClick = (e: React.MouseEvent) => {
     if (btnFlying || status === "loading") return;
     setBtnFlying(true);
-    triggerBurst(e.currentTarget as HTMLElement);
     setTimeout(() => {
       setBtnFlying(false);
       handleCheckIn();
@@ -247,7 +246,7 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
         @keyframes sc-fall6 { 0%{transform:translateY(-70px) rotate(-30deg);opacity:0} 8%{opacity:0.11} 92%{opacity:0.08} 100%{transform:translateY(108vh) rotate(90deg);opacity:0} }
         @keyframes sc-fall7 { 0%{transform:translateY(-70px) rotate(15deg);opacity:0} 8%{opacity:0.1} 92%{opacity:0.07} 100%{transform:translateY(108vh) rotate(-140deg);opacity:0} }
         @keyframes sc-btn-idle { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
-        @keyframes sc-btn-fly  { 0%{transform:rotate(0deg) translateX(0);opacity:1} 100%{transform:rotate(720deg) translateX(320px);opacity:0} }
+        @keyframes sc-btn-fly  { 0%{transform:rotate(0deg) translateX(0);opacity:1} 100%{transform:rotate(720deg) translateX(600px);opacity:0} }
       `}</style>
 
       {particles.length > 0 && (
@@ -334,7 +333,7 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
                   <button
                     onClick={handleButtonClick}
                     disabled={!selectedId || status === "loading" || btnFlying}
-                    className="relative w-full bg-[#84cc16] hover:bg-[#65a30d] disabled:opacity-50 text-white font-black text-lg py-4 rounded-xl transition-all active:scale-95 shadow-lg shadow-lime-900/30 overflow-hidden pl-12"
+                    className="relative w-full bg-[#84cc16] hover:bg-[#65a30d] disabled:opacity-50 text-white font-black text-lg py-4 rounded-xl transition-all active:scale-95 shadow-lg shadow-lime-900/30 pl-12"
                   >
                     <div className="absolute left-4 top-0 bottom-0 flex items-center pointer-events-none">
                       <img src="/shuttlecock.svg" width={24} height={32} alt=""
@@ -366,7 +365,7 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
                 <button
                   onClick={handleButtonClick}
                   disabled={!newName.trim() || status === "loading" || btnFlying}
-                  className="relative w-full bg-[#84cc16] hover:bg-[#65a30d] disabled:opacity-50 text-white font-black text-lg py-4 rounded-xl transition-all active:scale-95 shadow-lg shadow-lime-900/30 overflow-hidden pl-12"
+                  className="relative w-full bg-[#84cc16] hover:bg-[#65a30d] disabled:opacity-50 text-white font-black text-lg py-4 rounded-xl transition-all active:scale-95 shadow-lg shadow-lime-900/30 pl-12"
                 >
                   <div className="absolute left-4 top-0 bottom-0 flex items-center pointer-events-none">
                     <img src="/shuttlecock.svg" width={24} height={32} alt=""
