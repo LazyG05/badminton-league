@@ -247,6 +247,7 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
         @keyframes sc-fall7 { 0%{transform:translateY(-70px) rotate(15deg);opacity:0} 8%{opacity:0.1} 92%{opacity:0.07} 100%{transform:translateY(108vh) rotate(-140deg);opacity:0} }
         @keyframes sc-btn-idle { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
         @keyframes sc-btn-fly  { 0%{transform:rotate(0deg) translateX(0);opacity:1} 100%{transform:rotate(720deg) translateX(600px);opacity:0} }
+        @keyframes sc-done     { 0%{transform:rotate(-20deg) scale(0.6);opacity:0} 60%{transform:rotate(10deg) scale(1.15)} 100%{transform:rotate(0deg) scale(1);opacity:1} }
       `}</style>
 
       {particles.length > 0 && (
@@ -292,7 +293,9 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
 
         {status === "done" ? (
           <div className="bg-white/10 backdrop-blur border border-white/10 rounded-2xl p-10 text-center flex flex-col items-center gap-3">
-            <div className="w-20 h-20 rounded-full bg-[#84cc16]/20 border-2 border-[#84cc16]/50 flex items-center justify-center text-5xl mb-2">✅</div>
+            <div className="w-20 h-20 rounded-full bg-[#84cc16]/20 border-2 border-[#84cc16]/50 flex items-center justify-center mb-2">
+              <img src="/shuttlecock.svg" width={44} height={58} alt="" style={{ animation: "sc-done 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards" }} />
+            </div>
             <p className="text-white text-2xl font-black">Becsekkolva!</p>
             <p className="text-[#84cc16] text-lg font-bold">{checkedInName}</p>
             <p className="text-slate-400 text-sm">{today} • {weekday(today)}</p>
