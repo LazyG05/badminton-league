@@ -227,6 +227,17 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
 
   return (
     <div className="min-h-screen w-screen overflow-x-hidden bg-[#1e293b] flex flex-col items-center justify-center p-6 font-sans">
+      <style>{`
+        @keyframes sc-fall1 { 0%{transform:translateY(-70px) rotate(10deg);opacity:0} 8%{opacity:0.12} 92%{opacity:0.09} 100%{transform:translateY(108vh) rotate(150deg);opacity:0} }
+        @keyframes sc-fall2 { 0%{transform:translateY(-70px) rotate(-20deg);opacity:0} 8%{opacity:0.1} 92%{opacity:0.07} 100%{transform:translateY(108vh) rotate(-110deg);opacity:0} }
+        @keyframes sc-fall3 { 0%{transform:translateY(-70px) rotate(30deg);opacity:0} 8%{opacity:0.11} 92%{opacity:0.08} 100%{transform:translateY(108vh) rotate(200deg);opacity:0} }
+        @keyframes sc-fall4 { 0%{transform:translateY(-70px) rotate(-5deg);opacity:0} 8%{opacity:0.13} 92%{opacity:0.09} 100%{transform:translateY(108vh) rotate(130deg);opacity:0} }
+        @keyframes sc-fall5 { 0%{transform:translateY(-70px) rotate(25deg);opacity:0} 8%{opacity:0.1} 92%{opacity:0.07} 100%{transform:translateY(108vh) rotate(-170deg);opacity:0} }
+        @keyframes sc-fall6 { 0%{transform:translateY(-70px) rotate(-30deg);opacity:0} 8%{opacity:0.11} 92%{opacity:0.08} 100%{transform:translateY(108vh) rotate(90deg);opacity:0} }
+        @keyframes sc-fall7 { 0%{transform:translateY(-70px) rotate(15deg);opacity:0} 8%{opacity:0.1} 92%{opacity:0.07} 100%{transform:translateY(108vh) rotate(-140deg);opacity:0} }
+        @keyframes sc-spin  { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+      `}</style>
+
       {particles.length > 0 && (
         <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 100, overflow: "hidden" }}>
           <style>{particles.map(p => `@keyframes sf${p.id}{0%{transform:translate(-50%,-50%) rotate(0deg);opacity:1}100%{transform:translate(-50%,-50%) translate(${Math.round(Math.cos(p.angle) * p.distance)}px,${Math.round(Math.sin(p.angle) * p.distance)}px) rotate(${Math.round(p.rotate)}deg);opacity:0}}`).join("")}</style>
@@ -241,6 +252,13 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
         <div className="absolute -top-20 -left-20 w-80 h-80 bg-[#84cc16] rounded-full blur-[120px] opacity-10" />
         <div className="absolute bottom-0 right-0 w-80 h-80 bg-teal-500 rounded-full blur-[120px] opacity-10" />
+        <div className="absolute top-0 left-[6%]"  style={{ animation: "sc-fall1  9s linear  -4s  infinite" }}><img src="/shuttlecock.svg" width={30} height={40} alt="" /></div>
+        <div className="absolute top-0 left-[20%]" style={{ animation: "sc-fall2 12s linear  -9s  infinite" }}><img src="/shuttlecock.svg" width={22} height={29} alt="" /></div>
+        <div className="absolute top-0 left-[35%]" style={{ animation: "sc-fall3  8s linear  -2s  infinite" }}><img src="/shuttlecock.svg" width={36} height={48} alt="" /></div>
+        <div className="absolute top-0 left-[50%]" style={{ animation: "sc-fall4 11s linear  -7s  infinite" }}><img src="/shuttlecock.svg" width={26} height={35} alt="" /></div>
+        <div className="absolute top-0 left-[63%]" style={{ animation: "sc-fall5 14s linear  -5s  infinite" }}><img src="/shuttlecock.svg" width={20} height={27} alt="" /></div>
+        <div className="absolute top-0 left-[77%]" style={{ animation: "sc-fall6 10s linear  -1s  infinite" }}><img src="/shuttlecock.svg" width={32} height={43} alt="" /></div>
+        <div className="absolute top-0 left-[90%]" style={{ animation: "sc-fall7 13s linear -11s  infinite" }}><img src="/shuttlecock.svg" width={24} height={32} alt="" /></div>
       </div>
 
       <div className="relative z-10 w-full max-w-sm">
@@ -304,9 +322,14 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
                   <button
                     onClick={() => { triggerBurst(); handleCheckIn(); }}
                     disabled={!selectedId || status === "loading"}
-                    className="w-full bg-[#84cc16] hover:bg-[#65a30d] disabled:opacity-50 text-white font-black text-lg py-4 rounded-xl transition-all active:scale-95 shadow-lg shadow-lime-900/30"
+                    className="w-full bg-[#84cc16] hover:bg-[#65a30d] disabled:opacity-50 text-white font-black text-lg py-4 rounded-xl transition-all active:scale-95 shadow-lg shadow-lime-900/30 flex items-center justify-center gap-3"
                   >
-                    {status === "loading" ? "..." : "Becsekkolok 🏸"}
+                    {status === "loading" ? "..." : (
+                      <>
+                        Becsekkolok
+                        <img src="/shuttlecock.svg" width={24} height={32} alt="" style={{ animation: "sc-spin 1.8s linear infinite" }} />
+                      </>
+                    )}
                   </button>
                 )}
 
@@ -332,9 +355,14 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
                 <button
                   onClick={() => { triggerBurst(); handleCheckIn(); }}
                   disabled={!newName.trim() || status === "loading"}
-                  className="w-full bg-[#84cc16] hover:bg-[#65a30d] disabled:opacity-50 text-white font-black text-lg py-4 rounded-xl transition-all active:scale-95 shadow-lg shadow-lime-900/30"
+                  className="w-full bg-[#84cc16] hover:bg-[#65a30d] disabled:opacity-50 text-white font-black text-lg py-4 rounded-xl transition-all active:scale-95 shadow-lg shadow-lime-900/30 flex items-center justify-center gap-3"
                 >
-                  {status === "loading" ? "..." : "Becsekkolok 🏸"}
+                  {status === "loading" ? "..." : (
+                    <>
+                      Becsekkolok
+                      <img src="/shuttlecock.svg" width={24} height={32} alt="" style={{ animation: "sc-spin 1.8s linear infinite" }} />
+                    </>
+                  )}
                 </button>
                 <button onClick={() => setMode("select")} className="w-full text-center text-xs text-slate-400 hover:text-white transition-colors pt-1">
                   ← Vissza a listához
