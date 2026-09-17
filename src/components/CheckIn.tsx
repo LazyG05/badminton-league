@@ -91,6 +91,7 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
   const [mode, setMode] = useState<"select" | "new">("select");
   const [newName, setNewName] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "done">("idle");
+  const [checkingInOther, setCheckingInOther] = useState(false);
   const [checkedInName, setCheckedInName] = useState("");
   const [checkedInId, setCheckedInId] = useState("");
   const [btnFlying, setBtnFlying] = useState(false);
@@ -127,7 +128,7 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
     if (!selectedId && sortedPlayers.length) setSelectedId(sortedPlayers[0].id);
   }, [sortedPlayers, selectedId]);
 
-  const alreadyCheckedIn = mode === "select" && selectedId
+  const alreadyCheckedIn = !checkingInOther && mode === "select" && selectedId
     ? (attendance[today] ?? []).includes(selectedId)
     : false;
 
@@ -236,7 +237,7 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
     }
   };
 
-  const resetForOther = () => { setStatus("idle"); setMode("select"); setNewName(""); setCheckedInId(""); };
+  const resetForOther = () => { setStatus("idle"); setMode("select"); setNewName(""); setCheckedInId(""); setCheckingInOther(true); };
 
   return (
     <div className="min-h-screen w-screen overflow-x-hidden bg-[#1e293b] flex flex-col items-center justify-center p-6 font-sans">
@@ -350,11 +351,36 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
                 </div>
 
                 {alreadyCheckedIn ? (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     <div className="bg-[#84cc16]/20 border border-[#84cc16]/40 rounded-xl p-4 text-center">
                       <p className="text-[#84cc16] font-bold">Már becsekkoltál ✓</p>
                       <p className="text-slate-300 text-xs mt-1">{players.find((p) => p.id === selectedId)?.name}</p>
                     </div>
+                    {(() => {
+                      const ids = attendance[today] ?? [];
+                      if (!ids.length) return null;
+                      const nameOf = (id: string) => players.find((p) => p.id === id)?.name ?? "?";
+                      return (
+                        <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
+                            Ma ott lesznek · <span className="text-white">{ids.length} fő</span>
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {ids.map((id) => (
+                              <span key={id} className={`text-sm rounded-full px-3 py-1 font-medium ${id === selectedId ? "bg-[#84cc16]/30 border border-[#84cc16]/50 text-[#84cc16]" : "bg-white/10 border border-white/10 text-slate-200"}`}>
+                                {nameOf(id)}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                    <button
+                      onClick={() => setCheckingInOther(true)}
+                      className="w-full py-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-sm transition-colors"
+                    >
+                      + Más játékos becsekkolása
+                    </button>
                     {canDelete && (
                       <button onClick={handleRemove} disabled={status === "loading"} className="w-full text-center text-xs text-slate-400 hover:text-rose-400 transition-colors py-1">
                         Visszavonom a becsekkolást
