@@ -92,6 +92,7 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
   const [newName, setNewName] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "done">("idle");
   const [checkedInName, setCheckedInName] = useState("");
+  const [checkedInId, setCheckedInId] = useState("");
   const [btnFlying, setBtnFlying] = useState(false);
   const [particles, setParticles] = useState<Particle[]>([]);
   const [countdown, setCountdown] = useState<string | null>(null);
@@ -197,6 +198,7 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
         });
         localStorage.setItem("checkin_player_id", newPlayer.id);
         setCheckedInName(newPlayer.name);
+        setCheckedInId(newPlayer.id);
       } else {
         if (!selectedId) { setStatus("idle"); return; }
         const pName = players.find((p) => p.id === selectedId)?.name ?? "";
@@ -207,6 +209,7 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
         });
         localStorage.setItem("checkin_player_id", selectedId);
         setCheckedInName(pName);
+        setCheckedInId(selectedId);
       }
       setStatus("done");
     } catch (e) {
@@ -233,7 +236,7 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
     }
   };
 
-  const resetForOther = () => { setStatus("idle"); setMode("select"); setNewName(""); };
+  const resetForOther = () => { setStatus("idle"); setMode("select"); setNewName(""); setCheckedInId(""); };
 
   return (
     <div className="min-h-screen w-screen overflow-x-hidden bg-[#1e293b] flex flex-col items-center justify-center p-6 font-sans">
@@ -292,15 +295,41 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
         </div>
 
         {status === "done" ? (
-          <div className="bg-white/10 backdrop-blur border border-white/10 rounded-2xl p-10 text-center flex flex-col items-center gap-3">
-            <div className="w-20 h-20 rounded-full bg-[#84cc16]/20 border-2 border-[#84cc16]/50 flex items-center justify-center mb-2">
-              <img src="/shuttlecock.svg" width={44} height={58} alt="" style={{ animation: "sc-done 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards" }} />
+          <div className="space-y-3">
+            <div className="bg-white/10 backdrop-blur border border-white/10 rounded-2xl p-8 text-center flex flex-col items-center gap-2">
+              <div className="w-20 h-20 rounded-full bg-[#84cc16]/20 border-2 border-[#84cc16]/50 flex items-center justify-center mb-1">
+                <img src="/shuttlecock.svg" width={44} height={58} alt="" style={{ animation: "sc-done 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards" }} />
+              </div>
+              <p className="text-white text-2xl font-black">Becsekkolva!</p>
+              <p className="text-[#84cc16] text-lg font-bold">{checkedInName}</p>
+              <p className="text-slate-400 text-sm">{today} • {weekday(today)}</p>
             </div>
-            <p className="text-white text-2xl font-black">Becsekkolva!</p>
-            <p className="text-[#84cc16] text-lg font-bold">{checkedInName}</p>
-            <p className="text-slate-400 text-sm">{today} • {weekday(today)}</p>
-            <button onClick={resetForOther} className="mt-4 w-full py-3 rounded-xl border border-white/10 text-slate-400 hover:text-white hover:border-white/30 text-sm font-medium transition-colors">
-              Más játékos becsekkolása
+
+            {(() => {
+              const ids = attendance[today] ?? [];
+              if (!ids.length) return null;
+              const nameOf = (id: string) => players.find((p) => p.id === id)?.name ?? "?";
+              return (
+                <div className="bg-white/10 backdrop-blur border border-white/10 rounded-2xl p-5">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">
+                    Ma ott lesznek · <span className="text-white">{ids.length} fő</span>
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {ids.map((id) => (
+                      <span key={id} className={`text-sm rounded-full px-3 py-1 font-medium ${id === checkedInId ? "bg-[#84cc16]/30 border border-[#84cc16]/50 text-[#84cc16]" : "bg-white/10 border border-white/10 text-slate-200"}`}>
+                        {nameOf(id)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
+            <button
+              onClick={resetForOther}
+              className="w-full py-4 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-sm transition-colors"
+            >
+              + Más játékos becsekkolása
             </button>
           </div>
         ) : (
