@@ -114,9 +114,6 @@ function CheckInForm({
     [players]
   );
 
-  useEffect(() => {
-    if (!selectedId && sortedPlayers.length) setSelectedId(sortedPlayers[0].id);
-  }, [sortedPlayers, selectedId]);
 
   const alreadyCheckedIn = !checkingInOther && mode === "select" && selectedId
     ? (attendance[today] ?? []).includes(selectedId)
@@ -288,6 +285,7 @@ function CheckInForm({
                     value={selectedId}
                     onChange={(e) => setSelectedId(e.target.value)}
                   >
+                    <option value="" disabled className="text-slate-400 bg-slate-800">— Válassz játékost —</option>
                     {sortedPlayers.map((p) => (
                       <option key={p.id} value={p.id} className="text-slate-900 bg-white">{p.name}</option>
                     ))}
