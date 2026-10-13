@@ -3,7 +3,7 @@ import { doc, onSnapshot, updateDoc, arrayUnion, arrayRemove } from "firebase/fi
 import { onAuthStateChanged, signInAnonymously } from "firebase/auth";
 import { db, auth } from "../firebase";
 import { EMOJIS } from "../constants";
-import { fmtLocal, weekday, uid, getAvailableTrainingDates, getBaseName } from "../utils";
+import { fmtLocal, weekday, uid, getCurrentWeekTrainingDates, getBaseName } from "../utils";
 import type { Player, LeagueDoc, CheckInEvent } from "../types";
 
 const KEYFRAMES = `
@@ -38,7 +38,7 @@ const Background = () => (
 );
 
 export function CheckInPage() {
-  const dates = getAvailableTrainingDates();
+  const dates = getCurrentWeekTrainingDates();
   const [players, setPlayers] = useState<Player[]>([]);
   const [attendance, setAttendance] = useState<Record<string, string[]>>({});
 
@@ -67,35 +67,18 @@ export function CheckInPage() {
       <Background />
 
       <div className="relative z-10 w-full max-w-sm">
-        {!dates.length ? (
-          <>
-            <div className="w-20 h-20 rounded-full bg-white/10 border border-white/20 flex items-center justify-center overflow-hidden mx-auto mb-6">
-              <img src="/logo.png" alt="Logo" className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
-            </div>
-            <div className="bg-white/10 backdrop-blur border border-white/10 rounded-2xl p-8 text-center">
-              <div className="flex justify-center mb-4" style={{ animation: "sc-float 3s ease-in-out infinite" }}>
-                <img src="/shuttlecock.svg" width={72} height={96} alt="" />
-              </div>
-              <h2 className="text-white text-xl font-black mb-2">Mai nap nincsen edzés</h2>
-              <p className="text-slate-400 text-sm">Az edzések hétfőn és szerdán vannak.<br />Gyere vissza akkor!</p>
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="flex flex-col items-center mb-8">
-              <div className="w-20 h-20 rounded-full bg-white/10 border border-white/20 flex items-center justify-center overflow-hidden mb-4">
-                <img src="/logo.png" alt="Logo" className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
-              </div>
-              <h1 className="text-white text-2xl font-black tracking-wide">Biatorbágy</h1>
-              <p className="text-[#84cc16] text-xs font-bold uppercase tracking-widest mt-1">Badminton – Becsekkolás</p>
-            </div>
-            <div className="space-y-6">
-              {dates.map((date) => (
-                <CheckInForm key={date} trainingDate={date} players={players} attendance={attendance} />
-              ))}
-            </div>
-          </>
-        )}
+        <div className="flex flex-col items-center mb-8">
+          <div className="w-20 h-20 rounded-full bg-white/10 border border-white/20 flex items-center justify-center overflow-hidden mb-4">
+            <img src="/logo.png" alt="Logo" className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+          </div>
+          <h1 className="text-white text-2xl font-black tracking-wide">Biatorbágy</h1>
+          <p className="text-[#84cc16] text-xs font-bold uppercase tracking-widest mt-1">Badminton – Becsekkolás</p>
+        </div>
+        <div className="space-y-6">
+          {dates.map(({ date, isOpen }) => (
+            <CheckInForm key={date} trainingDate={date} isOpen={isOpen} players={players} attendance={attendance} />
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -103,10 +86,12 @@ export function CheckInPage() {
 
 function CheckInForm({
   trainingDate,
+  isOpen,
   players,
   attendance,
 }: {
   trainingDate: string;
+  isOpen: boolean;
   players: Player[];
   attendance: Record<string, string[]>;
 }) {
@@ -258,15 +243,27 @@ function CheckInForm({
           <p className="text-white font-black">{weekday(trainingDate)}</p>
           <p className="text-slate-400 text-sm">{trainingDate}</p>
         </div>
-        {countdown && (
-          <p className="text-white/60 text-xs font-mono text-right">
-            edzésig<br /><span className="text-white font-bold text-sm">{countdown}</span>
-          </p>
-        )}
+        <div className="flex items-center gap-2">
+          {!isOpen && (
+            <span className="text-xs text-slate-400 bg-white/5 border border-white/10 rounded-full px-2 py-0.5">Lezárva</span>
+          )}
+          {countdown && (
+            <p className="text-white/60 text-xs font-mono text-right">
+              edzésig<br /><span className="text-white font-bold text-sm">{countdown}</span>
+            </p>
+          )}
+        </div>
       </div>
 
       <div className="p-6">
-        {status === "done" ? (
+        {!isOpen ? (
+          <div className="space-y-3">
+            <AttendeeList highlightId="" />
+            {(attendance[today] ?? []).length === 0 && (
+              <p className="text-sm text-slate-500 text-center">Senki nem csekkolódott be.</p>
+            )}
+          </div>
+        ) : status === "done" ? (
           <div className="space-y-4">
             <div className="text-center flex flex-col items-center gap-2">
               <div className="w-16 h-16 rounded-full bg-[#84cc16]/20 border-2 border-[#84cc16]/50 flex items-center justify-center">

@@ -67,16 +67,20 @@ export function getCurrentTrainingDate(): string | null {
   return null;
 }
 
-export function getAvailableTrainingDates(): string[] {
+export function getCurrentWeekTrainingDates(): { date: string; isOpen: boolean }[] {
   const now = new Date();
-  const day = now.getDay();
-  if (day === 1) {
-    const wed = new Date(now);
-    wed.setDate(wed.getDate() + 2);
-    return [fmtLocal(now), fmtLocal(wed)];
-  }
-  if (day === 3) return [fmtLocal(now)];
-  return [];
+  const day = now.getDay(); // 0=Sun,1=Mon,...,6=Sat
+  const daysFromMonday = day === 0 ? 6 : day - 1;
+
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - daysFromMonday);
+  const wednesday = new Date(monday);
+  wednesday.setDate(monday.getDate() + 2);
+
+  return [
+    { date: fmtLocal(monday),    isOpen: day === 1 },
+    { date: fmtLocal(wednesday), isOpen: day === 1 || day === 2 || day === 3 },
+  ];
 }
 
 // ── Achievements ──────────────────────────────────────────────────────────
