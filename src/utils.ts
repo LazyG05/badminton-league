@@ -67,6 +67,18 @@ export function getCurrentTrainingDate(): string | null {
   return null;
 }
 
+export function getAvailableTrainingDates(): string[] {
+  const now = new Date();
+  const day = now.getDay();
+  if (day === 1) {
+    const wed = new Date(now);
+    wed.setDate(wed.getDate() + 2);
+    return [fmtLocal(now), fmtLocal(wed)];
+  }
+  if (day === 3) return [fmtLocal(now)];
+  return [];
+}
+
 // ── Achievements ──────────────────────────────────────────────────────────
 export const BADGE_META: Record<string, { icon: string; accent: string; bg: string }> = {
   win5:       { icon: "🥉", accent: "text-amber-700",  bg: "bg-amber-50"  },

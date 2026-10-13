@@ -3,102 +3,44 @@ import { doc, onSnapshot, updateDoc, arrayUnion, arrayRemove } from "firebase/fi
 import { onAuthStateChanged, signInAnonymously } from "firebase/auth";
 import { db, auth } from "../firebase";
 import { EMOJIS } from "../constants";
-import { fmtLocal, weekday, uid, getCurrentTrainingDate, getBaseName } from "../utils";
+import { fmtLocal, weekday, uid, getAvailableTrainingDates, getBaseName } from "../utils";
 import type { Player, LeagueDoc, CheckInEvent } from "../types";
 
-type Particle = {
-  id: number; angle: number; distance: number; rotate: number;
-  size: number; duration: number; ox: number; oy: number;
-};
+const KEYFRAMES = `
+  @keyframes sc-float {
+    0%,100% { transform: translateY(0px) rotate(-15deg); }
+    50%      { transform: translateY(-18px) rotate(-10deg); }
+  }
+  @keyframes sc-fall1 { 0%{transform:translateY(-70px) rotate(10deg);opacity:0} 8%{opacity:0.12} 92%{opacity:0.09} 100%{transform:translateY(108vh) rotate(150deg);opacity:0} }
+  @keyframes sc-fall2 { 0%{transform:translateY(-70px) rotate(-20deg);opacity:0} 8%{opacity:0.1} 92%{opacity:0.07} 100%{transform:translateY(108vh) rotate(-110deg);opacity:0} }
+  @keyframes sc-fall3 { 0%{transform:translateY(-70px) rotate(30deg);opacity:0} 8%{opacity:0.11} 92%{opacity:0.08} 100%{transform:translateY(108vh) rotate(200deg);opacity:0} }
+  @keyframes sc-fall4 { 0%{transform:translateY(-70px) rotate(-5deg);opacity:0} 8%{opacity:0.13} 92%{opacity:0.09} 100%{transform:translateY(108vh) rotate(130deg);opacity:0} }
+  @keyframes sc-fall5 { 0%{transform:translateY(-70px) rotate(25deg);opacity:0} 8%{opacity:0.1} 92%{opacity:0.07} 100%{transform:translateY(108vh) rotate(-170deg);opacity:0} }
+  @keyframes sc-fall6 { 0%{transform:translateY(-70px) rotate(-30deg);opacity:0} 8%{opacity:0.11} 92%{opacity:0.08} 100%{transform:translateY(108vh) rotate(90deg);opacity:0} }
+  @keyframes sc-fall7 { 0%{transform:translateY(-70px) rotate(15deg);opacity:0} 8%{opacity:0.1} 92%{opacity:0.07} 100%{transform:translateY(108vh) rotate(-140deg);opacity:0} }
+  @keyframes sc-btn-idle { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+  @keyframes sc-btn-fly  { 0%{transform:rotate(0deg) translateX(0);opacity:1} 100%{transform:rotate(720deg) translateX(600px);opacity:0} }
+  @keyframes sc-done     { 0%{transform:rotate(-20deg) scale(0.6);opacity:0} 60%{transform:rotate(10deg) scale(1.15)} 100%{transform:rotate(0deg) scale(1);opacity:1} }
+`;
 
-export function ShuttlecockSVG({ size }: { size: number }) {
-  return (
-    <svg viewBox="0 0 24 32" width={size} height={Math.round(size * 32 / 24)} xmlns="http://www.w3.org/2000/svg">
-      <path d="M12 27 L2 7 Q12 4.5 22 7 Z" fill="rgba(255,255,255,0.07)" />
-      <ellipse cx="12" cy="7" rx="10" ry="2.8" fill="rgba(255,255,255,0.1)" stroke="white" strokeWidth="1.2" />
-      <path d="M12 27 Q1 17 2 7"     fill="none" stroke="white" strokeWidth="0.9" />
-      <path d="M12 27 Q3 14 5.5 5"   fill="none" stroke="white" strokeWidth="0.9" />
-      <path d="M12 27 Q7 12 9 4.7"   fill="none" stroke="white" strokeWidth="0.9" />
-      <path d="M12 27 Q11 12 12 4.5" fill="none" stroke="white" strokeWidth="0.9" />
-      <path d="M12 27 Q13 12 15 4.7" fill="none" stroke="white" strokeWidth="0.9" />
-      <path d="M12 27 Q17 12 18.5 5" fill="none" stroke="white" strokeWidth="0.9" />
-      <path d="M12 27 Q21 14 22 7"   fill="none" stroke="white" strokeWidth="0.9" />
-      <ellipse cx="12" cy="16" rx="6" ry="1.4" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="0.8" />
-      <ellipse cx="12" cy="26.5" rx="3.5" ry="3.8" fill="#f0cc60" />
-      <ellipse cx="12" cy="24.5" rx="3.5" ry="1.8" fill="#c48a10" opacity="0.4" />
-      <ellipse cx="11" cy="25.5" rx="1.5" ry="1" fill="white" opacity="0.12" />
-    </svg>
-  );
-}
+const Background = () => (
+  <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+    <div className="absolute -top-20 -left-20 w-80 h-80 bg-[#84cc16] rounded-full blur-[120px] opacity-10" />
+    <div className="absolute bottom-0 right-0 w-80 h-80 bg-teal-500 rounded-full blur-[120px] opacity-10" />
+    <div className="absolute top-0 left-[6%]"  style={{ animation: "sc-fall1  9s linear  -4s  infinite" }}><img src="/shuttlecock.svg" width={30} height={40} alt="" /></div>
+    <div className="absolute top-0 left-[20%]" style={{ animation: "sc-fall2 12s linear  -9s  infinite" }}><img src="/shuttlecock.svg" width={22} height={29} alt="" /></div>
+    <div className="absolute top-0 left-[35%]" style={{ animation: "sc-fall3  8s linear  -2s  infinite" }}><img src="/shuttlecock.svg" width={36} height={48} alt="" /></div>
+    <div className="absolute top-0 left-[50%]" style={{ animation: "sc-fall4 11s linear  -7s  infinite" }}><img src="/shuttlecock.svg" width={26} height={35} alt="" /></div>
+    <div className="absolute top-0 left-[63%]" style={{ animation: "sc-fall5 14s linear  -5s  infinite" }}><img src="/shuttlecock.svg" width={20} height={27} alt="" /></div>
+    <div className="absolute top-0 left-[77%]" style={{ animation: "sc-fall6 10s linear  -1s  infinite" }}><img src="/shuttlecock.svg" width={32} height={43} alt="" /></div>
+    <div className="absolute top-0 left-[90%]" style={{ animation: "sc-fall7 13s linear -11s  infinite" }}><img src="/shuttlecock.svg" width={24} height={32} alt="" /></div>
+  </div>
+);
 
 export function CheckInPage() {
-  const trainingDate = getCurrentTrainingDate();
-
-  if (!trainingDate) {
-    return (
-      <div className="min-h-screen w-screen overflow-x-hidden bg-[#1e293b] flex flex-col items-center justify-center p-6 font-sans">
-        <style>{`
-          @keyframes sc-float {
-            0%,100% { transform: translateY(0px) rotate(-15deg); }
-            50%      { transform: translateY(-18px) rotate(-10deg); }
-          }
-          @keyframes sc-fall1 { 0%{transform:translateY(-70px) rotate(10deg);opacity:0} 8%{opacity:0.22} 92%{opacity:0.18} 100%{transform:translateY(108vh) rotate(150deg);opacity:0} }
-          @keyframes sc-fall2 { 0%{transform:translateY(-70px) rotate(-20deg);opacity:0} 8%{opacity:0.16} 92%{opacity:0.12} 100%{transform:translateY(108vh) rotate(-110deg);opacity:0} }
-          @keyframes sc-fall3 { 0%{transform:translateY(-70px) rotate(30deg);opacity:0} 8%{opacity:0.2} 92%{opacity:0.15} 100%{transform:translateY(108vh) rotate(200deg);opacity:0} }
-          @keyframes sc-fall4 { 0%{transform:translateY(-70px) rotate(-5deg);opacity:0} 8%{opacity:0.24} 92%{opacity:0.18} 100%{transform:translateY(108vh) rotate(130deg);opacity:0} }
-          @keyframes sc-fall5 { 0%{transform:translateY(-70px) rotate(25deg);opacity:0} 8%{opacity:0.18} 92%{opacity:0.13} 100%{transform:translateY(108vh) rotate(-170deg);opacity:0} }
-          @keyframes sc-fall6 { 0%{transform:translateY(-70px) rotate(-30deg);opacity:0} 8%{opacity:0.2} 92%{opacity:0.15} 100%{transform:translateY(108vh) rotate(90deg);opacity:0} }
-          @keyframes sc-fall7 { 0%{transform:translateY(-70px) rotate(15deg);opacity:0} 8%{opacity:0.17} 92%{opacity:0.12} 100%{transform:translateY(108vh) rotate(-140deg);opacity:0} }
-        `}</style>
-
-        <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-          <div className="absolute -top-20 -left-20 w-80 h-80 bg-[#84cc16] rounded-full blur-[120px] opacity-10" />
-          <div className="absolute bottom-0 right-0 w-80 h-80 bg-teal-500 rounded-full blur-[120px] opacity-10" />
-          <div className="absolute top-0 left-[6%]"  style={{ animation: "sc-fall1  9s linear  -4s  infinite" }}><img src="/shuttlecock.svg" width={30} height={40} alt="" /></div>
-          <div className="absolute top-0 left-[20%]" style={{ animation: "sc-fall2 12s linear  -9s  infinite" }}><img src="/shuttlecock.svg" width={22} height={29} alt="" /></div>
-          <div className="absolute top-0 left-[35%]" style={{ animation: "sc-fall3  8s linear  -2s  infinite" }}><img src="/shuttlecock.svg" width={36} height={48} alt="" /></div>
-          <div className="absolute top-0 left-[50%]" style={{ animation: "sc-fall4 11s linear  -7s  infinite" }}><img src="/shuttlecock.svg" width={26} height={35} alt="" /></div>
-          <div className="absolute top-0 left-[63%]" style={{ animation: "sc-fall5 14s linear  -5s  infinite" }}><img src="/shuttlecock.svg" width={20} height={27} alt="" /></div>
-          <div className="absolute top-0 left-[77%]" style={{ animation: "sc-fall6 10s linear  -1s  infinite" }}><img src="/shuttlecock.svg" width={32} height={43} alt="" /></div>
-          <div className="absolute top-0 left-[90%]" style={{ animation: "sc-fall7 13s linear -11s  infinite" }}><img src="/shuttlecock.svg" width={24} height={32} alt="" /></div>
-        </div>
-
-        <div className="relative z-10 w-full max-w-sm text-center">
-          <div className="w-20 h-20 rounded-full bg-white/10 border border-white/20 flex items-center justify-center overflow-hidden mx-auto mb-6">
-            <img src="/logo.png" alt="Logo" className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
-          </div>
-          <div className="bg-white/10 backdrop-blur border border-white/10 rounded-2xl p-8">
-            <div className="flex justify-center mb-4" style={{ animation: "sc-float 3s ease-in-out infinite" }}>
-              <img src="/shuttlecock.svg" width={72} height={96} alt="" />
-            </div>
-            <h2 className="text-white text-xl font-black mb-2">Mai nap nincsen edzés</h2>
-            <p className="text-slate-400 text-sm">Az edzések hétfőn és szerdán vannak.<br />Gyere vissza akkor!</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return <CheckInForm trainingDate={trainingDate} />;
-}
-
-function CheckInForm({ trainingDate }: { trainingDate: string }) {
+  const dates = getAvailableTrainingDates();
   const [players, setPlayers] = useState<Player[]>([]);
   const [attendance, setAttendance] = useState<Record<string, string[]>>({});
-  const [selectedId, setSelectedId] = useState<string>(
-    localStorage.getItem("checkin_player_id") ?? ""
-  );
-  const [mode, setMode] = useState<"select" | "new">("select");
-  const [newName, setNewName] = useState("");
-  const [status, setStatus] = useState<"idle" | "loading" | "done">("idle");
-  const [checkingInOther, setCheckingInOther] = useState(false);
-  const [checkedInName, setCheckedInName] = useState("");
-  const [checkedInId, setCheckedInId] = useState("");
-  const [btnFlying, setBtnFlying] = useState(false);
-  const [particles, setParticles] = useState<Particle[]>([]);
-  const [countdown, setCountdown] = useState<string | null>(null);
-
-  const today = trainingDate;
 
   useEffect(() => {
     const ref = doc(db, "leagues", "default");
@@ -118,6 +60,69 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
     });
     return () => unsubAuth();
   }, []);
+
+  return (
+    <div className="min-h-screen w-screen overflow-x-hidden bg-[#1e293b] flex flex-col items-center justify-center p-6 font-sans">
+      <style>{KEYFRAMES}</style>
+      <Background />
+
+      <div className="relative z-10 w-full max-w-sm">
+        {!dates.length ? (
+          <>
+            <div className="w-20 h-20 rounded-full bg-white/10 border border-white/20 flex items-center justify-center overflow-hidden mx-auto mb-6">
+              <img src="/logo.png" alt="Logo" className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+            </div>
+            <div className="bg-white/10 backdrop-blur border border-white/10 rounded-2xl p-8 text-center">
+              <div className="flex justify-center mb-4" style={{ animation: "sc-float 3s ease-in-out infinite" }}>
+                <img src="/shuttlecock.svg" width={72} height={96} alt="" />
+              </div>
+              <h2 className="text-white text-xl font-black mb-2">Mai nap nincsen edzés</h2>
+              <p className="text-slate-400 text-sm">Az edzések hétfőn és szerdán vannak.<br />Gyere vissza akkor!</p>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex flex-col items-center mb-8">
+              <div className="w-20 h-20 rounded-full bg-white/10 border border-white/20 flex items-center justify-center overflow-hidden mb-4">
+                <img src="/logo.png" alt="Logo" className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+              </div>
+              <h1 className="text-white text-2xl font-black tracking-wide">Biatorbágy</h1>
+              <p className="text-[#84cc16] text-xs font-bold uppercase tracking-widest mt-1">Badminton – Becsekkolás</p>
+            </div>
+            <div className="space-y-6">
+              {dates.map((date) => (
+                <CheckInForm key={date} trainingDate={date} players={players} attendance={attendance} />
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CheckInForm({
+  trainingDate,
+  players,
+  attendance,
+}: {
+  trainingDate: string;
+  players: Player[];
+  attendance: Record<string, string[]>;
+}) {
+  const [selectedId, setSelectedId] = useState<string>(
+    localStorage.getItem("checkin_player_id") ?? ""
+  );
+  const [mode, setMode] = useState<"select" | "new">("select");
+  const [newName, setNewName] = useState("");
+  const [status, setStatus] = useState<"idle" | "loading" | "done">("idle");
+  const [checkingInOther, setCheckingInOther] = useState(false);
+  const [checkedInName, setCheckedInName] = useState("");
+  const [checkedInId, setCheckedInId] = useState("");
+  const [btnFlying, setBtnFlying] = useState(false);
+  const [countdown, setCountdown] = useState<string | null>(null);
+
+  const today = trainingDate;
 
   const sortedPlayers = useMemo(
     () => [...players].sort((a, b) => getBaseName(a.name).localeCompare(getBaseName(b.name), "hu")),
@@ -155,22 +160,6 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, [isToday]);
-
-  const triggerBurst = (el?: HTMLElement) => {
-    const ox = el ? el.getBoundingClientRect().left + el.getBoundingClientRect().width / 2 : window.innerWidth / 2;
-    const oy = el ? el.getBoundingClientRect().top + el.getBoundingClientRect().height / 2 : window.innerHeight * 0.35;
-    const count = 14;
-    setParticles(Array.from({ length: count }, (_, i) => ({
-      id: Date.now() + i,
-      ox, oy,
-      angle: (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.4,
-      distance: 90 + Math.random() * 100,
-      rotate: (Math.random() - 0.5) * 720,
-      size: 16 + Math.floor(Math.random() * 10),
-      duration: 1200 + Math.floor(Math.random() * 800),
-    })));
-    setTimeout(() => setParticles([]), 2200);
-  };
 
   const handleButtonClick = () => {
     if (btnFlying || status === "loading") return;
@@ -237,104 +226,62 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
     }
   };
 
-  const resetForOther = () => { setStatus("idle"); setMode("select"); setNewName(""); setCheckedInId(""); setCheckingInOther(true); };
+  const resetForOther = () => {
+    setStatus("idle"); setMode("select"); setNewName("");
+    setCheckedInId(""); setCheckingInOther(true);
+  };
 
-  return (
-    <div className="min-h-screen w-screen overflow-x-hidden bg-[#1e293b] flex flex-col items-center justify-center p-6 font-sans">
-      <style>{`
-        @keyframes sc-fall1 { 0%{transform:translateY(-70px) rotate(10deg);opacity:0} 8%{opacity:0.12} 92%{opacity:0.09} 100%{transform:translateY(108vh) rotate(150deg);opacity:0} }
-        @keyframes sc-fall2 { 0%{transform:translateY(-70px) rotate(-20deg);opacity:0} 8%{opacity:0.1} 92%{opacity:0.07} 100%{transform:translateY(108vh) rotate(-110deg);opacity:0} }
-        @keyframes sc-fall3 { 0%{transform:translateY(-70px) rotate(30deg);opacity:0} 8%{opacity:0.11} 92%{opacity:0.08} 100%{transform:translateY(108vh) rotate(200deg);opacity:0} }
-        @keyframes sc-fall4 { 0%{transform:translateY(-70px) rotate(-5deg);opacity:0} 8%{opacity:0.13} 92%{opacity:0.09} 100%{transform:translateY(108vh) rotate(130deg);opacity:0} }
-        @keyframes sc-fall5 { 0%{transform:translateY(-70px) rotate(25deg);opacity:0} 8%{opacity:0.1} 92%{opacity:0.07} 100%{transform:translateY(108vh) rotate(-170deg);opacity:0} }
-        @keyframes sc-fall6 { 0%{transform:translateY(-70px) rotate(-30deg);opacity:0} 8%{opacity:0.11} 92%{opacity:0.08} 100%{transform:translateY(108vh) rotate(90deg);opacity:0} }
-        @keyframes sc-fall7 { 0%{transform:translateY(-70px) rotate(15deg);opacity:0} 8%{opacity:0.1} 92%{opacity:0.07} 100%{transform:translateY(108vh) rotate(-140deg);opacity:0} }
-        @keyframes sc-btn-idle { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
-        @keyframes sc-btn-fly  { 0%{transform:rotate(0deg) translateX(0);opacity:1} 100%{transform:rotate(720deg) translateX(600px);opacity:0} }
-        @keyframes sc-done     { 0%{transform:rotate(-20deg) scale(0.6);opacity:0} 60%{transform:rotate(10deg) scale(1.15)} 100%{transform:rotate(0deg) scale(1);opacity:1} }
-      `}</style>
-
-      {particles.length > 0 && (
-        <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 100, overflow: "hidden" }}>
-          <style>{particles.map(p => `@keyframes sf${p.id}{0%{transform:translate(-50%,-50%) rotate(0deg);opacity:1}100%{transform:translate(-50%,-50%) translate(${Math.round(Math.cos(p.angle) * p.distance)}px,${Math.round(Math.sin(p.angle) * p.distance)}px) rotate(${Math.round(p.rotate)}deg);opacity:0}}`).join("")}</style>
-          {particles.map(p => (
-            <div key={p.id} style={{ position: "absolute", left: p.ox, top: p.oy, pointerEvents: "none", animation: `sf${p.id} ${p.duration}ms ease-out forwards` } as React.CSSProperties}>
-              <ShuttlecockSVG size={p.size} />
-            </div>
+  const AttendeeList = ({ highlightId }: { highlightId: string }) => {
+    const ids = attendance[today] ?? [];
+    if (!ids.length) return null;
+    const nameOf = (id: string) => players.find((p) => p.id === id)?.name ?? "?";
+    return (
+      <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
+          Ott lesznek · <span className="text-white">{ids.length} fő</span>
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {ids.map((id) => (
+            <span key={id} className={`text-sm rounded-full px-3 py-1 font-medium ${id === highlightId ? "bg-[#84cc16]/30 border border-[#84cc16]/50 text-[#84cc16]" : "bg-white/10 border border-white/10 text-slate-200"}`}>
+              {nameOf(id)}
+            </span>
           ))}
         </div>
-      )}
+      </div>
+    );
+  };
 
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-        <div className="absolute -top-20 -left-20 w-80 h-80 bg-[#84cc16] rounded-full blur-[120px] opacity-10" />
-        <div className="absolute bottom-0 right-0 w-80 h-80 bg-teal-500 rounded-full blur-[120px] opacity-10" />
-        <div className="absolute top-0 left-[6%]"  style={{ animation: "sc-fall1  9s linear  -4s  infinite" }}><img src="/shuttlecock.svg" width={30} height={40} alt="" /></div>
-        <div className="absolute top-0 left-[20%]" style={{ animation: "sc-fall2 12s linear  -9s  infinite" }}><img src="/shuttlecock.svg" width={22} height={29} alt="" /></div>
-        <div className="absolute top-0 left-[35%]" style={{ animation: "sc-fall3  8s linear  -2s  infinite" }}><img src="/shuttlecock.svg" width={36} height={48} alt="" /></div>
-        <div className="absolute top-0 left-[50%]" style={{ animation: "sc-fall4 11s linear  -7s  infinite" }}><img src="/shuttlecock.svg" width={26} height={35} alt="" /></div>
-        <div className="absolute top-0 left-[63%]" style={{ animation: "sc-fall5 14s linear  -5s  infinite" }}><img src="/shuttlecock.svg" width={20} height={27} alt="" /></div>
-        <div className="absolute top-0 left-[77%]" style={{ animation: "sc-fall6 10s linear  -1s  infinite" }}><img src="/shuttlecock.svg" width={32} height={43} alt="" /></div>
-        <div className="absolute top-0 left-[90%]" style={{ animation: "sc-fall7 13s linear -11s  infinite" }}><img src="/shuttlecock.svg" width={24} height={32} alt="" /></div>
+  return (
+    <div className="bg-white/10 backdrop-blur border border-white/10 rounded-2xl overflow-hidden">
+      <div className="px-6 pt-4 pb-3 border-b border-white/10 flex items-center justify-between">
+        <div>
+          <p className="text-white font-black">{weekday(trainingDate)}</p>
+          <p className="text-slate-400 text-sm">{trainingDate}</p>
+        </div>
+        {countdown && (
+          <p className="text-white/60 text-xs font-mono text-right">
+            edzésig<br /><span className="text-white font-bold text-sm">{countdown}</span>
+          </p>
+        )}
       </div>
 
-      <div className="relative z-10 w-full max-w-sm">
-        <div className="flex flex-col items-center mb-8">
-          <div
-            className="w-20 h-20 rounded-full bg-white/10 border border-white/20 flex items-center justify-center overflow-hidden mb-4 cursor-pointer active:scale-95 transition-transform"
-            onClick={(e) => triggerBurst(e.currentTarget)}
-          >
-            <img src="/logo.png" alt="Logo" className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
-          </div>
-          <h1 className="text-white text-2xl font-black tracking-wide">Biatorbágy</h1>
-          <p className="text-[#84cc16] text-xs font-bold uppercase tracking-widest mt-1">Badminton – Becsekkolás</p>
-          <p className="text-slate-400 text-sm mt-2">{today} • {weekday(today)}</p>
-          {countdown && (
-            <p className="text-white/60 text-xs mt-2 font-mono tracking-widest">
-              edzésig <span className="text-white font-bold text-base">{countdown}</span>
-            </p>
-          )}
-        </div>
-
+      <div className="p-6">
         {status === "done" ? (
-          <div className="space-y-3">
-            <div className="bg-white/10 backdrop-blur border border-white/10 rounded-2xl p-8 text-center flex flex-col items-center gap-2">
-              <div className="w-20 h-20 rounded-full bg-[#84cc16]/20 border-2 border-[#84cc16]/50 flex items-center justify-center mb-1">
-                <img src="/shuttlecock.svg" width={44} height={58} alt="" style={{ animation: "sc-done 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards" }} />
+          <div className="space-y-4">
+            <div className="text-center flex flex-col items-center gap-2">
+              <div className="w-16 h-16 rounded-full bg-[#84cc16]/20 border-2 border-[#84cc16]/50 flex items-center justify-center">
+                <img src="/shuttlecock.svg" width={36} height={47} alt="" style={{ animation: "sc-done 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards" }} />
               </div>
-              <p className="text-white text-2xl font-black">Becsekkolva!</p>
-              <p className="text-[#84cc16] text-lg font-bold">{checkedInName}</p>
-              <p className="text-slate-400 text-sm">{today} • {weekday(today)}</p>
+              <p className="text-white text-xl font-black">Becsekkolva!</p>
+              <p className="text-[#84cc16] font-bold">{checkedInName}</p>
             </div>
-
-            {(() => {
-              const ids = attendance[today] ?? [];
-              if (!ids.length) return null;
-              const nameOf = (id: string) => players.find((p) => p.id === id)?.name ?? "?";
-              return (
-                <div className="bg-white/10 backdrop-blur border border-white/10 rounded-2xl p-5">
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">
-                    Ma ott lesznek · <span className="text-white">{ids.length} fő</span>
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {ids.map((id) => (
-                      <span key={id} className={`text-sm rounded-full px-3 py-1 font-medium ${id === checkedInId ? "bg-[#84cc16]/30 border border-[#84cc16]/50 text-[#84cc16]" : "bg-white/10 border border-white/10 text-slate-200"}`}>
-                        {nameOf(id)}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              );
-            })()}
-
-            <button
-              onClick={resetForOther}
-              className="w-full py-4 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-sm transition-colors"
-            >
+            <AttendeeList highlightId={checkedInId} />
+            <button onClick={resetForOther} className="w-full py-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-sm transition-colors">
               + Más játékos becsekkolása
             </button>
           </div>
         ) : (
-          <div className="bg-white/10 backdrop-blur border border-white/10 rounded-2xl p-6 space-y-5">
+          <div className="space-y-5">
             {mode === "select" ? (
               <>
                 <div>
@@ -356,29 +303,8 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
                       <p className="text-[#84cc16] font-bold">Már becsekkoltál ✓</p>
                       <p className="text-slate-300 text-xs mt-1">{players.find((p) => p.id === selectedId)?.name}</p>
                     </div>
-                    {(() => {
-                      const ids = attendance[today] ?? [];
-                      if (!ids.length) return null;
-                      const nameOf = (id: string) => players.find((p) => p.id === id)?.name ?? "?";
-                      return (
-                        <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-                          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
-                            Ma ott lesznek · <span className="text-white">{ids.length} fő</span>
-                          </p>
-                          <div className="flex flex-wrap gap-2">
-                            {ids.map((id) => (
-                              <span key={id} className={`text-sm rounded-full px-3 py-1 font-medium ${id === selectedId ? "bg-[#84cc16]/30 border border-[#84cc16]/50 text-[#84cc16]" : "bg-white/10 border border-white/10 text-slate-200"}`}>
-                                {nameOf(id)}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })()}
-                    <button
-                      onClick={() => setCheckingInOther(true)}
-                      className="w-full py-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-sm transition-colors"
-                    >
+                    <AttendeeList highlightId={selectedId} />
+                    <button onClick={() => setCheckingInOther(true)} className="w-full py-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-sm transition-colors">
                       + Más játékos becsekkolása
                     </button>
                     {canDelete && (
@@ -442,4 +368,3 @@ function CheckInForm({ trainingDate }: { trainingDate: string }) {
     </div>
   );
 }
-
