@@ -120,8 +120,10 @@ function CheckInForm({
     : false;
 
   const canDelete = (() => {
+    if (!isOpen) return false;
     const now = new Date();
-    return trainingDate === fmtLocal(now) && now.getHours() < 19;
+    if (trainingDate === fmtLocal(now)) return now.getHours() < 19;
+    return true; // pre-registration: can cancel any time while open
   })();
 
   const isToday = trainingDate === fmtLocal(new Date());
