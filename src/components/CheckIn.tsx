@@ -359,6 +359,7 @@ function CheckInForm({
                 </button>
               </>
             )}
+            <AttendeeList highlightId="" />
           </div>
         )}
       </div>
