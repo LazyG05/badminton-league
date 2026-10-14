@@ -40,8 +40,10 @@ export const fmtTime = (iso: string) =>
     timeZone: "Europe/Budapest",
   });
 
-export const weekday = (dstr: string) =>
-  new Date(dstr + "T12:00:00").toLocaleDateString("hu-HU", { weekday: "long" });
+export const weekday = (dstr: string) => {
+  const w = new Date(dstr + "T12:00:00").toLocaleDateString("hu-HU", { weekday: "long" });
+  return w.charAt(0).toUpperCase() + w.slice(1);
+};
 
 export const getBaseName = (full: string) => full.replace(/^.+?\s/, "");
 
