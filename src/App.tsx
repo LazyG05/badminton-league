@@ -70,7 +70,7 @@ function MainApp() {
       <div className="flex-1 md:ml-64 p-4 md:p-8 transition-all w-full max-w-[100vw] overflow-x-hidden relative z-10">
         <header className="mb-8">
           <h1 className="text-2xl font-bold text-slate-800 px-3 py-1 rounded-lg">
-            {role === "admin" ? "Admin Dashboard" : "Jelenlét"}
+            {role === "admin" ? "Admin panel" : "Jelenlét"}
           </h1>
           <p className="text-slate-500 text-sm mt-1">Biatorbágy Badminton</p>
         </header>

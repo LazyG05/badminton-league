@@ -59,7 +59,7 @@ export function Sidebar({ role, setRole }: { role: Role; setRole: (r: Role) => v
           }`}
         >
           <Icons.Admin />
-          Admin Panel
+          Admin panel
         </button>
       </nav>
 
@@ -67,8 +67,8 @@ export function Sidebar({ role, setRole }: { role: Role; setRole: (r: Role) => v
         <div className="flex items-center gap-3 px-2">
           <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-xl border border-white/10">👤</div>
           <div>
-            <p className="text-sm font-semibold text-white">Guest User</p>
-            <p className="text-xs text-slate-400">View only mode</p>
+            <p className="text-sm font-semibold text-white">Vendég</p>
+            <p className="text-xs text-slate-400">Csak olvasás</p>
           </div>
         </div>
       </div>
@@ -144,7 +144,7 @@ export function AdminPinModal({
     if (pin === ADMIN_PIN) {
       onSuccess();
     } else {
-      setError("Incorrect PIN code.");
+      setError("Hibás PIN kód.");
     }
   };
 
@@ -152,10 +152,10 @@ export function AdminPinModal({
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-xs p-6 relative">
         <h2 className="text-lg font-bold text-slate-800 mb-1 flex items-center gap-2">
-          Admin Access
+          Admin belépés
           <span className="text-sm bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">PIN</span>
         </h2>
-        <p className="text-xs text-slate-500 mb-4">Please enter the 4-digit admin PIN code.</p>
+        <p className="text-xs text-slate-500 mb-4">Add meg a 4 jegyű admin PIN kódot.</p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="flex justify-center">
@@ -174,10 +174,10 @@ export function AdminPinModal({
           {error && <p className="text-xs text-center text-rose-500 font-medium">{error}</p>}
           <div className="flex gap-2 mt-2">
             <button type="button" onClick={onClose} className="flex-1 inline-flex items-center justify-center rounded-lg px-3 py-2 text-xs font-bold border border-slate-200 bg-white text-slate-600 hover:bg-slate-50">
-              Cancel
+              Mégsem
             </button>
             <button type="submit" className="flex-1 inline-flex items-center justify-center rounded-lg px-3 py-2 text-xs font-bold bg-[#84cc16] text-white hover:bg-[#65a30d] shadow-sm">
-              Enter
+              Belépés
             </button>
           </div>
         </form>

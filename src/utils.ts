@@ -41,7 +41,7 @@ export const fmtTime = (iso: string) =>
   });
 
 export const weekday = (dstr: string) =>
-  new Date(dstr + "T12:00:00").toLocaleDateString(undefined, { weekday: "long" });
+  new Date(dstr + "T12:00:00").toLocaleDateString("hu-HU", { weekday: "long" });
 
 export const getBaseName = (full: string) => full.replace(/^.+?\s/, "");
 
